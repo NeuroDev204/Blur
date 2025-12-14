@@ -56,75 +56,39 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   const [comment, setComment] = useState("");
   const navigate = useNavigate();
 
-  // 🟦 Fetch likes & comments - DEBUG VERSION
+  // Fetch likes & comments on mount
   useEffect(() => {
     if (!post?.id || !user?.id) return;
 
     const fetchData = async () => {
       try {
-        // lấy comment using API function
+        // Fetch comments
         const allComments = await getAllComments(post.id);
         setComments(allComments);
 
-        // lấy like
+        // Fetch likes
         const likeRes = await fetchLikePost(post.id);
         const likesArray = (Array.isArray(likeRes) ? likeRes : []) as unknown as Like[];
         setLikes(likesArray);
 
-
-        // ✅ DEBUG - In ra tất cả thông tin
-        console.log("🔍 DEBUG USER OBJECT:", {
-          fullUser: user,
-          "user.id": user.id,
-          "user.userId": user.userId,
-          "user.username": user.username,
-        });
-
-        console.log("🔍 DEBUG LIKES ARRAY:", {
-          likesArray,
-          firstLike: likesArray[0],
-          allUserIds: likesArray.map((like) => like.userId),
-        });
-
-        // ✅ TRY NHIỀU CÁCH ĐỂ TÌM userId PHÙ HỢP
+        // Check if current user has liked the post (try multiple userId formats)
         const possibleUserIds = [
           user.id,
           user.userId,
           user.username,
-          user.sub, // JWT subject
-        ].filter(Boolean); // Loại bỏ undefined/null
+          user.sub,
+        ].filter(Boolean);
 
-        console.log("🔍 POSSIBLE USER IDs:", possibleUserIds);
-
-        // ✅ CHECK TỪNG userId XEM CÓ MATCH KHÔNG
         let matched = false;
-        let matchedWith = null;
-
         for (const uid of possibleUserIds) {
-          const found = likesArray.some((likeItem) => {
-            const isMatch = likeItem.userId === uid;
-            if (isMatch) {
-              console.log(
-                `✅ MATCHED! likeItem.userId (${likeItem.userId}) === ${uid}`
-              );
-            }
-            return isMatch;
-          });
-
+          const found = likesArray.some((likeItem) => likeItem.userId === uid);
           if (found) {
             matched = true;
-            matchedWith = uid;
             break;
           }
         }
 
         setIsPostLiked(matched);
-
-        console.log("📊 FINAL LIKE STATUS:", {
-          isLiked: matched,
-          matchedWith,
-          likesCount: likesArray.length,
-        });
       } catch (error) {
         console.error("Error fetching data:", error);
         setLikes([]);
@@ -251,22 +215,14 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     });
   };
 
-  // 💬 Create comment
-  // 💬 Create comment or reply - FIXED VERSION
+  // Create comment or reply
   const handleCreateComment = async (content, parentCommentId = null) => {
-    console.log("🔵 FE: handleCreateComment called");
-    console.log("   Content:", content);
-    console.log("   Parent Comment ID:", parentCommentId);
-
     if (!content.trim()) return;
 
     try {
       if (parentCommentId) {
-        // ⭐ REPLY TO COMMENT
-        console.log("🔵 FE: Calling reply API...");
-
+        // Reply to existing comment
         const newReply = await replyToComment(parentCommentId, content);
-        console.log("✅ FE: Reply API response:", newReply);
         setComments((prev) => [...prev, newReply]);
 
         toast({
@@ -276,9 +232,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
           position: "top-right",
         });
       } else {
-        // ⭐ CREATE ROOT COMMENT
-        console.log("🔵 FE: Calling create comment API...");
-
+        // Create root comment
         const createdComment = await createComment(post.id, content);
         setComments((prev) => [...prev, createdComment]);
 
@@ -292,7 +246,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
       setComment("");
     } catch (error) {
-      console.error("❌ FE: Error creating comment/reply:", error);
+      console.error("Error creating comment/reply:", error);
 
       toast({
         title: parentCommentId
@@ -306,27 +260,23 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     }
   };
 
-  // ❤️ TOGGLE LIKE/UNLIKE - FLEXIBLE userId MATCHING
+  // Toggle like/unlike with optimistic update
   const handlePostLike = async () => {
     const previousLiked = isPostLiked;
     const previousLikes = [...likes];
 
-    // ✅ TÌM userId PHÙ HỢP
+    // Get current user ID (try multiple formats for compatibility)
     const currentUserId = user.id || user.userId || user.username || user.sub;
 
-    console.log("🔍 Handle Like - currentUserId:", currentUserId);
-
     try {
-      // ✅ OPTIMISTIC UPDATE
+      // Optimistic update
       setIsPostLiked(!isPostLiked);
 
       if (isPostLiked) {
-        // Unlike
         setLikes((prev) =>
           prev.filter((like) => like.userId !== currentUserId)
         );
       } else {
-        // Like
         setLikes((prev) => [
           ...prev,
           {
@@ -338,15 +288,15 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
         ]);
       }
 
-      // ✅ CHỈ GỌI 1 API - BACKEND TỰ TOGGLE
+      // Call API (backend handles toggle)
       await likePost(post.id);
 
-      // ✅ REFETCH ĐỂ ĐỒNG BỘ VỚI DATABASE
+      // Refetch to sync with database
       const likeRes = await fetchLikePost(post.id);
       const likesArray = (Array.isArray(likeRes) ? likeRes : []) as unknown as Like[];
       setLikes(likesArray);
 
-      // ✅ CHECK LẠI VỚI TẤT CẢ POSSIBLE IDs
+      // Check if user has liked with all possible IDs
       const possibleUserIds = [
         user.id,
         user.userId,
@@ -363,15 +313,10 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       }
 
       setIsPostLiked(matched);
-
-      console.log("✅ Like synced:", {
-        matched,
-        likesCount: likesArray.length,
-      });
     } catch (error) {
-      console.error("❌ Error toggling like:", error);
+      console.error("Error toggling like:", error);
 
-      // Rollback về state cũ
+      // Rollback to previous state
       setIsPostLiked(previousLiked);
       setLikes(previousLikes);
 
@@ -382,7 +327,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
         position: "top-right",
       });
 
-      // Refetch để đảm bảo đúng
+      // Refetch to ensure correct state
       try {
         const likeRes = await fetchLikePost(post.id);
         const likesArray = (Array.isArray(likeRes) ? likeRes : []) as unknown as Like[];

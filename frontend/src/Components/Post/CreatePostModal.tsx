@@ -45,14 +45,6 @@ const CreatePostModal = ({
   const emojiRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
-  // ✅ Debug: Log when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      console.log("🔔 CreatePostModal opened");
-
-    }
-  }, [isOpen, onPostCreate]);
-
   useOutsideClick({
     ref: emojiRef,
     handler: () => setShowEmojiPicker(false),
@@ -98,67 +90,37 @@ const CreatePostModal = ({
     try {
       setIsLoading(true);
 
-      console.log("🚀 [Modal] Starting post creation...");
-      console.log("📝 [Modal] Content:", content);
-      console.log("🖼️ [Modal] Media files count:", mediaFiles.length);
-
-      // 1️⃣ Upload media
+      // Upload media files
       const mediaUrls =
         mediaFiles.length > 0
           ? await Promise.all(mediaFiles.map(uploadToCloudnary))
           : [];
 
-      console.log("✅ [Modal] Uploaded media URLs:", mediaUrls);
-
-      // 2️⃣ Tạo post với TẤT CẢ ảnh
+      // Create post with all media
       const postData = {
         content: content.trim(),
-        mediaUrls: mediaUrls, // Array chứa tất cả URLs
+        mediaUrls: mediaUrls,
       };
 
-      console.log("📤 [Modal] Sending post data to API:", postData);
-
-      // 3️⃣ Gọi API qua postApi.js
+      // Call API
       const createdPost = await createPost(postData);
 
-      console.log("📝 [Modal] Created post from API:", createdPost);
-      console.log("📝 [Modal] Post ID:", createdPost.id || createdPost._id);
-
-      // 4️⃣ Callback với post đã được normalize
+      // Normalize post data for callback
       const normalizedPost = {
         ...createdPost,
         id: createdPost.id || createdPost._id,
         mediaUrls: createdPost.mediaUrls || mediaUrls,
         createdAt: createdPost.createdAt || new Date().toISOString(),
-        // ✅ fallback dữ liệu người dùng từ HomePage
         userName:
           createdPost.userName ||
           `${user?.firstName || ""} ${user?.lastName || ""}`.trim(),
         userImageUrl: createdPost.userImageUrl || user?.imageUrl || null,
       };
 
-      console.log("✅ [Modal] Normalized post:", normalizedPost);
-      console.log("🎯 [Modal] Calling onPostCreate with:", normalizedPost);
-      console.log(
-        "🎯 [Modal] onPostCreate function exists?",
-        typeof onPostCreate === "function"
-      );
-      console.log(
-        "🎯 [Modal] About to call onPostCreate. Is onPostCreate defined?",
-        typeof onPostCreate
-      );
-      console.log("🎯 [Modal] normalizedPost:", normalizedPost);
-
+      // Call parent callback
       if (onPostCreate) {
         onPostCreate(normalizedPost);
-        console.log("✅ [Modal] onPostCreate called successfully");
-      } else {
-        console.error("❌ [Modal] onPostCreate is not defined or falsy!");
       }
-      // 5️⃣ Call parent callback
-      //onPostCreate(normalizedPost);
-
-      console.log("✅ [Modal] onPostCreate called successfully");
 
       // Show success toast
       toast({
@@ -169,15 +131,12 @@ const CreatePostModal = ({
         isClosable: true,
       });
 
-      // 6️⃣ Wait a bit for state update, then close modal
+      // Wait a bit for state update, then close modal
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       resetAndClose();
-
-      console.log("✅ [Modal] Modal closed");
     } catch (error) {
-      console.error("❌ [Modal] Error creating post:", error);
-      console.error("❌ [Modal] Error details:", (error as any)?.response?.data);
+      console.error("Error creating post:", error);
       toast({
         title: "Failed to create post.",
         description: (error as any)?.response?.data?.message || (error as Error).message,
