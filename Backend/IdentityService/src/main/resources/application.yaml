@@ -1,17 +1,20 @@
+
 server:
-  port: 8080
+  port: ${SERVER_PORT}
   address: 0.0.0.0
   servlet:
     context-path: /identity
 
 spring:
+
+
   application:
-    name: identity-service
+    name: ${SPRING_APPLICATION_NAME}
 
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/${MYSQL_DATABASE:Identity_service}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: ${MYSQL_USER:root}
-    password: ${MYSQL_PASSWORD:root}
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -24,29 +27,29 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
   cache:
     type: redis
 
 outbound:
   identity:
-    client-id: ${GOOGLE_CLIENT_ID:604644834253-dkbj134u6b13cmh6lhkr1nl069mp72mi.apps.googleusercontent.com}
-    client-secret: ${GOOGLE_CLIENT_SECRET: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}
-    redirect-url: http://localhost:3000/authenticate
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+    redirect-url: ${REDIRECT_URL}
     grant-type: authorization_code
-    authUri: https://accounts.google.com/o/oauth2/auth
+    authUri: ${AUTH_URI}
 
 jwt:
-  signerKey: 15dbefda1f522778324fdbb8810d843bc5716214e793da2040db05b9fefc5e85
-  valid-duration: 3600
-  refreshable-duration: 360000
+  signerKey: ${SIGNER_KEY}
+  valid-duration: ${VALID_DURATION}
+  refreshable-duration: ${REFRESHABLE_DURATION}
 
 app:
   services:
-    profile: ${PROFILE_SERVICE_URL:http://localhost:8081/profile}
-    notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8082/notification}
+    profile: ${PROFILE_SERVICE_URL}
+    notification: ${NOTIFICATION_SERVICE_URL}
 
 management:
   endpoints:

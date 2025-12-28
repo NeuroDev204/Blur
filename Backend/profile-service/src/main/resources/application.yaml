@@ -1,38 +1,38 @@
 server:
-  port: 8081
+  port: ${SERVER_PORT}
   address: 0.0.0.0
   servlet:
     context-path: /profile
 
 spring:
   application:
-    name: profile-service
+    name: ${SPRING_APPLICATION_NAME}
 
   neo4j:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
+    uri: ${NEO4J_URI}
     authentication:
       username: neo4j
-      password: ${NEO4J_PASSWORD:12345678}
+      password: ${NEO4J_PASSWORD}
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
       database: 2
-      timeout: 2000ms
+      timeout: ${REDIS_TIME_OUT}
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 2
+          max-active: ${MAX_ACTIVE}
+          max-idle: ${MAX_IDLE}
+          min-idle: ${MIN_IDLE}
 
   cache:
     type: redis
 
 app:
   services:
-    identity: ${IDENTITY_SERVICE_URL:http://localhost:8080/identity}
-    notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8082/notification}
+    identity: ${IDENTITY_SERVICE_URL}
+    notification: ${NOTIFICATION_SERVICE_URL}
 
 management:
   endpoints:

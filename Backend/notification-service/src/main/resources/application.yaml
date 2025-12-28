@@ -1,25 +1,24 @@
 server:
-  port: 8082
+  port: ${SERVER_PORT}
   address: 0.0.0.0
   servlet:
     context-path: /notification
 
 spring:
   application:
-    name: notification-service
+    name: ${SPRING_APPLICATION_NAME}
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://root:root@localhost:27017/notification-service?authSource=admin}
-
+      uri: ${MONGODB_URI}
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
-      group-id: notification-service
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -28,10 +27,10 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: blur.socialnetwork@gmail.com
-    password: andb wbaq ndls fadn
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -48,12 +47,7 @@ spring:
 app:
   service:
     profile:
-      url: ${PROFILE_SERVICE_URL:http://localhost:8081/profile}
-
-logging:
-  level:
-    com.blur.notificationservice: DEBUG
-
+      url: ${PROFILE_SERVICE_URL}
 management:
   endpoints:
     web:

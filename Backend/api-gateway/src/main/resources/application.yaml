@@ -5,12 +5,12 @@ server:
 app:
   api-prefix: /api
   services:
-    identity: "${IDENTITY_SERVICE_URL:http://localhost:8080}/identity"
-    profile: "${PROFILE_SERVICE_URL:http://localhost:8081}/profile"
-    notification: "${NOTIFICATION_SERVICE_URL:http://localhost:8082}/notification"
-    post: "${POST_SERVICE_URL:http://localhost:8084}/post"
-    story: "${STORY_SERVICE_URL:http://localhost:8086}/story"
-    chat: "${CHAT_SERVICE_URL:http://localhost:8083}/chat"
+    identity: ${IDENTITY_SERVICE_URL}
+    profile: ${PROFILE_SERVICE_URL}
+    notification: ${NOTIFICATION_SERVICE_URL}
+    post: ${POST_SERVICE_URL}
+    story: ${STORY_SERVICE_URL}
+    chat: ${CHAT_SERVICE_URL}
 
 spring:
   application:
@@ -45,42 +45,42 @@ spring:
         wiretap: false
       routes:
         - id: identity_service
-          uri: ${IDENTITY_SERVICE_URL:http://localhost:8080}
+          uri: ${IDENTITY_SERVICE_URL}
           predicates:
             - Path=${app.api-prefix}/identity/**
           filters:
             - StripPrefix=1
 
         - id: profile_service
-          uri: ${PROFILE_SERVICE_URL:http://localhost:8081}
+          uri: ${PROFILE_SERVICE_URL}
           predicates:
             - Path=${app.api-prefix}/profile/**
           filters:
             - StripPrefix=1
 
         - id: notification_service
-          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
+          uri: ${NOTIFICATION_SERVICE_URL}
           predicates:
             - Path=${app.api-prefix}/notification/**
           filters:
             - StripPrefix=1
 
         - id: chat_service
-          uri: ${CHAT_SERVICE_URL:http://localhost:8083}
+          uri: ${CHAT_SERVICE_URL}
           predicates:
             - Path=${app.api-prefix}/chat/**
           filters:
             - StripPrefix=1
 
         - id: post_service
-          uri: ${POST_SERVICE_URL:http://localhost:8084}
+          uri: ${POST_SERVICE_URL}
           predicates:
             - Path=${app.api-prefix}/post/**
           filters:
             - StripPrefix=1
 
         - id: story_service
-          uri: ${STORY_SERVICE_URL:http://localhost:8086}
+          uri: ${STORY_SERVICE_URL}
           predicates:
             - Path=${app.api-prefix}/stories/**
           filters:
@@ -94,12 +94,3 @@ management:
   endpoint:
     health:
       show-details: always
-
-logging:
-  level:
-    root: INFO
-    com.blur.apigateway: DEBUG
-    org.springframework.cloud.gateway: DEBUG
-    org.springframework.web.reactive: DEBUG
-    com.blur.apigateway.configuration: DEBUG
-    reactor.netty: INFO

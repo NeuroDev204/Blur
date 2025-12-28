@@ -1,29 +1,29 @@
 server:
-  port: 8086
+  port: ${SERVER_PORT}
   address: 0.0.0.0
   servlet:
     context-path: /stories
 
 spring:
   application:
-    name: story-service
+    name: ${SPRING_APPLICATION_NAME}
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://root:root@localhost:27017/story-service?authSource=admin}
+      uri: ${MONGODB_URI}
 
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 app:
   service:
     identity:
-      url: ${IDENTITY_SERVICE_URL:http://localhost:8080/identity}
+      url: ${IDENTITY_SERVICE_URL}
     profile:
-      url: ${PROFILE_SERVICE_URL:http://localhost:8081/profile}
+      url: ${PROFILE_SERVICE_URL}
     notification:
-      url: ${NOTIFICATION_SERVICE_URL:http://localhost:8082/notification}
+      url: ${NOTIFICATION_SERVICE_URL}
 
 management:
   endpoints:
