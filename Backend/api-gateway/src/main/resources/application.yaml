@@ -65,6 +65,7 @@ spring:
           filters:
             - StripPrefix=1
 
+
         - id: chat_service
           uri: ${CHAT_SERVICE_URL}
           predicates:
