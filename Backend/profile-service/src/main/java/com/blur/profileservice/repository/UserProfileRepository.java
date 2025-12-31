@@ -1,9 +1,7 @@
 package com.blur.profileservice.repository;
 
-import com.blur.profileservice.dto.response.UserProfileResponse;
 import com.blur.profileservice.entity.UserProfile;
 import feign.Param;
-import org.apache.catalina.User;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.stereotype.Repository;

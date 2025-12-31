@@ -2,11 +2,12 @@ package org.identityservice.controller;
 
 import java.util.List;
 
-import org.identityservice.dto.request.ApiResponse;
 import org.identityservice.dto.request.PermissionRequest;
 import org.identityservice.dto.response.PermissionResponse;
 import org.identityservice.service.PermissionService;
 import org.springframework.web.bind.annotation.*;
+
+import com.blur.common.dto.response.ApiResponse;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

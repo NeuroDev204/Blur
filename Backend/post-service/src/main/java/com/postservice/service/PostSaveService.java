@@ -1,10 +1,10 @@
 package com.postservice.service;
 
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.postservice.dto.response.PostResponse;
 import com.postservice.entity.Post;
 import com.postservice.entity.PostSave;
-import com.postservice.exception.AppException;
-import com.postservice.exception.ErrorCode;
 import com.postservice.mapper.PostMapper;
 import com.postservice.repository.PostRepository;
 import com.postservice.repository.PostSaveRepository;
@@ -40,9 +40,9 @@ public class PostSaveService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
         if(userId.equals(post.getUserId())) {
-            throw new AppException(ErrorCode.CANNOT_SAVE_YOUR_POST);
+            throw new BlurException(ErrorCode.CANNOT_SAVE_YOUR_POST);
         }
         PostSave postSave = PostSave.builder()
                 .postId(postId)

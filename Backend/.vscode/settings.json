@@ -1,3 +1,20 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.maven.enabled": true,
+    "java.debug.settings.stepping.filterTypes": [
+        "java.*",
+        "sun.*",
+        "com.sun.*",
+        "jdk.*"
+    ],
+    "java.import.generatesMetadataFilesAtProjectRoot": false,
+    "java.project.importOnFirstTimeStartup": "automatic",
+    "files.exclude": {
+        "**/target": true,
+        "**/.mvn": true,
+        "**/mvnw": true,
+        "**/mvnw.cmd": true
+    },
+    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m"
 }

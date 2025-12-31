@@ -4,15 +4,12 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-
 import org.identityservice.dto.request.*;
 import org.identityservice.dto.response.AuthResponse;
 import org.identityservice.dto.response.IntrospecResponse;
 import org.identityservice.entity.InvalidatedToken;
 import org.identityservice.entity.Role;
 import org.identityservice.entity.User;
-import org.identityservice.exception.AppException;
-import org.identityservice.exception.ErrorCode;
 import org.identityservice.repository.InvalidatedTokenRepository;
 import org.identityservice.repository.UserRepository;
 import org.identityservice.repository.httpclient.OutboundIdentityClient;
@@ -22,13 +19,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
+import com.blur.common.dto.request.IntrospectRequest;
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -63,10 +61,10 @@ public class AuthenticationService {
     public AuthResponse authenticate(AuthRequest authRequest) {
         var user = userRepository
                 .findByUsername(authRequest.getUsername())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_NOT_EXISTED));
         boolean authenticated = passwordEncoder.matches(authRequest.getPassword(), user.getPassword());
         if (!authenticated) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            throw new BlurException(ErrorCode.INVALID_USERNAME_OR_PASSSWORD);
         }
         var token = generateToken(user);
         redisService.setOnline(user.getId());
@@ -77,7 +75,7 @@ public class AuthenticationService {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .subject(user.getId())
-                .issuer("Blur.vn")
+                .issuer("Blur.io.vn")
                 .issueTime(new Date())
                 .expirationTime(new Date(
                         Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()))
@@ -100,7 +98,7 @@ public class AuthenticationService {
         SignedJWT signedJWT = null;
         try {
             signedJWT = verifyToken(token, false);
-        } catch (AppException e) {
+        } catch (BlurException e) {
             isValid = false;
         }
         return IntrospecResponse.builder()
@@ -114,11 +112,10 @@ public class AuthenticationService {
             var signToken = verifyToken(request.getToken(), true);
             String jit = signToken.getJWTClaimsSet().getJWTID();
             Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
-            InvalidatedToken invalidatedToken =
-                    InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
+            InvalidatedToken invalidatedToken = InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
             tokenRepository.save(invalidatedToken);
             redisService.setOffline(signToken.getJWTClaimsSet().getSubject());
-        } catch (AppException e) {
+        } catch (BlurException e) {
             log.error("Token already expired");
         }
     }
@@ -128,14 +125,13 @@ public class AuthenticationService {
         var jit = signJWT.getJWTClaimsSet().getJWTID();
         var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
 
-        InvalidatedToken invalidatedToken =
-                InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
+        InvalidatedToken invalidatedToken = InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
         tokenRepository.save(invalidatedToken);
 
         // subject hiện tại là userId (do generateToken dùng user.getId())
         String userId = signJWT.getJWTClaimsSet().getSubject();
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BlurException(ErrorCode.USER_NOT_EXISTED));
 
         String token = generateToken(user);
 
@@ -156,10 +152,10 @@ public class AuthenticationService {
                 : signedJWT.getJWTClaimsSet().getExpirationTime();
         var verified = signedJWT.verify(verifier);
         if (!verified && expirationDate.after(new Date())) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            throw new BlurException(ErrorCode.UNAUTHENTICATED);
         }
         if (tokenRepository.existsById((signedJWT.getJWTClaimsSet().getJWTID()))) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            throw new BlurException(ErrorCode.UNAUTHENTICATED);
         }
         return signedJWT;
     }

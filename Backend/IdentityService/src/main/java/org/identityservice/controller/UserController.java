@@ -5,14 +5,10 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 
-import org.identityservice.dto.request.ApiResponse;
 import org.identityservice.dto.request.UserCreationPasswordRequest;
 import org.identityservice.dto.request.UserCreationRequest;
 import org.identityservice.dto.request.UserUpdateRequest;
-import org.identityservice.dto.response.UserResponse;
 import org.identityservice.entity.User;
-import org.identityservice.exception.AppException;
-import org.identityservice.exception.ErrorCode;
 import org.identityservice.mapper.UserMapper;
 import org.identityservice.repository.RoleRepository;
 import org.identityservice.repository.UserRepository;
@@ -20,6 +16,11 @@ import org.identityservice.service.UserService;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+
+import com.blur.common.dto.response.ApiResponse;
+import com.blur.common.dto.response.UserResponse;
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -90,7 +91,7 @@ public class UserController {
 
     @PutMapping("/{userId}")
     public ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody UserUpdateRequest request) {
-        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BlurException(ErrorCode.USER_NOT_EXISTED));
         userMapper.updateUser(user, request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         var roles = roleRepository.findAllById(request.getRoles());

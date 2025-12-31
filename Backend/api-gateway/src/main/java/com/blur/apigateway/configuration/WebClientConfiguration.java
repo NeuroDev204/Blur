@@ -15,7 +15,6 @@ import org.springframework.web.reactive.function.client.support.WebClientAdapter
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 public class WebClientConfiguration {

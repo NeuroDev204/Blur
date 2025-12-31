@@ -560,7 +560,7 @@ Backend/
   // blur-common-lib/src/main/java/com/blur/common/exception/GlobalExceptionHandler.java
   package com.blur.common.exception;
   
-  import com.blur.common.dto.ApiResponse;
+  import com.blur.common.dto.response.ApiResponse;
   import org.springframework.http.ResponseEntity;
   import org.springframework.web.bind.annotation.*;
   
@@ -623,7 +623,7 @@ Backend/
   }
   
   // Sau (dùng common-lib)
-  import com.blur.common.dto.ApiResponse;
+  import com.blur.common.dto.response.ApiResponse;
   import com.blur.common.exception.ResourceNotFoundException;
   
   @GetMapping("/posts/{id}")
@@ -2285,7 +2285,7 @@ public class ResourceNotFoundException extends BlurException {
 
 package com.blur.common.exception;
 
-import com.blur.common.dto.ApiResponse;
+import com.blur.common.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -2367,7 +2367,7 @@ public abstract class BaseEvent {
 
 ```java
 // Sử dụng trong code
-import com.blur.common.dto.ApiResponse;
+import com.blur.common.dto.response.ApiResponse;
 import com.blur.common.exception.ResourceNotFoundException;
 
 @RestController

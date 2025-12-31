@@ -1,7 +1,7 @@
 package com.postservice.controller;
 
+import com.blur.common.dto.response.ApiResponse;
 import com.postservice.dto.request.PostRequest;
-import com.postservice.dto.response.ApiResponse;
 import com.postservice.dto.response.PostResponse;
 import com.postservice.entity.PostLike;
 import com.postservice.service.PostSaveService;

@@ -8,8 +8,9 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="IdentityService" />
-        <module name="api-gateway" />
+        <module name="blur-common-lib" />
         <module name="post-service" />
+        <module name="api-gateway" />
         <module name="profile-service" />
         <module name="ai-service" />
         <module name="notification-service" />
@@ -23,8 +24,8 @@
           <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok-mapstruct-binding/0.2.0/lombok-mapstruct-binding-0.2.0.jar" />
         </processorPath>
-        <module name="chat-service" />
         <module name="file-service" />
+        <module name="chat-service" />
       </profile>
       <profile name="Annotation profile for story-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -46,6 +47,7 @@
       <module name="IdentityService" options="-parameters" />
       <module name="ai-service" options="-parameters" />
       <module name="api-gateway" options="-parameters" />
+      <module name="blur-common-lib" options="-parameters" />
       <module name="chat-service" options="-parameters" />
       <module name="file-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />

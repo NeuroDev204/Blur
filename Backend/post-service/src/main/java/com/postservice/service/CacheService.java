@@ -118,6 +118,7 @@ public class CacheService {
 
         }
     }
+
     private void deleteByPattern(String pattern) {
         Set<String> keys = redisTemplate.keys(pattern);
         if (keys != null && !keys.isEmpty()) {

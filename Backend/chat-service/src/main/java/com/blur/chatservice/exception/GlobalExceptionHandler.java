@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 @SuppressWarnings("rawtypes")
 public class GlobalExceptionHandler {
-    private static final String MIN_ATTRIBUTE = "min";
 
     @ExceptionHandler(value = RuntimeException.class)
     ResponseEntity<ApiResponse> handleRuntimeException(final Exception e) {

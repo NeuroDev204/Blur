@@ -1,11 +1,11 @@
 package com.postservice.service;
 
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.postservice.dto.event.Event;
 import com.postservice.dto.request.CreateCommentRequest;
 import com.postservice.dto.response.CommentResponse;
 import com.postservice.entity.Comment;
-import com.postservice.exception.AppException;
-import com.postservice.exception.ErrorCode;
 import com.postservice.mapper.CommentMapper;
 import com.postservice.repository.CommentRepository;
 import com.postservice.repository.PostRepository;
@@ -21,7 +21,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -48,7 +47,7 @@ public class CommentService {
 
         // Lấy post để dùng cả cho check self-comment + thông tin receiver
         var post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
 
         // Lấy profile của người comment (dùng cho comment + senderName)
         var profileRes = profileClient.getProfile(userId);
@@ -106,19 +105,19 @@ public class CommentService {
 
     public CommentResponse getCommentById(String commentId) {
         return commentMapper.toCommentResponse(commentRepository.findById(commentId)
-                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND)));
+                .orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND)));
     }
 
     @CacheEvict(value = "comments", key = "#root.target.getPostIdByCommentId(#commentId)")
     public CommentResponse updateComment(String commentId, CreateCommentRequest request) {
 
         var comment = commentRepository.findById(commentId).
-                orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
+                orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND));
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
         if (!comment.getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+            throw new BlurException(ErrorCode.UNAUTHORIZED);
         }
 
         comment.setContent(request.getContent());
@@ -130,12 +129,12 @@ public class CommentService {
     @CacheEvict(value = "comments", key = "#root.target.getPostIdByCommentId(#commentId)")
     public String deleteComment(String commentId) {
         var comment = commentRepository.findById(commentId).
-                orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
+                orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND));
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
         if (!comment.getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+            throw new BlurException(ErrorCode.UNAUTHORIZED);
         }
 
         commentRepository.deleteById(comment.getId());

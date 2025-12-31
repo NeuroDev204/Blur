@@ -1,8 +1,8 @@
 package com.blur.profileservice.repository.httpclient;
 
+import com.blur.common.dto.response.ApiResponse;
 import com.blur.profileservice.configuration.AuthenticationRequestInterceptor;
 import com.blur.profileservice.dto.event.Event;
-import com.blur.profileservice.dto.response.ApiResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;

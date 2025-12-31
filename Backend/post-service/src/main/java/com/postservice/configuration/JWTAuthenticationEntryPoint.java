@@ -1,8 +1,8 @@
 package com.postservice.configuration;
 
+import com.blur.common.dto.response.ApiResponse;
+import com.blur.common.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.postservice.dto.response.ApiResponse;
-import com.postservice.exception.ErrorCode;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

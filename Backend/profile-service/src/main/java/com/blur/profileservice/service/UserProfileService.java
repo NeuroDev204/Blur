@@ -1,14 +1,12 @@
 package com.blur.profileservice.service;
 
+import com.blur.common.dto.response.UserProfileResponse;
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.blur.profileservice.dto.event.Event;
 import com.blur.profileservice.dto.request.ProfileCreationRequest;
-import com.blur.profileservice.dto.request.SearchUserRequest;
 import com.blur.profileservice.dto.request.UserProfileUpdateRequest;
-import com.blur.profileservice.dto.response.UserProfileResponse;
 import com.blur.profileservice.entity.UserProfile;
-import com.blur.profileservice.exception.AppException;
-import com.blur.profileservice.exception.ErrorCode;
-import com.blur.profileservice.mapper.UserProfileMapper;
 import com.blur.profileservice.repository.UserProfileRepository;
 import com.blur.profileservice.repository.httpclient.NotificationClient;
 import lombok.AccessLevel;
@@ -36,7 +34,7 @@ import java.util.List;
 @Slf4j
 public class UserProfileService {
     UserProfileRepository userProfileRepository;
-    UserProfileMapper userProfileMapper;
+    com.blur.profileservice.mapper.userProfileMapper userProfileMapper;
     NotificationClient notificationClient;
 
 
@@ -54,7 +52,7 @@ public class UserProfileService {
         try {
             userProfile = userProfileRepository.save(userProfile);
         } catch (DataIntegrityViolationException ex) {
-            throw new AppException(ErrorCode.USER_PROFILE_NOT_FOUND);
+            throw new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND);
         }
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
@@ -62,7 +60,7 @@ public class UserProfileService {
     @Cacheable(value = "profiles", key = "#id", unless = "#result == null ")
     public UserProfile getUserProfile(String id) {
         return userProfileRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND));
     }
 
     @Cacheable(
@@ -93,7 +91,7 @@ public class UserProfileService {
     @Cacheable(value = "profileByUserId", key = "#userId", unless = "#result == null")
     public UserProfileResponse getByUserId(String userId) {
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_NOT_EXIST));
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
 
@@ -107,7 +105,7 @@ public class UserProfileService {
         String userId = authentication.getName();
 
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
@@ -147,15 +145,15 @@ public class UserProfileService {
         String reqUserId = authentication.getName();
 
         if (reqUserId.equals(followerId)) {
-            throw new AppException(ErrorCode.CANNOT_FOLLOW_YOURSELF);
+            throw new BlurException(ErrorCode.CANNOT_FOLLOW_YOURSELF);
         }
 
         // Lấy Neo4j UUID từ userId
         var requester = userProfileRepository.findUserProfileByUserId(reqUserId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
         var followingUser = userProfileRepository.findUserProfileById(followerId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND));
         userProfileRepository.follow(requester.getId(), followerId);
         log.info("following: {}" , followingUser);
 
@@ -184,10 +182,10 @@ public class UserProfileService {
         String reqUserId = authentication.getName();
 
         var requester = userProfileRepository.findUserProfileByUserId(reqUserId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND));
 
         var followingUser = userProfileRepository.findUserProfileById(followerId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_PROFILE_NOT_FOUND));
         requester.getFollowers().remove(followingUser);
         userProfileRepository.unfollow(requester.getId(), followerId);
 

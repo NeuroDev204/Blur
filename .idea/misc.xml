@@ -13,6 +13,7 @@
         <option value="$PROJECT_DIR$/Backend/story-service/pom.xml" />
         <option value="$PROJECT_DIR$/Backend/chat-service/pom.xml" />
         <option value="$PROJECT_DIR$/Backend/ai-service/pom.xml" />
+        <option value="$PROJECT_DIR$/Backend/blur-common-lib/pom.xml" />
       </list>
     </option>
   </component>
