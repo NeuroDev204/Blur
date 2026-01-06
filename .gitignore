@@ -1,11 +1,2 @@
-/Backend/.env.shared
-/Backend/ai-service/.env
-/Backend/api-gateway/.env
-/Backend/IdentityService/.env
-/Backend/notification-service/.env
-/Backend/post-service/.env
-/Backend/profile-service/.env
-/Backend/story-service/.env
-
 
 
