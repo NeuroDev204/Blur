@@ -1,0 +1,15 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/account/edit/page": "/account/edit",
+  "/authenticate/page": "/authenticate",
+  "/favicon.ico/route": "/favicon.ico",
+  "/login/page": "/login",
+  "/message/page": "/message",
+  "/notification/page": "/notification",
+  "/page": "/",
+  "/profile/page": "/profile",
+  "/register/page": "/register",
+  "/search/page": "/search",
+  "/user/[id]/page": "/user/[id]"
+}
