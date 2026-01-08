@@ -61,12 +61,26 @@ public class StoryController {
                 .result(storyService.updateStory(id, createStoryRequest))
                 .build();
     }
+    /*
     @PutMapping("/like/{storyId}")
     public ApiResponse<String> likeStory(@PathVariable String storyId) {
         return ApiResponse.<String>builder()
                 .result(storyLikeService.likeStory(storyId))
                 .build();
     }
+
+     */
+    @PutMapping("/like/{storyId}")
+    public ApiResponse<String> likeStory(
+            @PathVariable String storyId,
+            @RequestParam(defaultValue = "LIKE") String reactionType
+    ) {
+        return ApiResponse.<String>builder()
+                .result(storyLikeService.likeStory(storyId, reactionType))
+                .build();
+    }
+
+
     @PutMapping("/unlike/{storyId}")
     public ApiResponse<String> unlikeStory(@PathVariable String storyId) {
         return ApiResponse.<String>builder()

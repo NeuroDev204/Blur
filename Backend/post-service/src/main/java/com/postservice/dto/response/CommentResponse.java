@@ -20,4 +20,7 @@ public class CommentResponse {
     String postId;
     Instant createdAt;
     Instant updatedAt;
+
+    String commentId;
+    String parentReplyId;
 }

@@ -11,7 +11,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -22,23 +22,22 @@ import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 @Configuration
 @EnableCaching
 @ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = false)
 public class RedisConfig {
 
+    // ObjectMapper RIÊNG cho Redis - KHÔNG dùng @Bean để tránh override ObjectMapper mặc định
     private ObjectMapper createRedisObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        // CRITICAL FIX: Enable polymorphic type handling
         mapper.activateDefaultTyping(
                 LaissezFaireSubTypeValidator.instance,
                 ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
+                JsonTypeInfo.As.WRAPPER_ARRAY
         );
 
         return mapper;
@@ -49,34 +48,29 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        StringRedisSerializer keySerializer = new StringRedisSerializer();
+        // Tạo ObjectMapper riêng, KHÔNG phải bean
+        GenericJackson2JsonRedisSerializer serializer =
+                new GenericJackson2JsonRedisSerializer(createRedisObjectMapper());
 
-        // Use Jackson2JsonRedisSerializer with configured ObjectMapper
-        Jackson2JsonRedisSerializer<Object> serializer =
-                new Jackson2JsonRedisSerializer<>(createRedisObjectMapper(), Object.class);
-
-        template.setKeySerializer(keySerializer);
-        template.setHashKeySerializer(keySerializer);
+        template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(serializer);
 
         template.afterPropertiesSet();
-
-        log.info("✅ RedisTemplate configured with Jackson2JsonRedisSerializer + Type Info");
         return template;
     }
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        Jackson2JsonRedisSerializer<Object> serializer =
-                new Jackson2JsonRedisSerializer<>(createRedisObjectMapper(), Object.class);
+        // Tạo ObjectMapper riêng, KHÔNG phải bean
+        GenericJackson2JsonRedisSerializer serializer =
+                new GenericJackson2JsonRedisSerializer(createRedisObjectMapper());
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .serializeKeysWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(
-                                new StringRedisSerializer()
-                        )
+                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())
                 )
                 .serializeValuesWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(serializer)
@@ -85,18 +79,12 @@ public class RedisConfig {
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
-                .withCacheConfiguration("profiles",
-                        defaultConfig.entryTtl(Duration.ofMinutes(20)))
-                .withCacheConfiguration("profileByUserId",
-                        defaultConfig.entryTtl(Duration.ofMinutes(15)))
-                .withCacheConfiguration("myProfile",
-                        defaultConfig.entryTtl(Duration.ofMinutes(10)))
-                .withCacheConfiguration("followers",
-                        defaultConfig.entryTtl(Duration.ofMinutes(5)))
-                .withCacheConfiguration("following",
-                        defaultConfig.entryTtl(Duration.ofMinutes(5)))
-                .withCacheConfiguration("searchResults",
-                        defaultConfig.entryTtl(Duration.ofMinutes(3)))
+                .withCacheConfiguration("profiles", defaultConfig.entryTtl(Duration.ofMinutes(20)))
+                .withCacheConfiguration("profileByUserId", defaultConfig.entryTtl(Duration.ofMinutes(15)))
+                .withCacheConfiguration("myProfile", defaultConfig.entryTtl(Duration.ofMinutes(10)))
+                .withCacheConfiguration("followers", defaultConfig.entryTtl(Duration.ofMinutes(5)))
+                .withCacheConfiguration("following", defaultConfig.entryTtl(Duration.ofMinutes(5)))
+                .withCacheConfiguration("searchResults", defaultConfig.entryTtl(Duration.ofMinutes(3)))
                 .transactionAware()
                 .build();
     }

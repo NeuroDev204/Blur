@@ -18,4 +18,5 @@ public class ProfileCreationRequest {
     String email;
     LocalDate dob;
     LocalDate createdAt;
+    String imageUrl;
 }

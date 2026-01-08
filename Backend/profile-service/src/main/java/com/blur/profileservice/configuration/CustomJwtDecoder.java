@@ -21,8 +21,7 @@ public class CustomJwtDecoder implements JwtDecoder {
                     signedJWT.getJWTClaimsSet().getIssueTime().toInstant(),
                     signedJWT.getJWTClaimsSet().getExpirationTime().toInstant(),
                     signedJWT.getHeader().toJSONObject(),
-                    signedJWT.getJWTClaimsSet().getClaims()
-                    );
+                    signedJWT.getJWTClaimsSet().getClaims());
 
         } catch (ParseException e) {
             throw new JwtException("Invalid token");

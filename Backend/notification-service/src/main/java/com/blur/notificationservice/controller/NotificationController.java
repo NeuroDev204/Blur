@@ -58,6 +58,14 @@ public class NotificationController {
         return ApiResponse.builder().build();
     }
 
+    @PostMapping("/react-story")
+    public ApiResponse<?> sendReactStoryNotification(@RequestBody Event event) throws Exception {
+        String message = objectMapper.writeValueAsString(event);
+        kafkaTemplate.send("user-react-story-events", message);
+        return ApiResponse.builder().build();
+    }
+
+
     @GetMapping("/{userId}")
     public ApiResponse<List<Notification>> getAllNotificationsByUserId(@PathVariable("userId") String userId) {
         return ApiResponse.<List<Notification>>builder()

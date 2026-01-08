@@ -58,6 +58,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: notification_websocket
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/notification/ws-notification/**
+          filters:
+              - StripPrefix=2
+
         - id: notification_service
           uri: ${NOTIFICATION_SERVICE_URL}
           predicates:

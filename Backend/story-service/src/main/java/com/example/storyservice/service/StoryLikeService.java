@@ -30,13 +30,20 @@ public class StoryLikeService {
     StoryRepository storyRepository;
     IdentityClient identityClient;
     NotificationClient notificationClient;
+    ProfileClient profileClient;
+
 
     @CacheEvict(value = "storyLikes", key = "#storyId")
-    public String likeStory(String storyId){
+    public String likeStory(String storyId, String reactionType) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String senderUserId = authentication.getName();
         var userId = authentication.getName();
         var story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new AppException(ErrorCode.STORY_NOT_FOUND));
+        String receiverUserId = story.getAuthorId();
+        if (senderUserId.equals(receiverUserId)) {
+            return "Like story successfully";
+        }
         StoryLike storyLike = StoryLike.builder()
                 .storyId(storyId)
                 .userId(userId)
@@ -45,9 +52,25 @@ public class StoryLikeService {
                 .build();
         storyLikeRepository.save(storyLike);
         var user = identityClient.getUser(story.getAuthorId());
+        var senderProfile = profileClient.getProfile(senderUserId).getResult();
+        var receiverProfile = profileClient.getProfile(receiverUserId).getResult();
+        var receiverIdentity = identityClient.getUser(receiverUserId).getResult();
+
         Event event = Event.builder()
+                .action("REACT")
+                .storyId(storyId)
+                .reactionType(reactionType) // LIKE/LOVE/...
+                .timestamp(LocalDateTime.now())
+
+                .senderUserId(senderUserId)
+                .senderId(senderProfile.getId()) // profileId
+                .senderFirstName(senderProfile.getFirstName())
+                .senderLastName(senderProfile.getLastName())
                 .senderName(story.getFirstName() + " " + story.getLastName())
                 .senderId(userId)
+                .senderImageUrl(senderProfile.getImageUrl())
+
+                .receiverUserId(receiverUserId)
                 .receiverEmail(user.getResult().getEmail())
                 .receiverId(user.getResult().getId())
                 .receiverName(user.getResult().getUsername())

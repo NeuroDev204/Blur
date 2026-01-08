@@ -66,8 +66,7 @@ public class WebClientConfiguration {
         corsConfig.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
         corsConfig.setExposedHeaders(Arrays.asList(
                 "Authorization",
-                "Content-Type"
-        ));
+                "Content-Type"));
         corsConfig.setMaxAge(maxAge);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

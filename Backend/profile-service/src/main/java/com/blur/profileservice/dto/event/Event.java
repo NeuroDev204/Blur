@@ -11,9 +11,14 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
 public class Event {
-    String senderId;
+    String senderId;           // Profile ID (Neo4j UUID)
+    String senderUserId;       // ⭐ THÊM: User ID từ identity-service
     String senderName;
-    String receiverId;
+    String senderFirstName;    // ⭐ THÊM
+    String senderLastName;     // ⭐ THÊM
+    String senderImageUrl;     // ⭐ THÊM: Avatar
+    String receiverId;         // Profile ID
+    String receiverUserId;     // ⭐ THÊM
     String receiverEmail;
     String receiverName;
     LocalDateTime timestamp;

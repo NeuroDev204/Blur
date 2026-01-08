@@ -47,7 +47,7 @@ public class ReplyCommentEventHandler implements EventHandler<Event> {
         Event event = objectMapper.readValue(jsonEvent, Event.class);
         event.setTimestamp(LocalDateTime.now());
 
-        // ❌ Nếu tự reply chính mình → bỏ qua, không tạo noti
+        // ❌ Nếu tự reply chính mình → bỏ qua
         if (event.getSenderId().equals(event.getReceiverId())) {
             log.info("Skip reply notification because sender == receiver, userId={}", event.getSenderId());
             return;
@@ -57,27 +57,37 @@ public class ReplyCommentEventHandler implements EventHandler<Event> {
 
         Notification notification = Notification.builder()
                 .senderId(event.getSenderId())
+                .senderUserId(event.getSenderUserId())  // ⭐ THÊM
                 .senderName(event.getSenderName())
+                .senderFirstName(profile.getResult().getFirstName())  // ⭐ THÊM
+                .senderLastName(profile.getResult().getLastName())    // ⭐ THÊM
                 .receiverId(event.getReceiverId())
+                .receiverUserId(event.getReceiverUserId())  // ⭐ THÊM
                 .receiverName(event.getReceiverName())
                 .receiverEmail(event.getReceiverEmail())
                 .senderImageUrl(profile.getResult().getImageUrl())
-                .postId(event.getPostId())                 // 🔥 Quan trọng: gắn postId vào noti
+                .postId(event.getPostId())
                 .read(false)
                 .type(Type.Reply)
                 .timestamp(event.getTimestamp())
-                .content(event.getSenderName() + " đã trả lời bình luận của bạn.") // text gọn gàng
+                .content(event.getSenderName() + " đã trả lời bình luận của bạn.")
                 .build();
 
-        boolean isOnline = redisService.isOnline(event.getReceiverId());
         notificationService.save(notification);
 
+        // ⭐ GỬI TỚI receiverUserId
+        String targetUserId = event.getReceiverUserId();
+        boolean isOnline = redisService.isOnline(targetUserId);
+        log.info("🔍 User {} online status: {}", targetUserId, isOnline);
+
         if (isOnline) {
-            // Gửi qua WebSocket
-            notificationWebSocketService.sendToUser(notification);
-            simpMessagingTemplate.convertAndSend("/topic/notifications", notification);
+            log.info("📤 Sending WebSocket to /user/{}/queue/notifications", targetUserId);
+            simpMessagingTemplate.convertAndSendToUser(
+                    targetUserId,  // ⭐ userId
+                    "/queue/notifications",
+                    notification
+            );
         } else {
-            // Gửi email
             sendReplyCommentNotification(notification);
         }
     }

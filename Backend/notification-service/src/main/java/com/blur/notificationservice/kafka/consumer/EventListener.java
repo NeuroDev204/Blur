@@ -13,6 +13,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import jakarta.annotation.PostConstruct;
 
 @Slf4j
 @Component
@@ -23,13 +24,15 @@ public class EventListener {
 
     @KafkaListener(
             topics = {"user-follow-events", "user-like-events", "user-comment-events",
-                        "user-reply-comment-events","user-like-story-events"},
+                        "user-reply-comment-events","user-like-story-events","user-react-story-events"},
             groupId = "notification-service")
     public void listen(ConsumerRecord<String, String> record,
                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic)
             throws JsonProcessingException {
 
         String message = record.value(); // Đây là JSON string
+        log.info("📌 Received topic: {}", topic);
+
         for (EventHandler<?> handler : handlers) {
             if (handler.canHandle(topic)) {
                 handler.handleEvent(message);
@@ -37,6 +40,11 @@ public class EventListener {
             }
         }
         log.warn("No handler found for topic: {}", topic);
+    }
+    @PostConstruct
+    public void init() {
+        log.info("✅ Loaded {} handlers:", handlers.size());
+        handlers.forEach(h -> log.info(" - {}", h.getClass().getName()));
     }
 
 }

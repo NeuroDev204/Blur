@@ -45,27 +45,46 @@ public class FollowEventHandler implements EventHandler<Event>{
     public void handleEvent(String jsonEvent) throws JsonProcessingException {
         Event event = objectMapper.readValue(jsonEvent, Event.class);
         event.setTimestamp(LocalDateTime.now());
-        var profile = profileClient.getProfile(event.getSenderId());
+
+        log.info("📥 Received follow event: senderId={}, receiverId={}, receiverUserId={}",
+                event.getSenderId(), event.getReceiverId(), event.getReceiverUserId());
 
         Notification notification = Notification.builder()
                 .senderId(event.getSenderId())
                 .senderName(event.getSenderName())
+                .senderFirstName(event.getSenderFirstName())
+                .senderLastName(event.getSenderLastName())
+                .senderImageUrl(event.getSenderImageUrl())
                 .receiverId(event.getReceiverId())
+                .receiverUserId(event.getReceiverUserId())  // ⭐ THÊM field này vào Notification entity
                 .receiverName(event.getReceiverName())
                 .receiverEmail(event.getReceiverEmail())
                 .read(false)
-
                 .type(Type.Follow)
                 .timestamp(event.getTimestamp())
-                .senderImageUrl(profile.getResult().getImageUrl())
-                .content(event.getSenderName() + " followed you on Blur.")
+                .content("bắt đầu theo dõi bạn")
                 .build();
-        boolean isOnline = redisService.isOnline(event.getReceiverId());
+
         notificationService.save(notification);
-        if(isOnline){
-            notificationWebSocketService.sendToUser(notification);
-            simpMessagingTemplate.convertAndSend("/topic/notifications",notification);
-        }else{
+        log.info("✅ Notification saved: id={}, type={}", notification.getId(), notification.getType());
+
+        // ✅ GỬI TỚI receiverUserId (identity userId) thay vì receiverId (profileId)
+        String targetUserId = event.getReceiverUserId(); // ← userId từ identity-service
+        boolean isOnline = redisService.isOnline(targetUserId);
+        log.info("🔍 Redis online check for userId {}: {}", targetUserId, isOnline);
+
+        if (isOnline) {
+            log.info("📤 Sending WebSocket to /user/{}/queue/notifications", targetUserId);
+
+            simpMessagingTemplate.convertAndSendToUser(
+                    targetUserId,  // ⭐ Gửi tới userId, không phải profileId
+                    "/queue/notifications",
+                    notification
+            );
+
+            log.info("✅ WebSocket notification sent successfully");
+        } else {
+            log.info("📧 User offline, sending email to: {}", event.getReceiverEmail());
             sendFollowNotification(notification);
         }
     }

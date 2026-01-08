@@ -72,20 +72,34 @@ public class CommentService {
         }
 
         // Lấy info chủ bài viết (receiver) từ Identity
-        var receiverRes = identityClient.getUser(post.getUserId());
-        var receiverProfile = profileClient.getProfile(receiverRes.getResult().getId());
-        var receiver = receiverRes.getResult();
+        String senderUserId = userId;
+        String receiverUserId = post.getUserId();
+
+        var senderProfile = profileClient.getProfile(senderUserId).getResult();
+        var receiverProfile = profileClient.getProfile(receiverUserId).getResult();
+        var receiverIdentity = identityClient.getUser(receiverUserId).getResult();
+
 
         // Build Event giống kiểu like
         Event event = Event.builder()
                 .postId(post.getId())
-                .senderId(userId)
-                .senderName(profile.getFirstName() + " " + profile.getLastName())
-                .receiverId(receiver.getId())
-                .receiverName(receiverProfile.getResult().getFirstName() + " " + receiverProfile.getResult().getLastName())
-                .receiverEmail(receiver.getEmail())
+
+                // ✅ profileId (để notification-service dùng nếu cần)
+                .senderId(senderProfile.getId())
+                .receiverId(receiverProfile.getId())
+
+                // ✅ userId (cái quan trọng để realtime)
+                .senderUserId(senderUserId)
+                .receiverUserId(receiverUserId)
+
+                // info hiển thị
+                .senderName(senderProfile.getFirstName() + " " + senderProfile.getLastName())
+                .receiverName(receiverProfile.getFirstName() + " " + receiverProfile.getLastName())
+                .receiverEmail(receiverIdentity.getEmail())
+
                 .timestamp(LocalDateTime.now())
                 .build();
+
 
         notificationClient.sendCommentNotification(event);
 

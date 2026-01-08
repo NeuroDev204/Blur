@@ -7,5 +7,8 @@ public enum Type {
     LikeComment,
     LikeStory,
     Message,
-    Reply
-}
+    Reply,
+    ReactStory,
+    StoryExpiredSummary
+
+    }
