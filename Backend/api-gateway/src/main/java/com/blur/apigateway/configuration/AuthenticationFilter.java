@@ -64,7 +64,6 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
         // Check if public endpoint
         if (isPublicEndpoint(exchange.getRequest())) {
-            log.info("✅ Public endpoint, bypassing auth: {}", path);
             return chain.filter(exchange);
         }
 
@@ -72,18 +71,15 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         List<String> authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
 
         if (CollectionUtils.isEmpty(authHeader)) {
-            log.warn("❌ Missing Authorization header for: {}", path);
             return unauthenticated(exchange.getResponse());
         }
 
         String token = authHeader.get(0).replace("Bearer ", "");
-        log.info("🔐 Verifying token for: {}", path);
 
         // Verify token
         return identityService.introspect(token)
                 .flatMap(introspectResponse -> {
                     if (introspectResponse.getResult() != null && introspectResponse.getResult().isValid()) {
-                        log.info("✅ Token valid, forwarding to: {}", path);
 
                         // ⭐ THÊM PHẦN NÀY: Forward Authorization header sang downstream service
                         ServerHttpRequest mutatedRequest = exchange.getRequest()

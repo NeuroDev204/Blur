@@ -11,8 +11,6 @@ import org.identityservice.dto.response.IntrospecResponse;
 import org.identityservice.entity.InvalidatedToken;
 import org.identityservice.entity.Role;
 import org.identityservice.entity.User;
-import org.identityservice.exception.AppException;
-import org.identityservice.exception.ErrorCode;
 import org.identityservice.repository.InvalidatedTokenRepository;
 import org.identityservice.repository.UserRepository;
 import org.identityservice.repository.httpclient.OutboundIdentityClient;
@@ -23,6 +21,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import com.blur.common.dto.request.IntrospectRequest;
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -63,10 +64,10 @@ public class AuthenticationService {
     public AuthResponse authenticate(AuthRequest authRequest) {
         var user = userRepository
                 .findByUsername(authRequest.getUsername())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+                .orElseThrow(() -> new BlurException(ErrorCode.USER_NOT_EXISTED));
         boolean authenticated = passwordEncoder.matches(authRequest.getPassword(), user.getPassword());
         if (!authenticated) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            throw new BlurException(ErrorCode.INVALID_USERNAME_OR_PASSSWORD);
         }
         var token = generateToken(user);
         redisService.setOnline(user.getId());
@@ -77,7 +78,7 @@ public class AuthenticationService {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
         JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .subject(user.getId())
-                .issuer("Blur.vn")
+                .issuer("Blur.io.vn")
                 .issueTime(new Date())
                 .expirationTime(new Date(
                         Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()))
@@ -100,7 +101,7 @@ public class AuthenticationService {
         SignedJWT signedJWT = null;
         try {
             signedJWT = verifyToken(token, false);
-        } catch (AppException e) {
+        } catch (BlurException e) {
             isValid = false;
         }
         return IntrospecResponse.builder()
@@ -118,7 +119,7 @@ public class AuthenticationService {
                     InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
             tokenRepository.save(invalidatedToken);
             redisService.setOffline(signToken.getJWTClaimsSet().getSubject());
-        } catch (AppException e) {
+        } catch (BlurException e) {
             log.error("Token already expired");
         }
     }
@@ -135,7 +136,7 @@ public class AuthenticationService {
         // subject hiện tại là userId (do generateToken dùng user.getId())
         String userId = signJWT.getJWTClaimsSet().getSubject();
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        User user = userRepository.findById(userId).orElseThrow(() -> new BlurException(ErrorCode.USER_NOT_EXISTED));
 
         String token = generateToken(user);
 
@@ -156,10 +157,10 @@ public class AuthenticationService {
                 : signedJWT.getJWTClaimsSet().getExpirationTime();
         var verified = signedJWT.verify(verifier);
         if (!verified && expirationDate.after(new Date())) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            throw new BlurException(ErrorCode.UNAUTHENTICATED);
         }
         if (tokenRepository.existsById((signedJWT.getJWTClaimsSet().getJWTID()))) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+            throw new BlurException(ErrorCode.UNAUTHENTICATED);
         }
         return signedJWT;
     }
@@ -195,7 +196,7 @@ public class AuthenticationService {
 
     // login with google
     public AuthResponse outboundAuthenticationService(String code) {
-        // get user info from Google
+        // get user info
         var response = outboundIdentityClient.exchangeToken(ExchangeTokenRequest.builder()
                 .code(code)
                 .clientId(CLIENT_ID)
@@ -204,45 +205,29 @@ public class AuthenticationService {
                 .grantType(GRANT_TYPE)
                 .build());
 
-        // Get user info from Google
+        // onboarding google user vao he thong
         var userInfo = outboundUserClient.exchangeToken("json", response.getAccessToken());
 
         Set<Role> roles = new HashSet<>();
         roles.add(Role.builder().name("USER").build());
 
-        // Check if user already exists
-        var existingUser = userRepository.findByUsername(userInfo.getEmail());
-        boolean isNewUser = existingUser.isEmpty();
+        var user = userRepository
+                .findByUsername(userInfo.getEmail())
+                .orElseGet(() -> userRepository.save(User.builder()
+                        .username(userInfo.getEmail())
+                        .firstName(userInfo.getGivenName())
+                        .lastName(userInfo.getFamilyName())
+                        .roles(roles)
+                        .build()));
 
-        User user;
-        if (isNewUser) {
-            // Create new user in identity service
-            user = userRepository.save(User.builder()
-                    .username(userInfo.getEmail())
-                    .email(userInfo.getEmail())
-                    .firstName(userInfo.getGivenName())
-                    .lastName(userInfo.getFamilyName())
-                    .roles(roles)
-                    .emailVerified(userInfo.isVerifiedEmail())
-                    .build());
-
-            // Create profile only for new users
-            profileClient.createProfile(ProfileCreationRequest.builder()
-                    .userId(user.getId())
-                    .username(userInfo.getEmail())
-                    .email(userInfo.getEmail())
-                    .firstName(userInfo.getGivenName())
-                    .lastName(userInfo.getFamilyName())
-                    .imageUrl(userInfo.getPicture())
-                    .build());
-        } else {
-            user = existingUser.get();
-        }
-
-        // Generate system token
+        // convert token cua google thanh token cua he thong
         var token = generateToken(user);
-        redisService.setOnline(user.getId());
-
-        return AuthResponse.builder().token(token).authenticated(true).build();
+        profileClient.createProfile(ProfileCreationRequest.builder()
+                .userId(user.getId())
+                .firstName(userInfo.getGivenName())
+                .lastName(userInfo.getFamilyName())
+                .city(userInfo.getLocale())
+                .build());
+        return AuthResponse.builder().token(token).build();
     }
 }

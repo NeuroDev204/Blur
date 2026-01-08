@@ -2,24 +2,131 @@
     "version": "0.2.0",
     "compounds": [
         {
-            "name": "run all",
+            "name": "🚀 Run All Microservices",
             "configurations": [
-                "api-gateway",
-                "chat-service",
                 "IdentityService",
-                "notification-service",
-                "post-service",
+                "api-gateway",
                 "profile-service",
+                "post-service",
+                "chat-service",
+                "notification-service",
                 "story-service"
-            ]
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "all",
+                "order": 1
+            }
+        },
+        {
+            "name": "🔧 Run Core Services (Identity + Gateway + Profile)",
+            "configurations": [
+                "IdentityService",
+                "api-gateway",
+                "profile-service"
+            ],
+            "stopAll": true
         }
     ],
     "configurations": [
         {
             "type": "java",
+            "name": "IdentityService",
+            "request": "launch",
+            "mainClass": "org.identityservice.IdentityServiceApplication",
+            "projectName": "IdentityService",
+            "cwd": "${workspaceFolder}/IdentityService",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
             "name": "api-gateway",
             "request": "launch",
-            "mainClass": ""
+            "mainClass": "com.blur.apigateway.ApiGatewayApplication",
+            "projectName": "api-gateway",
+            "cwd": "${workspaceFolder}/api-gateway",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "profile-service",
+            "request": "launch",
+            "mainClass": "com.blur.profileservice.ProfileServiceApplication",
+            "projectName": "profile-service",
+            "cwd": "${workspaceFolder}/profile-service",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "post-service",
+            "request": "launch",
+            "mainClass": "com.postservice.PostServiceApplication",
+            "projectName": "post-service",
+            "cwd": "${workspaceFolder}/post-service",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "chat-service",
+            "request": "launch",
+            "mainClass": "com.blur.chatservice.ChatServiceApplication",
+            "projectName": "chat-service",
+            "cwd": "${workspaceFolder}/chat-service",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "notification-service",
+            "request": "launch",
+            "mainClass": "com.blur.notificationservice.NotificationServiceApplication",
+            "projectName": "notification-service",
+            "cwd": "${workspaceFolder}/notification-service",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "story-service",
+            "request": "launch",
+            "mainClass": "com.example.storyservice.StoryServiceApplication",
+            "projectName": "story-service",
+            "cwd": "${workspaceFolder}/story-service",
+            "envFile": "${workspaceFolder}/.env.shared",
+            "env": {
+                "DOTENV_FILENAME": ".env,.env.shared"
+            },
+            "vmArgs": "-Dspring.profiles.active=dev",
+            "console": "integratedTerminal"
         }
     ]
 }

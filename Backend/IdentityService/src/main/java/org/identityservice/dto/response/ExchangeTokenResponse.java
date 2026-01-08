@@ -11,7 +11,6 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-// convert bien thanh _
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class ExchangeTokenResponse {
     String accessToken;

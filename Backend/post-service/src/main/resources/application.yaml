@@ -1,45 +1,45 @@
 server:
-  port: 8084
+  port: ${SERVER_PORT}
   address: 0.0.0.0
   servlet:
     context-path: /post
 
 spring:
   application:
-    name: post-service
+    name: ${SPRING_APPLICATION_NAME}
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://root:root@localhost:27017/post-service?authSource=admin}
+      uri: ${MONGODB_URI}
 
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
       database: 1
-      timeout: 2000ms
+      timeout: ${REDIS_TIME_OUT}
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 2
+          max-active: ${MAX_ACTIVE}
+          max-idle: ${MAX_IDLE}
+          min-idle: ${MIN_IDLE}
 
   cache:
     type: redis
     redis:
-      time-to-live: 300000
+      time-to-live: ${TIME_TO_LIVE}
       cache-null-values: false
       use-key-prefix: true
-      key-prefix: "post-service:"
+      key-prefix: ${REDIS_KEY_PREFIX}
       enable-statistics: true
 
 app:
   service:
     profile:
-      url: ${PROFILE_SERVICE_URL:http://localhost:8081/profile}
+      url: ${PROFILE_SERVICE_URL}
     notification:
-      url: ${NOTIFICATION_SERVICE_URL:http://localhost:8082/notification}
+      url: ${NOTIFICATION_SERVICE_URL}
     identity:
-      url: ${IDENTITY_SERVICE_URL:http://localhost:8080/identity}
+      url: ${IDENTITY_SERVICE_URL}
 
 management:
   endpoints:

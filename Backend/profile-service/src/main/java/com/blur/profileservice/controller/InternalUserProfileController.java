@@ -1,14 +1,8 @@
 package com.blur.profileservice.controller;
 
+import com.blur.common.dto.response.ApiResponse;
+import com.blur.common.dto.response.UserProfileResponse;
 import com.blur.profileservice.dto.request.ProfileCreationRequest;
-import com.blur.profileservice.dto.request.UserProfileUpdateRequest;
-import com.blur.profileservice.dto.response.ApiResponse;
-import com.blur.profileservice.dto.response.UserProfileResponse;
-import com.blur.profileservice.entity.UserProfile;
-import com.blur.profileservice.exception.AppException;
-import com.blur.profileservice.exception.ErrorCode;
-import com.blur.profileservice.mapper.UserProfileMapper;
-import com.blur.profileservice.repository.UserProfileRepository;
 import com.blur.profileservice.service.UserProfileService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

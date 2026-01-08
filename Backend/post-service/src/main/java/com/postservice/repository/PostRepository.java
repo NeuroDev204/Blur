@@ -1,8 +1,5 @@
 package com.postservice.repository;
 
-
-import com.postservice.dto.response.PostResponse;
-import com.postservice.dto.response.UserProfileResponse;
 import com.postservice.entity.Post;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,9 +11,11 @@ import java.util.Optional;
 
 @Repository
 public interface PostRepository extends MongoRepository<Post, String> {
-     List<Post> findAllByUserIdOrderByCreatedAtDesc(String userId);
+    List<Post> findAllByUserIdOrderByCreatedAtDesc(String userId);
+
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     Optional<Post> findPostById(String postId);
+
     List<Post> findAllByOrderByCreatedAtDesc();
 }

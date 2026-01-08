@@ -25,8 +25,7 @@ public class SecurityConfig {
         "/auth/logout",
         "/auth/refresh",
         "/auth/outbound/authentication",
-        "/users/**",
-        "/users/create-many"
+        "/users/**"
     };
 
     private final CustomJwtDecoder customJwtDecoder;
@@ -41,7 +40,6 @@ public class SecurityConfig {
                 .permitAll()
                 .anyRequest()
                 .authenticated());
-
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(customJwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter()))

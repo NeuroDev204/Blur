@@ -8,11 +8,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="IdentityService" />
-        <module name="api-gateway" />
+        <module name="blur-common-lib" />
         <module name="post-service" />
+        <module name="api-gateway" />
         <module name="profile-service" />
-        <module name="notification-service" />
         <module name="ai-service" />
+        <module name="notification-service" />
       </profile>
       <profile name="Annotation profile for chat-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -46,6 +47,7 @@
       <module name="IdentityService" options="-parameters" />
       <module name="ai-service" options="-parameters" />
       <module name="api-gateway" options="-parameters" />
+      <module name="blur-common-lib" options="-parameters" />
       <module name="chat-service" options="-parameters" />
       <module name="file-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />

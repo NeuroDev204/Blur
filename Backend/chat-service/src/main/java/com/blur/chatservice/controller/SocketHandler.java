@@ -165,7 +165,6 @@ public class SocketHandler {
             String message = (String) data.get("message");
             String tempMessageId = (String) data.get("messageId");
 
-            @SuppressWarnings("unchecked")
             List<Map<String, Object>> attachmentsData = (List<Map<String, Object>>) data.get("attachments");
 
             if (conversationId == null || conversationId.isEmpty()) {
@@ -384,7 +383,6 @@ public class SocketHandler {
     public void onCallAnswer(SocketIOClient client, Map<String, Object> data, Object ack) {
         try {
             String callId = (String) data.get("callId");
-            String userId = client.get("userId");
 
             if (callId == null || callId.isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_DATA);
@@ -438,8 +436,6 @@ public class SocketHandler {
     public void onCallReject(SocketIOClient client, Map<String, Object> data, Object ack) {
         try {
             String callId = (String) data.get("callId");
-            String userId = client.get("userId");
-
             if (callId == null || callId.isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_DATA);
             }

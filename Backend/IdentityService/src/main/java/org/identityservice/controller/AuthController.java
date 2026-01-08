@@ -8,6 +8,8 @@ import org.identityservice.dto.response.IntrospecResponse;
 import org.identityservice.service.AuthenticationService;
 import org.springframework.web.bind.annotation.*;
 
+import com.blur.common.dto.request.IntrospectRequest;
+import com.blur.common.dto.response.ApiResponse;
 import com.nimbusds.jose.JOSEException;
 
 import lombok.AccessLevel;

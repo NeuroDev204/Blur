@@ -1,0 +1,42 @@
+[00:00:01.340] Server  LOG     ✓ Ready in 1063ms
+[00:00:06.742] Server  LOG     ○ Compiling / ...
+[00:00:09.829] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:10.361] Browser ERROR   uncaughtError: Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <RenderFromTemplateContext>
+      <ScrollAndFocusHandler segmentPath={[...]}>
+        <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+            <LoadingBoundary name="/" loading={null}>
+              <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                  <RedirectBoundary>
+                    <RedirectErrorBoundary router={{...}}>
+                      <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} ...>
+                        <SegmentViewNode type="page" pagePath="page.tsx">
+                          <SegmentTrieNode>
+                          <ClientPageRoot Component={function HomePage} serverProvidedParams={{...}}>
+                            <HomePage params={Promise} searchParams={Promise}>
++                             <div className="flex min-h-screen">
+-                             <style data-emotion="css-global ad1llf" data-s="">
+                        ...
+                      ...
+          ...
+
+[00:00:10.362] Browser WARN    ⚠️ No token found, cannot fetch unread counts
+[00:00:10.362] Browser WARN    ⚠️ No token found, cannot fetch unread counts
+[00:00:10.362] Browser LOG     📵 No token, skipping notification socket connection
+[00:00:10.362] Browser WARN    ⚠️ No token found, cannot fetch unread counts
+[00:00:10.362] Browser WARN    ⚠️ No token found, cannot fetch unread counts
+[00:00:10.362] Browser LOG     📵 No token, skipping notification socket connection

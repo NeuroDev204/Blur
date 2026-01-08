@@ -1,7 +1,7 @@
 package com.postservice.controller;
 
+import com.blur.common.dto.response.ApiResponse;
 import com.postservice.dto.request.CreateCommentRequest;
-import com.postservice.dto.response.ApiResponse;
 import com.postservice.dto.response.CommentResponse;
 import com.postservice.service.CommentReplyService;
 import com.postservice.service.CommentService;

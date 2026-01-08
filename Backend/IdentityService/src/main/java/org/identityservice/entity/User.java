@@ -4,7 +4,6 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -18,7 +17,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,7 +42,6 @@ public class User {
     String lastName; // và dòng này
 
     @ManyToMany
-    @JsonBackReference
     @JsonIgnore
     Set<Role> roles;
 }

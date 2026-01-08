@@ -1,14 +1,14 @@
 package com.postservice.service;
 
+import com.blur.common.dto.response.ApiResponse;
+import com.blur.common.dto.response.UserProfileResponse;
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.postservice.dto.event.Event;
 import com.postservice.dto.request.PostRequest;
-import com.postservice.dto.response.ApiResponse;
 import com.postservice.dto.response.PostResponse;
-import com.postservice.dto.response.UserProfileResponse;
 import com.postservice.entity.Post;
 import com.postservice.entity.PostLike;
-import com.postservice.exception.AppException;
-import com.postservice.exception.ErrorCode;
 import com.postservice.mapper.PostMapper;
 import com.postservice.repository.PostLikeRepository;
 import com.postservice.repository.PostRepository;
@@ -64,10 +64,10 @@ public class PostService {
     public PostResponse updatePost(String postId, PostRequest postRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
         var userId = authentication.getName();
         if (!post.getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+            throw new BlurException(ErrorCode.UNAUTHORIZED);
         }
         post.setContent(postRequest.getContent());
         post.setMediaUrls(postRequest.getMediaUrls());
@@ -80,10 +80,10 @@ public class PostService {
     public String deletePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
         var userId = authentication.getName();
         if (!post.getUserId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+            throw new BlurException(ErrorCode.UNAUTHORIZED);
         }
         postRepository.deleteById(postId);
         return "Post deleted successfully";
@@ -146,20 +146,14 @@ public class PostService {
     @Transactional
     public String likePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
         var userId = authentication.getName();
 
-
         var post = postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
-        String senderUserId = userId;
-        String receiverUserId = post.getUserId();
-        var senderProfile = profileClient.getProfile(senderUserId).getResult();
-        var receiverProfile = profileClient.getProfile(receiverUserId).getResult();
+                .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
 
         // Không cho tự like bài viết của mình
         if (userId.equals(post.getUserId())) {
-            throw new AppException(ErrorCode.CANNOT_LIKE_YOUR_POST);
+            throw new BlurException(ErrorCode.CANNOT_LIKE_YOUR_POST);
         }
 
         PostLike existingLike = postLikeRepository.findByUserIdAndPostId(userId, postId);
@@ -191,8 +185,6 @@ public class PostService {
                         .senderName(sender.getResult().getUsername())
                         .receiverId(receiver.getResult().getId())
                         .receiverEmail(receiver.getResult().getEmail())
-                        .senderUserId(senderUserId)
-                        .receiverUserId(receiverUserId)
                         .receiverName(receiver.getResult().getUsername())
                         .timestamp(LocalDateTime.now())
                         .build();
@@ -241,6 +233,6 @@ public class PostService {
                 .collect(Collectors.toList());
     }
     public PostResponse getPostById(String postId) {
-        return postMapper.toPostResponse(postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND)));
+        return postMapper.toPostResponse(postRepository.findById(postId).orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND)));
     }
 }
