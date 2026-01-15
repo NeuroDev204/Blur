@@ -1,8 +1,8 @@
 package com.blur.notificationservice.service;
 
+import com.blur.common.exception.BlurException;
+import com.blur.common.exception.ErrorCode;
 import com.blur.notificationservice.entity.Notification;
-import com.blur.notificationservice.exception.AppException;
-import com.blur.notificationservice.exception.ErrorCode;
 import com.blur.notificationservice.repository.NotificationRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,36 +18,39 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 
 public class NotificationService {
-    NotificationRepository notificationRepository;
+  NotificationRepository notificationRepository;
 
-    public void save(Notification notification){
-        notificationRepository.save(notification);
-    }
-    public List<Notification> getForUser(String receiverId){
-        return notificationRepository.findByReceiverIdOrderByTimestampDesc(receiverId);
-    }
-    public String markAsRead(String notificationId){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        var userId = authentication.getName();
+  public void save(Notification notification) {
+    notificationRepository.save(notification);
+  }
 
-        var notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOTIFICATION_NOT_FOUND));
-        if(!notification.getReceiverId().equals(userId)){
-            throw new AppException(ErrorCode.YOU_ARE_NOT_ALLOWED);
-        }
-        notification.setRead(true);
-        notificationRepository.save(notification);
-        return "Marked as read";
-    }
-    public String markAllAsRead(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        var userId = authentication.getName();
-        var notifications = notificationRepository.findAllByReceiverId(userId);
-        notifications.forEach(notification ->{
-            notification.setRead(true);
-            notificationRepository.save(notification);
-        } );
-        return "Marked all as read";
+  public List<Notification> getForUser(String receiverId) {
+    return notificationRepository.findByReceiverIdOrderByTimestampDesc(receiverId);
+  }
 
+  public String markAsRead(String notificationId) {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    var userId = authentication.getName();
+
+    var notification = notificationRepository.findById(notificationId)
+        .orElseThrow(() -> new BlurException(ErrorCode.NOTIFICATION_NOT_FOUND));
+    if (!notification.getReceiverId().equals(userId)) {
+      throw new BlurException(ErrorCode.ACCESS_DENIED);
     }
+    notification.setRead(true);
+    notificationRepository.save(notification);
+    return "Marked as read";
+  }
+
+  public String markAllAsRead() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    var userId = authentication.getName();
+    var notifications = notificationRepository.findAllByReceiverId(userId);
+    notifications.forEach(notification -> {
+      notification.setRead(true);
+      notificationRepository.save(notification);
+    });
+    return "Marked all as read";
+
+  }
 }

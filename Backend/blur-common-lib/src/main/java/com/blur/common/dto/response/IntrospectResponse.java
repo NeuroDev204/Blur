@@ -1,4 +1,4 @@
-package org.identityservice.dto.response;
+package com.blur.common.dto.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -8,7 +8,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class IntrospecResponse {
-    boolean valid;
-    String userId;
+public class IntrospectResponse {
+  boolean valid;
+  String userId;
 }

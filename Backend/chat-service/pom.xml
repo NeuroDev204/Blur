@@ -58,7 +58,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.blur</groupId>
+            <artifactId>blur-common-lib</artifactId>
+            <version>1.0.0</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
@@ -177,7 +181,7 @@
                 <version>${spotless.version}</version>
                 <configuration>
                     <java>
-                        <removeUnusedImports />
+                        <removeUnusedImports/>
                         <toggleOffOn/>
                         <trimTrailingWhitespace/>
                         <endWithNewline/>

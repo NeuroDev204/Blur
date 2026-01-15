@@ -49,3 +49,5 @@ app:
     ring-timeout: 60 #seconds
     max-duration: 3600
 
+jwt:
+  signerKey: ${SIGNER_KEY}

@@ -1,5 +1,7 @@
 package com.example.storyservice.configuration;
 
+import com.blur.common.configuration.CustomJwtDecoder;
+import com.blur.common.configuration.JWTAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,43 +18,43 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/users/{profileId}"
-    };
+  private static final String[] PUBLIC_ENDPOINTS = {
+      "/users/{profileId}"
+  };
 
-    private final CustomJwtDecoder customJwtDecoder;
+  private final CustomJwtDecoder customJwtDecoder;
 
-    public SecurityConfig(CustomJwtDecoder customJwtDecoder) {
-        this.customJwtDecoder = customJwtDecoder;
-    }
+  public SecurityConfig(CustomJwtDecoder customJwtDecoder) {
+    this.customJwtDecoder = customJwtDecoder;
+  }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(PUBLIC_ENDPOINTS)
-                .permitAll()
-                .anyRequest()
-                .authenticated());
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+    httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(PUBLIC_ENDPOINTS)
+        .permitAll()
+        .anyRequest()
+        .authenticated());
 
-        httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
-                .decoder(customJwtDecoder)
-                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                .authenticationEntryPoint(new JWTAuthenticationEntryPoint()));
-        httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        httpSecurity.cors(AbstractHttpConfigurer::disable);
-        return httpSecurity.build();
-    }
+    httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
+            .decoder(customJwtDecoder)
+            .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+        .authenticationEntryPoint(new JWTAuthenticationEntryPoint()));
+    httpSecurity.csrf(AbstractHttpConfigurer::disable);
+    httpSecurity.cors(AbstractHttpConfigurer::disable);
+    return httpSecurity.build();
+  }
 
-    @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("");
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-        return converter;
-    }
+  @Bean
+  JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+    grantedAuthoritiesConverter.setAuthorityPrefix("");
+    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+    return converter;
+  }
 
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10);
-    }
+  @Bean
+  PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder(10);
+  }
 }

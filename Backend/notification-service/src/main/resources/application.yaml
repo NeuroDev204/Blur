@@ -61,3 +61,5 @@ management:
   endpoint:
     health:
       show-details: always
+jwt:
+  signerKey: ${SIGNER_KEY}

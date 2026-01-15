@@ -11,12 +11,12 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProfileCreationRequest {
-    String userId;
-    String username;
-    String firstName;
-    String lastName;
-    String email;
-    LocalDate dob;
-    LocalDate createdAt;
-    String imageUrl;
+  String userId;
+  String username;
+  String firstName;
+  String lastName;
+  String email;
+  LocalDate dob;
+  LocalDate createdAt;
+  String imageUrl;
 }

@@ -1,18 +1,17 @@
-package org.identityservice.configuration;
-
-import java.text.ParseException;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.stereotype.Component;
+package com.blur.common.configuration;
 
 import com.blur.common.exception.BlurException;
 import com.blur.common.exception.ErrorCode;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.SignedJWT;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.stereotype.Component;
+
+import java.text.ParseException;
 
 @Component
 public class CustomJwtDecoder implements JwtDecoder {
@@ -26,7 +25,7 @@ public class CustomJwtDecoder implements JwtDecoder {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
             if (!signedJWT.verify(new MACVerifier(SECRET))) {
-                throw new BlurException(ErrorCode.INVALID_SECRET_KEY);
+                throw new BlurException(ErrorCode.INVALID_KEY);
             }
             return new Jwt(
                     token,
@@ -37,7 +36,7 @@ public class CustomJwtDecoder implements JwtDecoder {
         } catch (ParseException e) {
             throw new JwtException("Invalid token");
         } catch (JOSEException e) {
-            throw new BlurException(ErrorCode.INVALID_SECRET_KEY);
+            throw new BlurException(ErrorCode.INVALID_KEY);
         }
     }
 }

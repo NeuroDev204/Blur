@@ -1,6 +1,8 @@
 package com.blur.notificationservice.configuration;
 
 
+import com.blur.common.configuration.CustomJwtDecoder;
+import com.blur.common.configuration.JWTAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,44 +18,45 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/email/send",
-            "/follow",
-            "/like-post",
-            "/comment",
-            "/reply-comment",
-            "/like-story"
+  private static final String[] PUBLIC_ENDPOINTS = {
+      "/email/send",
+      "/follow",
+      "/like-post",
+      "/comment",
+      "/reply-comment",
+      "/like-story"
 
-    };
-    private CustomJwtDecoder customJwtDecoder;
+  };
+  private CustomJwtDecoder customJwtDecoder;
 
-    public SecurityConfig(CustomJwtDecoder customJwtDecoder) {
-        this.customJwtDecoder = customJwtDecoder;
-    }
+  public SecurityConfig(CustomJwtDecoder customJwtDecoder) {
+    this.customJwtDecoder = customJwtDecoder;
+  }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-        httpSecurity
-                .authorizeHttpRequests(request -> request
-                        .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
-                        // 👇 Cho phép WebSocket handshake
-                        .requestMatchers("/ws-notification/**", "/notification/ws-notification/**", "*").permitAll()
-                        .anyRequest().authenticated()
-                );
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+    httpSecurity
+        .authorizeHttpRequests(request -> request
+            .requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
+            // 👇 Cho phép WebSocket handshake
+            .requestMatchers("/ws-notification/**", "/notification/ws-notification/**", "*").permitAll()
+            .anyRequest().authenticated()
+        );
 
-        httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
-                        .decoder(customJwtDecoder)
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                .authenticationEntryPoint(new JWTAuthenticationEntryPoint()));
-        httpSecurity.csrf(AbstractHttpConfigurer::disable);
-        return httpSecurity.build();
-    }
-    @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("");
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-        return converter;
-    }
+    httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer
+            .decoder(customJwtDecoder)
+            .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+        .authenticationEntryPoint(new JWTAuthenticationEntryPoint()));
+    httpSecurity.csrf(AbstractHttpConfigurer::disable);
+    return httpSecurity.build();
+  }
+
+  @Bean
+  JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+    grantedAuthoritiesConverter.setAuthorityPrefix("");
+    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+    return converter;
+  }
 }
