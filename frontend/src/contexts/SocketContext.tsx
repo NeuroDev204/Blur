@@ -1,7 +1,7 @@
 // src/contexts/SocketContext.tsx
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, ReactNode } from "react"
 import { SOCKET_URL } from "../utils/constants"
-import { getToken } from "../utils/auth"
+import { isAuthenticated } from "../utils/auth"
 
 // Extend Window interface for Socket.IO
 declare global {
@@ -102,8 +102,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }, [])
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) {
+        if (!isAuthenticated()) {
             return
         }
 
@@ -115,8 +114,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
             if (socketRef.current) {
                 return
             }
+            // Cookie-based auth: token is sent automatically via cookies
             const socket = window.io(SOCKET_URL, {
-                query: { token },
+                withCredentials: true, // Cookie tự động được gửi
                 autoConnect: true,
                 reconnection: true,
                 reconnectionDelay: 1000,

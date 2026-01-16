@@ -1,6 +1,6 @@
 import { Client, IMessage } from "@stomp/stompjs"
-import { getToken } from "./LocalStorageService"
 import SockJS from "sockjs-client"
+import { isAuthenticated } from "./LocalStorageService"
 
 interface NotificationPayload {
     id: string
@@ -11,13 +11,22 @@ interface NotificationPayload {
 
 let stompClient: Client | null = null
 
+/**
+ * Connect to notification WebSocket
+ * Cookie-based auth: token is sent via SockJS cookie automatically
+ */
 export const connectNotificationSocket = (onMessageReceived: (notification: NotificationPayload) => void): void => {
-    const token = getToken()
+    if (!isAuthenticated()) {
+        console.warn("Cannot connect to notification socket: not authenticated")
+        return
+    }
 
     stompClient = new Client({
         webSocketFactory: () =>
             new SockJS(
-                `/api/notification/ws/ws-notification?token=${token}`
+                `/api/notification/ws/ws-notification`,
+                null,
+                { withCredentials: true } // Cookie tự động được gửi
             ) as WebSocket,
         onConnect: () => {
             console.log("Connected to notification socket")

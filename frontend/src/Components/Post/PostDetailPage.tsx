@@ -15,7 +15,7 @@ import { ArrowLeft, Share2 } from "lucide-react";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
 import { IoSend } from "react-icons/io5";
-import { jwtDecode } from "jwt-decode";
+import { isAuthenticated, getUserId } from "../../service/LocalStorageService";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination } from "swiper/modules";
 import "swiper/css";
@@ -27,7 +27,6 @@ const PostDetailPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const toast = useToast();
-  const token = localStorage.getItem("token");
 
   const [post, setPost] = useState(location.state?.post || null);
   const [postOwner, setPostOwner] = useState(null);
@@ -93,15 +92,15 @@ const PostDetailPage = () => {
 
   // ================== CURRENT USER ==================
   useEffect(() => {
-    if (!token) return;
+    if (!isAuthenticated()) return;
 
-    try {
-      const decoded = jwtDecode(token);
-      setUserId(decoded.sub);
+    const storedUserId = getUserId();
+    if (storedUserId) {
+      setUserId(storedUserId);
 
       const fetchCurrentUser = async () => {
         try {
-          const userData = await fetchUserByUserId(decoded.sub);
+          const userData = await fetchUserByUserId(storedUserId);
           setCurrentUser(userData);
         } catch (error) {
           console.error("Error fetching current user:", error);
@@ -109,10 +108,8 @@ const PostDetailPage = () => {
       };
 
       fetchCurrentUser();
-    } catch (error) {
-      console.error("Error decoding token:", error);
     }
-  }, [token]);
+  }, []);
 
   // ================== MEDIA ==================
   const handleImageLoad = (index, e) => {

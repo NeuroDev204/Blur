@@ -3,7 +3,6 @@ import axios from "axios";
 import React, { useState, ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import { IoSearchOutline, IoPersonOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
-import { getToken } from "../../service/LocalStorageService";
 
 interface SearchResult {
     id: string;
@@ -24,7 +23,6 @@ const SearchPage: React.FC = () => {
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const token = getToken();
 
     const handleSearch = async (e: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLInputElement>) => {
         e.preventDefault();
@@ -35,8 +33,8 @@ const SearchPage: React.FC = () => {
             const response = await axios.get<ApiResponse>(
                 `http://localhost:8888/api/profile/users/search/${search}`,
                 {
+                    withCredentials: true, // Cookie tự động được gửi
                     headers: {
-                        Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
                     },
                 }

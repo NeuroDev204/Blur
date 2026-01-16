@@ -1,22 +1,20 @@
 import { jwtDecode, JwtPayload } from "jwt-decode"
 import { getToken } from "./LocalStorageService"
+import httpClient from "./httpClient"
 
-interface UserDetails extends JwtPayload {
+interface UserDetails {
     userId?: string
     email?: string
     name?: string
 }
 
 export const getUserDetails = async (): Promise<UserDetails | null> => {
-    const token = getToken()
-    if (token !== null) {
-        try {
-            const decode = jwtDecode<UserDetails>(token)
-            return decode
-        } catch (error) {
-            console.log("Invalid token", error)
-            return null
-        }
+    try {
+        const response = await httpClient.get('/identity/users/me');
+        return response.data.result;
+    } catch (error) {
+        console.log('failed to get user info', error);
+        return null;
+
     }
-    return null
 }

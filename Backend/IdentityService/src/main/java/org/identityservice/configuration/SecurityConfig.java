@@ -1,6 +1,5 @@
 package org.identityservice.configuration;
 
-import com.blur.common.configuration.CustomJwtDecoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,19 +13,21 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.blur.common.configuration.CustomJwtDecoder;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/users/registration",
-            "/users/registrations",
-            "/auth/token",
-            "/auth/introspect",
-            "/auth/logout",
-            "/auth/refresh",
-            "/auth/outbound/authentication",
-            "/users/**"
+        "/users/registration",
+        "/users/registrations",
+        "/auth/token",
+        "/auth/introspect",
+        "/auth/logout",
+        "/auth/refresh",
+        "/auth/outbound/authentication",
+        "/users/**"
     };
 
     private final CustomJwtDecoder customJwtDecoder;

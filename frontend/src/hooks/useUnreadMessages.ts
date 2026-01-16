@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
-import { getToken } from '../service/LocalStorageService'
+import { isAuthenticated } from '../service/LocalStorageService'
 import { useSocket } from '../contexts/SocketContext'
 
 interface UseUnreadMessagesOptions {
@@ -34,6 +34,16 @@ interface ApiResponse<T> {
     result?: T
 }
 
+// Axios instance với cookie-based auth
+const api = axios.create({
+    baseURL: 'http://localhost:8888/api',
+    withCredentials: true, // Cookie tự động được gửi
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+})
+
 export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUnreadMessagesReturn => {
     const {
         autoRefresh = true,
@@ -46,26 +56,17 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
 
     const { registerMessageCallbacks } = useSocket()
 
-    const BASE_URL = 'http://localhost:8888/api'
-
     const fetchAllUnreadCounts = useCallback(async () => {
-        const token = getToken()
-        if (!token) {
-            console.warn('⚠️ No token found, cannot fetch unread counts')
+        if (!isAuthenticated()) {
+            console.warn('⚠️ Not authenticated, cannot fetch unread counts')
             return
         }
 
         setIsLoading(true)
 
         try {
-            const conversationsRes = await axios.get<ApiResponse<Conversation[]>>(
-                `${BASE_URL}/chat/conversations/my-conversations`,
-                {
-                    headers: {
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                }
+            const conversationsRes = await api.get<ApiResponse<Conversation[]>>(
+                `/chat/conversations/my-conversations`
             )
 
             const conversations = conversationsRes.data?.result || []
@@ -79,14 +80,8 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
 
             const unreadPromises = conversations.map(async (conv) => {
                 try {
-                    const unreadRes = await axios.get<ApiResponse<number>>(
-                        `${BASE_URL}/chat/conversations/${conv.id}/unread-count`,
-                        {
-                            headers: {
-                                'Accept': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                        }
+                    const unreadRes = await api.get<ApiResponse<number>>(
+                        `/chat/conversations/${conv.id}/unread-count`
                     )
                     return {
                         conversationId: conv.id,
@@ -126,21 +121,13 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
     }, [])
 
     const markAsRead = useCallback(async (conversationId: string) => {
-        const token = getToken()
-        if (!token || !conversationId) return
+        if (!isAuthenticated() || !conversationId) return
 
         try {
-            await axios.put(
-                `${BASE_URL}/chat/conversations/mark-as-read`,
+            await api.put(
+                `/chat/conversations/mark-as-read`,
                 null,
-                {
-                    params: { conversationId },
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                }
+                { params: { conversationId } }
             )
 
             console.log(`✅ Marked conversation ${conversationId} as read`)

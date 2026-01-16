@@ -278,9 +278,9 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
       try {
         const response = await fetch(`http://localhost:8888/api/chat/conversations/mark-as-read?conversationId=${conv.id}`, {
           method: 'PUT',
+          credentials: 'include', // Cookie tự động được gửi
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
 
@@ -311,9 +311,9 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
 
       const response = await fetch(`http://localhost:8888/api/chat/conversations?conversationId=${conversationId}`, {
         method: 'DELETE',
+        credentials: 'include', // Cookie tự động được gửi
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 

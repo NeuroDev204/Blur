@@ -44,11 +44,10 @@ public class UserService {
     ProfileMapper profileMapper;
     RoleRepository roleRepository;
 
-    @Caching(
-            evict = {
-                @CacheEvict(value = "users", allEntries = true),
-                @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
-            })
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
+    })
     public UserResponse createUser(UserCreationRequest request) {
         User user = userMapper.toUser(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -75,11 +74,10 @@ public class UserService {
         return userResponse;
     }
 
-    @Caching(
-            evict = {
-                @CacheEvict(value = "users", allEntries = true),
-                @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
-            })
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
+    })
     public void createUsers(UserCreationRequest request) {
         for (int i = 1; i <= 10000; i++) {
             User user = userMapper.toUser(request);
@@ -148,12 +146,11 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    @Caching(
-            evict = {
-                @CacheEvict(value = "users", allEntries = true),
-                @CacheEvict(value = "userById", key = "#userId"),
-                @CacheEvict(value = "myInfo", key = "#root.target.getUsernameById(#userId)")
-            })
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "userById", key = "#userId"),
+            @CacheEvict(value = "myInfo", key = "#root.target.getUsernameById(#userId)")
+    })
     public void deleteUser(String userId) {
         userRepository.deleteById(userId);
     }
@@ -169,5 +166,27 @@ public class UserService {
 
         UserResponse userResponse = userMapper.toUserResponse(user);
         return userResponse;
+    }
+
+    /**
+     * Helper method for SpEL in @Cacheable annotation
+     * Returns the current authenticated user's ID to use as cache key
+     */
+    public String getCurrentUsername() {
+        var context = SecurityContextHolder.getContext();
+        if (context.getAuthentication() == null) {
+            return null;
+        }
+        return context.getAuthentication().getName();
+    }
+
+    /**
+     * Helper method for SpEL in @CacheEvict annotation
+     * Returns the username for a given userId to use as cache key for eviction
+     */
+    public String getUsernameById(String userId) {
+        return userRepository.findById(userId)
+                .map(User::getUsername)
+                .orElse(null);
     }
 }

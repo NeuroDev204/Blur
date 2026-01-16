@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, MutableRefObject } from 'react'
 import { SOCKET_URL } from '../utils/constants'
-import { getToken } from '../utils/auth'
+import { isAuthenticated } from '../utils/auth'
 
 // Socket.IO functionality - Window.io is declared elsewhere
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,14 +17,17 @@ interface UseSocketReturn {
     error: string
 }
 
+/**
+ * Socket hook with cookie-based authentication
+ * Cookie is sent automatically via Socket.IO withCredentials option
+ */
 export const useSocketHook = (onMessageReceived: (data: unknown) => void): UseSocketReturn => {
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState("")
     const socketRef = useRef<SocketType | null>(null)
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) {
+        if (!isAuthenticated()) {
             setError("Vui lòng đăng nhập")
             return
         }
@@ -44,7 +47,7 @@ export const useSocketHook = (onMessageReceived: (data: unknown) => void): UseSo
             }
 
             const socket = io(SOCKET_URL, {
-                query: { token },
+                withCredentials: true, // Cookie tự động được gửi
                 autoConnect: true,
                 reconnection: true,
                 reconnectionDelay: 1000,

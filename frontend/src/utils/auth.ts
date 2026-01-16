@@ -1,22 +1,30 @@
-export const getToken = (): string | null => localStorage.getItem("token")
+/**
+ * Authentication utilities for cookie-based auth
+ * Token is stored in HTTP-only cookie, so we only track auth state via flag
+ */
 
-interface DecodedToken {
-    sub?: string
-    userId?: string
-    user_id?: string
-    id?: string
+// Check if user has authenticated (flag in localStorage, actual token in cookie)
+export const isAuthenticated = (): boolean => {
+    return localStorage.getItem("token") === "authenticated"
 }
 
-export const getUserId = (): string | null => {
-    const token = localStorage.getItem("token")
-    if (!token) return null
+// Legacy function - returns flag for backwards compatibility
+export const getToken = (): string | null => localStorage.getItem("token")
 
-    try {
-        const payload = token.split('.')[1]
-        const decoded: DecodedToken = JSON.parse(atob(payload))
-        return decoded.sub || decoded.userId || decoded.user_id || decoded.id || null
-    } catch (error) {
-        console.error("Cannot decode token:", error)
-        return null
-    }
+// Get user ID from API call (no longer from JWT in localStorage)
+// This will be handled by the /users/me API call which has cookie auth
+export const getUserId = (): string | null => {
+    // Legacy: try to get from localStorage if stored separately
+    return localStorage.getItem("userId")
+}
+
+// Store user ID when fetched from API
+export const setUserId = (userId: string): void => {
+    localStorage.setItem("userId", userId)
+}
+
+// Clear auth state on logout
+export const clearAuth = (): void => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("userId")
 }

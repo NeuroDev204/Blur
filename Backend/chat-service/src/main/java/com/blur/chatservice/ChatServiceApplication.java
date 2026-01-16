@@ -10,7 +10,7 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan(basePackages = {"com.blur.chatservice", "com.blur.common"})
 public class ChatServiceApplication {
 
-  public static void main(String[] args) {
-    SpringApplication.run(ChatServiceApplication.class, args);
-  }
+    public static void main(String[] args) {
+        SpringApplication.run(ChatServiceApplication.class, args);
+    }
 }

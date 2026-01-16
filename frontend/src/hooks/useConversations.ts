@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getMyConversations } from '../api/messageApi'
+import { isAuthenticated } from '../service/LocalStorageService'
 import { AxiosError } from 'axios'
 
 interface Conversation {
@@ -21,14 +22,13 @@ export const useConversations = (): UseConversationsReturn => {
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const token = localStorage.getItem('token')
 
     const loadConversations = useCallback(async () => {
         try {
             setLoading(true)
             setError(null)
 
-            if (!token) {
+            if (!isAuthenticated()) {
                 setError("Authentication required. Please login again.")
                 return
             }
@@ -51,7 +51,7 @@ export const useConversations = (): UseConversationsReturn => {
         } finally {
             setLoading(false)
         }
-    }, [token])
+    }, [])
 
     useEffect(() => {
         loadConversations()

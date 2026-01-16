@@ -1,9 +1,13 @@
-
 server:
   port: ${SERVER_PORT}
   address: 0.0.0.0
   servlet:
     context-path: /identity
+
+    session:
+      cookie:
+        secure: ${COOKIE_SECURE}
+        domain: ${COOKIE_DOMAIN}
 
 spring:
 
@@ -49,12 +53,3 @@ app:
   services:
     profile: ${PROFILE_SERVICE_URL}
     notification: ${NOTIFICATION_SERVICE_URL}
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
-  endpoint:
-    health:
-      show-details: always

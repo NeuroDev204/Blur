@@ -59,9 +59,9 @@ const UserSearchBar = ({ onSelectUser, onConversationCreated }) => {
     try {
       const response = await fetch('http://localhost:8888/api/chat/conversations/create', {
         method: 'POST',
+        credentials: 'include', // Cookie tự động được gửi
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           type: 'DIRECT',

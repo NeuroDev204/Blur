@@ -73,7 +73,7 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ApiResponse<UserResponse> myInfo() {
+    public ApiResponse<UserResponse> myInfo(@CookieValue(name = "access_token") String token) {
         return ApiResponse.<UserResponse>builder()
                 .code(1000) // Phía FE đang kiểm tra 1000
                 .result(userService.getMyInfo())

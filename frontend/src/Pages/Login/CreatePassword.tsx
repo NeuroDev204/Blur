@@ -12,7 +12,7 @@ import {
 import React, { useEffect, useState, FormEvent, ChangeEvent } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { getToken } from "../../service/LocalStorageService";
+import { isAuthenticated } from "../../service/LocalStorageService";
 
 interface UserDetails {
     noPassword?: boolean;
@@ -45,12 +45,10 @@ const CreatePassword: React.FC = () => {
 
     const checkPassword = (): boolean => password === confirmPassword;
 
-    const getUserDetails = async (accessToken: string) => {
-        const response = await fetch("/api/identity/users/", {
+    const getUserDetails = async () => {
+        const response = await fetch("/api/identity/users/me", {
             method: "GET",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
+            credentials: "include", // Cookie tự động được gửi
         });
         const data: { result?: UserDetails } = await response.json();
         setUserDetails(data.result || {});
@@ -62,9 +60,9 @@ const CreatePassword: React.FC = () => {
             const body = { password };
             fetch("http://localhost:8888/api/identity/users/create-password", {
                 method: "POST",
+                credentials: "include", // Cookie tự động được gửi
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${getToken()}`,
                 },
                 body: JSON.stringify(body),
             })
@@ -73,10 +71,7 @@ const CreatePassword: React.FC = () => {
                 })
                 .then((data) => {
                     if (data.code !== 1000) throw new Error(data.message);
-                    const token = getToken();
-                    if (token) {
-                        getUserDetails(token);
-                    }
+                    getUserDetails();
                     showToast("Password created", data.message, "success");
                     navigate("/login");
                 })
@@ -93,11 +88,10 @@ const CreatePassword: React.FC = () => {
     };
 
     useEffect(() => {
-        const accessToken = getToken();
-        if (!accessToken) {
+        if (!isAuthenticated()) {
             navigate("/login");
         } else {
-            getUserDetails(accessToken);
+            getUserDetails();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);

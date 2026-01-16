@@ -1,17 +1,18 @@
 import { useToast } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../../service/LocalStorageService";
-import { setToken } from "../../service/LocalStorageService";
+import { setToken, setUserId } from "../../service/LocalStorageService";
 
 interface UserDetails {
+    id?: string;
     noPassword?: boolean;
     [key: string]: unknown;
 }
 
 interface AuthResponse {
+    code?: number;
     result?: {
-        token?: string;
+        authenticated?: boolean;
     };
 }
 
@@ -45,6 +46,7 @@ const Authenticate: React.FC = () => {
                 `/api/identity/auth/outbound/authentication?code=${authCode}`,
                 {
                     method: "POST",
+                    credentials: "include", // Cookie tự động được set
                 }
             )
                 .then((response) => {
@@ -52,26 +54,33 @@ const Authenticate: React.FC = () => {
                 })
                 .then((data) => {
                     console.log("data: ", data);
-                    if (data.result?.token) {
-                        setToken(data.result.token);
+                    if (data.code === 1000 && data.result?.authenticated) {
+                        // Lưu flag authenticated (token đã được set trong cookie)
+                        setToken("authenticated");
+                        // Lấy thông tin user
+                        getUserDetails();
                     }
                 });
         }
     }, []);
 
-    const getUserDetails = async (accessToken: string) => {
+    const getUserDetails = async () => {
         try {
             const response = await fetch(
-                "http://localhost:8888/api/identity/users/",
+                "http://localhost:8888/api/identity/users/me",
                 {
                     method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
+                    credentials: "include", // Cookie tự động được gửi
                 }
             );
             const data: UserResponse = await response.json();
-            setUserDetails(data.result || {});
+            if (data.result) {
+                setUserDetails(data.result);
+                // Lưu userId để dùng cho socket
+                if (data.result.id) {
+                    setUserId(data.result.id);
+                }
+            }
             setIsLoggedIn(true);
         } catch (error) {
             const err = error as Error;
@@ -80,11 +89,12 @@ const Authenticate: React.FC = () => {
     };
 
     useEffect(() => {
-        const accessToken = localStorage.getItem("token");
+        // Kiểm tra xem đã có auth flag chưa
+        const isAuth = localStorage.getItem("token") === "authenticated";
 
-        if (accessToken) {
+        if (isAuth) {
             // Lấy thông tin người dùng
-            getUserDetails(accessToken);
+            getUserDetails();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);
@@ -93,7 +103,7 @@ const Authenticate: React.FC = () => {
     useEffect(() => {
         console.log("User details: ", userDetails); // Debug giá trị userDetails
         if (userDetails.noPassword === true && !isLoggedIn) {
-            navigate("http://localhost:8888/api/identity/create-password");
+            navigate("/create-password");
         } else if (userDetails.noPassword === false && isLoggedIn) {
             navigate("/");
         }

@@ -5,21 +5,15 @@ const API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL as string) || 
 const axiosClient: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,
     timeout: 30000,
+    withCredentials: true, // Cookie sẽ tự động được gửi
     headers: {
         'Content-Type': 'application/json',
     },
 })
 
-const getToken = (): string | null => {
-    return localStorage.getItem('token')
-}
-
+// Request interceptor - no need to add Authorization header, cookie is sent automatically
 axiosClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        const token = getToken()
-        if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
         return config
     },
     (error: AxiosError) => {
@@ -27,6 +21,7 @@ axiosClient.interceptors.request.use(
     }
 )
 
+// Response interceptor
 axiosClient.interceptors.response.use(
     (response: AxiosResponse) => {
         return response
@@ -36,7 +31,9 @@ axiosClient.interceptors.response.use(
             const { status } = error.response
             switch (status) {
                 case 401:
+                    // Clear auth flag and redirect to login
                     localStorage.removeItem('token')
+                    window.location.href = '/login'
                     break
                 case 403:
                 case 404:

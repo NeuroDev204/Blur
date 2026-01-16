@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { createChatMessage } from '../api/messageApi'
 import httpClient from '../service/httpClient'
-import { getToken } from '../service/LocalStorageService'
+import { isAuthenticated } from '../service/LocalStorageService'
 import { API } from '../service/configuration'
 import { AxiosError } from 'axios'
 
@@ -57,15 +57,14 @@ export const useMessages = (selectedChat: SelectedChat | null): UseMessagesRetur
             setLoading(true)
             setError(null)
 
-            const token = getToken()
-            if (!token) {
+            if (!isAuthenticated()) {
                 setError("Authentication required")
                 return
             }
 
+            // Cookie tự động được gửi qua httpClient (withCredentials: true)
             const res = await httpClient.get<ApiResponse>(`${API.GET_MESSAGES}`, {
                 params: { conversationId },
-                headers: { Authorization: `Bearer ${token}` },
             })
 
             console.log("Messages response:", res)
@@ -121,9 +120,8 @@ export const useMessages = (selectedChat: SelectedChat | null): UseMessagesRetur
         addMessage(newMsg)
 
         try {
-            const token = getToken()
-            if (!token) {
-                throw new Error("No authentication token")
+            if (!isAuthenticated()) {
+                throw new Error("No authentication")
             }
 
             await createChatMessage({

@@ -3,9 +3,8 @@ import { useNotification } from "../../contexts/NotificationContext";
 import { Bell } from "lucide-react";
 import Header from "../../Components/Notification/Header";
 import NotificationItem from "../../Components/Notification/NotificationItem";
-import { getToken } from "../../service/LocalStorageService";
+import { isAuthenticated, getUserId } from "../../service/LocalStorageService";
 import { fetchPostById } from "../../api/postApi";
-import { jwtDecode } from "jwt-decode";
 import {
     getAllNotifications,
     markAllNotificationsAsRead,
@@ -31,11 +30,6 @@ interface Notification {
     seen?: boolean;
 }
 
-interface DecodedToken {
-    sub: string;
-    [key: string]: unknown;
-}
-
 interface RealtimeNotification {
     id: string;
     senderName?: string;
@@ -58,29 +52,22 @@ const NotificationsPage: React.FC = () => {
 
     const toast = useToast();
     const navigate = useNavigate();
-    const token = getToken();
 
     // ✅ Lấy realtime noti từ Context
     const { notifications: realtimeNotifications, notificationCounter } =
         useNotification();
 
-    // ✅ Giải mã token để lấy userId
+    // ✅ Lấy userId từ localStorage
     const userId = useMemo(() => {
-        if (!token) return "";
-        try {
-            const decoded = jwtDecode<DecodedToken>(token);
-            return decoded.sub;
-        } catch {
-            return "";
-        }
-    }, [token]);
+        return getUserId() || "";
+    }, []);
 
     // ✅ Lấy danh sách ban đầu từ API
     useEffect(() => {
         const getNotifications = async () => {
             try {
                 setIsLoading(true);
-                const result = await getAllNotifications(token || "", userId);
+                const result = await getAllNotifications(userId);
                 setNotifications(result || []);
             } catch (error) {
                 console.error("Error fetching notifications:", error);
@@ -88,8 +75,8 @@ const NotificationsPage: React.FC = () => {
                 setIsLoading(false);
             }
         };
-        if (token && userId) getNotifications();
-    }, [token, userId]);
+        if (isAuthenticated() && userId) getNotifications();
+    }, [userId]);
 
     // ✅ Realtime notification handler
     useEffect(() => {
@@ -132,7 +119,7 @@ const NotificationsPage: React.FC = () => {
     // ✅ Mark 1 thông báo là đã đọc
     const handleMarkRead = async (id: string) => {
         try {
-            await markNotificationAsRead(token || "", id);
+            await markNotificationAsRead(id);
             setNotifications((prev) =>
                 prev.map((n) => (n.id === id ? { ...n, seen: true } : n))
             );
@@ -144,7 +131,7 @@ const NotificationsPage: React.FC = () => {
     // ✅ Mark tất cả đã đọc
     const handleMarkAllRead = async () => {
         try {
-            await markAllNotificationsAsRead(token || "");
+            await markAllNotificationsAsRead();
             toast({
                 title: "All marked as read",
                 status: "success",
@@ -187,14 +174,14 @@ const NotificationsPage: React.FC = () => {
         try {
             // Mark as read
             if (!notification.seen) {
-                await markNotificationAsRead(token || "", notification.id);
+                await markNotificationAsRead(notification.id);
                 setNotifications((prev) =>
                     prev.map((n) => (n.id === notification.id ? { ...n, seen: true } : n))
                 );
             }
 
             // Fetch post
-            const post = await fetchPostById(postId, token || "");
+            const post = await fetchPostById(postId);
             console.log("✅ Post fetched successfully:", post);
 
             if (!post) {

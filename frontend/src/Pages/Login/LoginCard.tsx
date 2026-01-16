@@ -65,7 +65,9 @@ const LoginCard: React.FC = () => {
         setIsLoading(true)
 
         try {
-            const response = await axios.post(API_LOGIN_URL, formData)
+            const response = await axios.post(API_LOGIN_URL, formData, {
+                withCredentials: true  // Quan trọng: để browser nhận cookie từ server
+            })
 
             if (response.data.code !== 1000) {
                 throw new Error("Invalid credentials")
@@ -77,7 +79,8 @@ const LoginCard: React.FC = () => {
                 localStorage.removeItem(STORAGE_KEY)
             }
 
-            setToken(response.data.result?.token)
+            // Lưu flag authenticated (token được lưu trong HTTP-only cookie bởi backend)
+            localStorage.setItem("token", "authenticated")
             showToast("Welcome back!", "Login successful", "success")
             navigate("/")
         } catch {

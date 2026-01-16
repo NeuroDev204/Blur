@@ -2,7 +2,6 @@ import axios from "axios";
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { getToken } from "../../service/LocalStorageService";
 import { fetchUserInfo } from "../../api/userApi";
 import { useToast } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
@@ -40,14 +39,13 @@ const EditAccountPage: React.FC = () => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const token = getToken();
     const toast = useToast();
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const userInfo = await fetchUserInfo(token || "");
+                const userInfo = await fetchUserInfo();
                 if (userInfo) {
                     setFormData({
                         firstName: userInfo.firstName || "",
@@ -74,7 +72,7 @@ const EditAccountPage: React.FC = () => {
             }
         };
         fetchUser();
-    }, [token, toast]);
+    }, [toast]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -153,13 +151,13 @@ const EditAccountPage: React.FC = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const userInfo = await fetchUserInfo(token || "");
+            const userInfo = await fetchUserInfo();
             const response = await axios.put(
                 `http://localhost:8888/api/profile/users/${userInfo.id}`,
                 formData,
                 {
+                    withCredentials: true, // Cookie tự động được gửi
                     headers: {
-                        Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
                     },
                 }

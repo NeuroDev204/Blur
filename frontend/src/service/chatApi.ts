@@ -2,6 +2,15 @@ import axios, { AxiosError } from 'axios'
 
 const API_BASE_URL = 'http://localhost:8888/api'
 
+// Axios instance với cookie-based auth
+const chatAxios = axios.create({
+    baseURL: API_BASE_URL,
+    withCredentials: true, // Cookie tự động được gửi
+    headers: {
+        'Content-Type': 'application/json'
+    }
+})
+
 // Types
 interface ConversationData {
     type: 'DIRECT' | 'GROUP'
@@ -43,17 +52,11 @@ interface UnreadCountResponse {
 /**
  * Create a new conversation
  */
-export const createConversation = async (data: ConversationData, token: string): Promise<Conversation> => {
+export const createConversation = async (data: ConversationData): Promise<Conversation> => {
     try {
-        const response = await axios.post<Conversation>(
-            `${API_BASE_URL}/chat/conversations/create`,
-            data,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        const response = await chatAxios.post<Conversation>(
+            `/chat/conversations/create`,
+            data
         )
         return response.data
     } catch (error) {
@@ -64,6 +67,8 @@ export const createConversation = async (data: ConversationData, token: string):
             if (status === 400) {
                 throw new Error(data?.message || 'Invalid conversation data')
             } else if (status === 401) {
+                localStorage.removeItem('token')
+                window.location.href = '/login'
                 throw new Error('Unauthorized. Please log in again.')
             } else if (status === 404) {
                 throw new Error('User not found')
@@ -81,16 +86,9 @@ export const createConversation = async (data: ConversationData, token: string):
 /**
  * Get all conversations for current user
  */
-export const getConversations = async (token: string): Promise<Conversation[]> => {
+export const getConversations = async (): Promise<Conversation[]> => {
     try {
-        const response = await axios.get<Conversation[]>(
-            `${API_BASE_URL}/chat/conversations`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-        )
+        const response = await chatAxios.get<Conversation[]>(`/chat/conversations`)
         return response.data
     } catch (error) {
         console.error('Error fetching conversations:', error)
@@ -101,15 +99,10 @@ export const getConversations = async (token: string): Promise<Conversation[]> =
 /**
  * Get conversation by ID
  */
-export const getConversationById = async (conversationId: string, token: string): Promise<Conversation> => {
+export const getConversationById = async (conversationId: string): Promise<Conversation> => {
     try {
-        const response = await axios.get<Conversation>(
-            `${API_BASE_URL}/chat/conversations/${conversationId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
+        const response = await chatAxios.get<Conversation>(
+            `/chat/conversations/${conversationId}`
         )
         return response.data
     } catch (error) {
@@ -121,17 +114,11 @@ export const getConversationById = async (conversationId: string, token: string)
 /**
  * Send a message in a conversation
  */
-export const sendMessage = async (conversationId: string, messageData: MessageData, token: string): Promise<Message> => {
+export const sendMessage = async (conversationId: string, messageData: MessageData): Promise<Message> => {
     try {
-        const response = await axios.post<Message>(
-            `${API_BASE_URL}/chat/conversations/${conversationId}/messages`,
-            messageData,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        const response = await chatAxios.post<Message>(
+            `/chat/conversations/${conversationId}/messages`,
+            messageData
         )
         return response.data
     } catch (error) {
@@ -145,19 +132,13 @@ export const sendMessage = async (conversationId: string, messageData: MessageDa
  */
 export const getMessages = async (
     conversationId: string,
-    token: string,
     page: number = 0,
     size: number = 50
 ): Promise<PaginatedMessages> => {
     try {
-        const response = await axios.get<PaginatedMessages>(
-            `${API_BASE_URL}/chat/conversations/${conversationId}/messages`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                params: { page, size }
-            }
+        const response = await chatAxios.get<PaginatedMessages>(
+            `/chat/conversations/${conversationId}/messages`,
+            { params: { page, size } }
         )
         return response.data
     } catch (error) {
@@ -169,17 +150,11 @@ export const getMessages = async (
 /**
  * Mark a conversation as read
  */
-export const markConversationAsRead = async (conversationId: string, token: string): Promise<Conversation | null> => {
+export const markConversationAsRead = async (conversationId: string): Promise<Conversation | null> => {
     try {
-        const response = await axios.put<Conversation>(
-            `${API_BASE_URL}/chat/conversations/mark-as-read?conversationId=${conversationId}`,
-            {},
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        const response = await chatAxios.put<Conversation>(
+            `/chat/conversations/mark-as-read?conversationId=${conversationId}`,
+            {}
         )
         return response.data
     } catch (error) {
@@ -191,16 +166,9 @@ export const markConversationAsRead = async (conversationId: string, token: stri
 /**
  * Delete a conversation
  */
-export const deleteConversation = async (conversationId: string, token: string): Promise<void> => {
+export const deleteConversation = async (conversationId: string): Promise<void> => {
     try {
-        await axios.delete(
-            `${API_BASE_URL}/chat/conversations/${conversationId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-        )
+        await chatAxios.delete(`/chat/conversations/${conversationId}`)
     } catch (error) {
         console.error('Error deleting conversation:', error)
         throw error
@@ -212,19 +180,12 @@ export const deleteConversation = async (conversationId: string, token: string):
  */
 export const markMessageAsRead = async (
     conversationId: string,
-    messageId: string,
-    token: string
+    messageId: string
 ): Promise<Message | null> => {
     try {
-        const response = await axios.put<Message>(
-            `${API_BASE_URL}/chat/conversations/${conversationId}/messages/${messageId}/read`,
-            {},
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        const response = await chatAxios.put<Message>(
+            `/chat/conversations/${conversationId}/messages/${messageId}/read`,
+            {}
         )
         return response.data
     } catch (error) {
@@ -236,16 +197,9 @@ export const markMessageAsRead = async (
 /**
  * Get unread message count
  */
-export const getUnreadCount = async (token: string): Promise<number> => {
+export const getUnreadCount = async (): Promise<number> => {
     try {
-        const response = await axios.get<UnreadCountResponse>(
-            `${API_BASE_URL}/chat/unread-count`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-        )
+        const response = await chatAxios.get<UnreadCountResponse>(`/chat/unread-count`)
         return response.data.count || 0
     } catch (error) {
         console.error('Error fetching unread count:', error)

@@ -35,7 +35,7 @@ spring:
             allowedHeaders:
               - "${CORS_ALLOWED_HEADERS:*}"
             allowCredentials: true
-            exposedHeaders:  # ⭐ CHỈ THÊM DÒNG NÀY
+            exposedHeaders: # ⭐ CHỈ THÊM DÒNG NÀY
               - "Authorization"
               - "Content-Type"
             maxAge: 3600
@@ -63,7 +63,7 @@ spring:
           predicates:
             - Path=/api/notification/ws-notification/**
           filters:
-              - StripPrefix=2
+            - StripPrefix=2
 
         - id: notification_service
           uri: ${NOTIFICATION_SERVICE_URL}
@@ -94,11 +94,3 @@ spring:
           filters:
             - StripPrefix=1
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,gateway
-  endpoint:
-    health:
-      show-details: always

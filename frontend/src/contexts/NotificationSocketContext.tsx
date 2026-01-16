@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react"
-import { getToken } from "../service/LocalStorageService"
+import { isAuthenticated, getUserId } from "../service/LocalStorageService"
 import { useNotification } from "../contexts/NotificationContext"
 
 interface NotificationSocketProviderProps {
@@ -30,9 +30,8 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
     const { addNotification } = useNotification()
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) {
-            console.log("📵 No token, skipping notification socket connection")
+        if (!isAuthenticated()) {
+            console.log("📵 Not authenticated, skipping notification socket connection")
             return
         }
 
@@ -49,21 +48,22 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
                     import("sockjs-client")
                 ])
 
-                // Decode token to get userId
-                const payload = token.split('.')[1]
-                const decoded = JSON.parse(atob(payload))
-                const userId = decoded.sub
+                // Get userId from localStorage (saved during login/getUserDetails)
+                const userId = getUserId()
+                if (!userId) {
+                    console.warn("⚠️ No userId found, cannot connect notification socket")
+                    return
+                }
 
                 console.log("👤 Connecting notification socket for userId:", userId)
 
                 client = new Client({
                     webSocketFactory: () =>
                         new SockJS(
-                            `http://localhost:8082/notification/ws-notification?token=${token}`
+                            `http://localhost:8082/notification/ws-notification`
+                            // Cookie được gửi tự động khi same-origin hoặc cấu hình CORS cho phép
                         ) as WebSocket,
-                    connectHeaders: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                    // Không cần connectHeaders với Authorization nữa
                     reconnectDelay: 5000,
                     debug: (str) => console.log("[STOMP]", str),
 
