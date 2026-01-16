@@ -63,7 +63,10 @@ public class AuthController {
 
         return ApiResponse.<AuthResponse>builder()
                 .code(1000)
-                .result(AuthResponse.builder().authenticated(true).build())
+                .result(AuthResponse.builder()
+                        .userId(result.getUserId())
+                        .authenticated(true)
+                        .build())
                 .build();
     }
 
@@ -115,8 +118,28 @@ public class AuthController {
 
     // login with google
     @PostMapping("/outbound/authentication")
-    ApiResponse<AuthResponse> outboundAuthenticate(@RequestParam("code") String code) {
+    ApiResponse<AuthResponse> outboundAuthenticate(@RequestParam("code") String code, HttpServletResponse response) {
         var result = authenticationService.outboundAuthenticationService(code);
-        return ApiResponse.<AuthResponse>builder().code(1000).result(result).build();
+
+        // set access token cookie (same as normal login)
+        Cookie accessCookie = new Cookie("access_token", result.getToken());
+        accessCookie.setHttpOnly(true);
+        accessCookie.setSecure(cookieSecure);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge((int) validDuration);
+        accessCookie.setAttribute("SameSite", "Strict");
+
+        if (!cookieDomain.isEmpty()) {
+            accessCookie.setDomain(cookieDomain);
+        }
+        response.addCookie(accessCookie);
+
+        return ApiResponse.<AuthResponse>builder()
+                .code(1000)
+                .result(AuthResponse.builder()
+                        .userId(result.getUserId())
+                        .authenticated(true)
+                        .build())
+                .build();
     }
 }

@@ -70,7 +70,11 @@ public class AuthenticationService {
         }
         var token = generateToken(user);
         redisService.setOnline(user.getId());
-        return AuthResponse.builder().token(token).authenticated(true).build();
+        return AuthResponse.builder()
+                .token(token)
+                .userId(user.getId())
+                .authenticated(true)
+                .build();
     }
 
     private String generateToken(User user) {
@@ -115,8 +119,7 @@ public class AuthenticationService {
             var signToken = verifyToken(request.getToken(), true);
             String jit = signToken.getJWTClaimsSet().getJWTID();
             Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
-            InvalidatedToken invalidatedToken =
-                    InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
+            InvalidatedToken invalidatedToken = InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
             tokenRepository.save(invalidatedToken);
             redisService.setOffline(signToken.getJWTClaimsSet().getSubject());
         } catch (BlurException e) {
@@ -129,8 +132,7 @@ public class AuthenticationService {
         var jit = signJWT.getJWTClaimsSet().getJWTID();
         var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
 
-        InvalidatedToken invalidatedToken =
-                InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
+        InvalidatedToken invalidatedToken = InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
         tokenRepository.save(invalidatedToken);
 
         // subject hiện tại là userId (do generateToken dùng user.getId())
@@ -228,6 +230,10 @@ public class AuthenticationService {
                 .lastName(userInfo.getFamilyName())
                 .city(userInfo.getLocale())
                 .build());
-        return AuthResponse.builder().token(token).build();
+        return AuthResponse.builder()
+                .token(token)
+                .userId(user.getId())
+                .authenticated(true)
+                .build();
     }
 }
