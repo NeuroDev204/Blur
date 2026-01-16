@@ -3,7 +3,7 @@ import { FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa"
 import { useNavigate } from "react-router-dom"
 import { useToast } from "@chakra-ui/react"
 import { OAuthConfig } from "../../Config/configuration"
-import { setToken } from "../../service/LocalStorageService"
+import { setToken, setUserId } from "../../service/LocalStorageService"
 import axios from "axios"
 
 const STORAGE_KEY = "rememberedCredentials"
@@ -12,6 +12,14 @@ const API_LOGIN_URL = "http://localhost:8888/api/identity/auth/token"
 interface FormData {
     username: string
     password: string
+}
+
+interface LoginResponse {
+    code: number
+    result?: {
+        userId?: string
+        authenticated?: boolean
+    }
 }
 
 const LoginCard: React.FC = () => {
@@ -65,7 +73,7 @@ const LoginCard: React.FC = () => {
         setIsLoading(true)
 
         try {
-            const response = await axios.post(API_LOGIN_URL, formData, {
+            const response = await axios.post<LoginResponse>(API_LOGIN_URL, formData, {
                 withCredentials: true  // Quan trọng: để browser nhận cookie từ server
             })
 
@@ -80,7 +88,13 @@ const LoginCard: React.FC = () => {
             }
 
             // Lưu flag authenticated (token được lưu trong HTTP-only cookie bởi backend)
-            localStorage.setItem("token", "authenticated")
+            setToken("authenticated")
+
+            // Lưu userId cho socket connections
+            if (response.data.result?.userId) {
+                setUserId(response.data.result.userId)
+            }
+
             showToast("Welcome back!", "Login successful", "success")
             navigate("/")
         } catch {

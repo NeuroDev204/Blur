@@ -12,6 +12,7 @@ interface UserDetails {
 interface AuthResponse {
     code?: number;
     result?: {
+        userId?: string;
         authenticated?: boolean;
     };
 }
@@ -57,7 +58,13 @@ const Authenticate: React.FC = () => {
                     if (data.code === 1000 && data.result?.authenticated) {
                         // Lưu flag authenticated (token đã được set trong cookie)
                         setToken("authenticated");
-                        // Lấy thông tin user
+
+                        // Lưu userId từ response nếu có
+                        if (data.result.userId) {
+                            setUserId(data.result.userId);
+                        }
+
+                        // Lấy thông tin user để kiểm tra noPassword
                         getUserDetails();
                     }
                 });
