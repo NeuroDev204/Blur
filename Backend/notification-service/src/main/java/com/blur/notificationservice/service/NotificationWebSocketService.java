@@ -11,14 +11,22 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class NotificationWebSocketService {
 
-    private final SimpMessagingTemplate messagingTemplate;
+  private final SimpMessagingTemplate messagingTemplate;
 
-    public void sendToUser(Notification notification) {
-        messagingTemplate.convertAndSendToUser(
-                notification.getReceiverId(),
-                "/notification",
-                notification
-        );
-        log.info("✅ Realtime notification pushed to user {}", notification.getReceiverId());
-    }
+  public void sendToUser(Notification notification) {
+    messagingTemplate.convertAndSendToUser(
+        notification.getReceiverId(),
+        "/notification",
+        notification
+    );
+    log.info("✅ Realtime notification pushed to user {}", notification.getReceiverId());
+  }
+
+  public void pushToUser(String receiverId, Notification notification) {
+    messagingTemplate.convertAndSendToUser(
+        receiverId,
+        "/notification",
+        notification
+    );
+  }
 }

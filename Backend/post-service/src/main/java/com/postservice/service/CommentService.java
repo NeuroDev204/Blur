@@ -1,8 +1,9 @@
 package com.postservice.service;
 
-import com.blur.common.event.Event;
+import com.blur.common.event.CommentCreatedEvent;
 import com.blur.common.exception.BlurException;
 import com.blur.common.exception.ErrorCode;
+import com.blur.common.outbox.OutboxService;
 import com.postservice.dto.request.CreateCommentRequest;
 import com.postservice.dto.response.CommentResponse;
 import com.postservice.entity.Comment;
@@ -10,7 +11,6 @@ import com.postservice.mapper.CommentMapper;
 import com.postservice.repository.CommentRepository;
 import com.postservice.repository.PostRepository;
 import com.postservice.repository.httpclient.IdentityClient;
-import com.postservice.repository.httpclient.NotificationClient;
 import com.postservice.repository.httpclient.ProfileClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +21,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,84 +36,132 @@ public class CommentService {
   CommentMapper commentMapper;
   ProfileClient profileClient;
   IdentityClient identityClient;
-  NotificationClient notificationClient;
+  // NotificationClient notificationClient;
+  OutboxService outboxService;
   PostRepository postRepository;
 
+  @Transactional
   @CacheEvict(value = "comments", key = "#postId")
   public CommentResponse createComment(CreateCommentRequest request, String postId) {
-    // Lấy user hiện tại
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String userId = authentication.getName();
+    // // Lấy user hiện tại
+    // Authentication authentication =
+    // SecurityContextHolder.getContext().getAuthentication();
+    // String userId = authentication.getName();
+    //
+    // // Lấy post để dùng cả cho check self-comment + thông tin receiver
+    // var post = postRepository.findById(postId)
+    // .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
+    //
+    // // Lấy profile của người comment (dùng cho comment + senderName)
+    // var profileRes = profileClient.getProfile(userId);
+    // var profile = profileRes.getResult();
+    //
+    // // Tạo comment
+    // Comment comment = Comment.builder()
+    // .content(request.getContent())
+    // .userId(userId)
+    // .firstName(profile.getFirstName())
+    // .lastName(profile.getLastName())
+    // .postId(postId)
+    // .createdAt(Instant.now())
+    // .updatedAt(Instant.now())
+    // .build();
+    //
+    // comment = commentRepository.save(comment);
+    //
+    // // 👉 Nếu chính chủ tự cmt bài viết của mình thì KHÔNG gửi notification
+    // if (post.getUserId().equals(userId)) {
+    // return commentMapper.toCommentResponse(comment);
+    // }
+    //
+    // // Lấy info chủ bài viết (receiver) từ Identity
+    // String senderUserId = userId;
+    // String receiverUserId = post.getUserId();
+    //
+    // var senderProfile = profileClient.getProfile(senderUserId).getResult();
+    // var receiverProfile = profileClient.getProfile(receiverUserId).getResult();
+    // var receiverIdentity = identityClient.getUser(receiverUserId).getResult();
+    //
+    //
+    // // Build Event giống kiểu like
+    // Event event = Event.builder()
+    // .postId(post.getId())
+    //
+    // // ✅ profileId (để notification-service dùng nếu cần)
+    // .senderId(senderProfile.getId())
+    // .receiverId(receiverProfile.getId())
+    //
+    // // ✅ userId (cái quan trọng để realtime)
+    // .senderUserId(senderUserId)
+    // .receiverUserId(receiverUserId)
+    //
+    // // info hiển thị
+    // .senderName(senderProfile.getFirstName() + " " + senderProfile.getLastName())
+    // .receiverName(receiverProfile.getFirstName() + " " +
+    // receiverProfile.getLastName())
+    // .receiverEmail(receiverIdentity.getEmail())
+    //
+    // .timestamp(LocalDateTime.now())
+    // .build();
+    //
+    //
+    // notificationClient.sendCommentNotification(event);
 
-    // Lấy post để dùng cả cho check self-comment + thông tin receiver
-    var post = postRepository.findById(postId)
+    // lay user tu jwt
+    String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+    // lay post va lay owner
+    var post = postRepository.findPostById(postId)
         .orElseThrow(() -> new BlurException(ErrorCode.POST_NOT_FOUND));
 
-    // Lấy profile của người comment (dùng cho comment + senderName)
-    var profileRes = profileClient.getProfile(userId);
-    var profile = profileRes.getResult();
-
-    // Tạo comment
+    // tao comment
     Comment comment = Comment.builder()
         .content(request.getContent())
         .userId(userId)
-        .firstName(profile.getFirstName())
-        .lastName(profile.getLastName())
         .postId(postId)
         .createdAt(Instant.now())
-        .updatedAt(Instant.now())
         .build();
-
     comment = commentRepository.save(comment);
 
-    // 👉 Nếu chính chủ tự cmt bài viết của mình thì KHÔNG gửi notification
-    if (post.getUserId().equals(userId)) {
-      return commentMapper.toCommentResponse(comment);
+    // neu tu comment bai cua minh -> khong can noti
+    if (!post.getUserId().equals(userId)) {
+      // lay profile cua author (nguoi comment)
+      var authorProfile = profileClient.getProfile(userId).getResult();
+      // lay profile cua post owner (nguoi nhan notification)
+      var postOwnerProfile = profileClient.getProfile(post.getUserId()).getResult();
+      var postOwnerIdentity = identityClient.getUser(post.getUserId()).getResult();
+
+      // tao event voi day du thong tin
+      CommentCreatedEvent event = CommentCreatedEvent.builder()
+          .commentId(comment.getId())
+          .postId(postId)
+          .content(comment.getContent())
+          .authorId(userId)
+          .authorName(authorProfile.getFirstName() + " " + authorProfile.getLastName())
+          .authorFirstName(authorProfile.getFirstName())
+          .authorLastName(authorProfile.getLastName())
+          .authorImageUrl(authorProfile.getImageUrl())
+          .postOwnerId(post.getUserId())
+          .postOwnerName(postOwnerProfile.getFirstName() + " " + postOwnerProfile.getLastName())
+          .postOwnerEmail(postOwnerIdentity.getEmail())
+          .aggregateId(postId) // partition key = postId
+          .aggregateType("Comment")
+          .build();
+      // luu vao outbox (cung transaction voi comment)
+      outboxService.save(
+          "comment.created",
+          "Comment",
+          comment.getId(),
+          event);
+      log.info("Comment created and event queued {}", comment.getId());
     }
-
-    // Lấy info chủ bài viết (receiver) từ Identity
-    String senderUserId = userId;
-    String receiverUserId = post.getUserId();
-
-    var senderProfile = profileClient.getProfile(senderUserId).getResult();
-    var receiverProfile = profileClient.getProfile(receiverUserId).getResult();
-    var receiverIdentity = identityClient.getUser(receiverUserId).getResult();
-
-
-    // Build Event giống kiểu like
-    Event event = Event.builder()
-        .postId(post.getId())
-
-        // ✅ profileId (để notification-service dùng nếu cần)
-        .senderId(senderProfile.getId())
-        .receiverId(receiverProfile.getId())
-
-        // ✅ userId (cái quan trọng để realtime)
-        .senderUserId(senderUserId)
-        .receiverUserId(receiverUserId)
-
-        // info hiển thị
-        .senderName(senderProfile.getFirstName() + " " + senderProfile.getLastName())
-        .receiverName(receiverProfile.getFirstName() + " " + receiverProfile.getLastName())
-        .receiverEmail(receiverIdentity.getEmail())
-
-        .timestamp(LocalDateTime.now())
-        .build();
-
-
-    notificationClient.sendCommentNotification(event);
 
     return commentMapper.toCommentResponse(comment);
   }
 
-
-  @Cacheable(
-      value = "comments",
-      key = "#postId",
-      unless = "#result == null || #result.isEmpty()"
-  )
+  @Cacheable(value = "comments", key = "#postId", unless = "#result == null || #result.isEmpty()")
   public List<CommentResponse> getAllCommentByPostId(String postId) {
-    return commentRepository.findAllByPostId(postId).stream().map(commentMapper::toCommentResponse).collect(Collectors.toList());
+    return commentRepository.findAllByPostId(postId).stream().map(commentMapper::toCommentResponse)
+        .collect(Collectors.toList());
   }
 
   public CommentResponse getCommentById(String commentId) {
@@ -124,8 +172,8 @@ public class CommentService {
   @CacheEvict(value = "comments", key = "#root.target.getPostIdByCommentId(#commentId)")
   public CommentResponse updateComment(String commentId, CreateCommentRequest request) {
 
-    var comment = commentRepository.findById(commentId).
-        orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND));
+    var comment = commentRepository.findById(commentId)
+        .orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND));
 
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     var userId = authentication.getName();
@@ -141,8 +189,8 @@ public class CommentService {
 
   @CacheEvict(value = "comments", key = "#root.target.getPostIdByCommentId(#commentId)")
   public String deleteComment(String commentId) {
-    var comment = commentRepository.findById(commentId).
-        orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND));
+    var comment = commentRepository.findById(commentId)
+        .orElseThrow(() -> new BlurException(ErrorCode.COMMENT_NOT_FOUND));
 
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     var userId = authentication.getName();

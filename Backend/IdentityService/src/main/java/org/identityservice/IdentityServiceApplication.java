@@ -5,11 +5,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 @SpringBootApplication
 @EnableFeignClients
 @EnableCaching
-@ComponentScan(basePackages = {"org.identityservice", "com.blur.common"})
+@ComponentScan(basePackages = { "org.identityservice", "com.blur.common" })
+@EnableMongoRepositories(basePackages = { "org.identityservice", "com.blur.common.repository" })
 public class IdentityServiceApplication {
 
     public static void main(String[] args) {

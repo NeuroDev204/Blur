@@ -25,9 +25,18 @@ spring:
           max-active: ${MAX_ACTIVE}
           max-idle: ${MAX_IDLE}
           min-idle: ${MIN_IDLE}
+    mongodb:
+      uri: mongodb://root:root@localhost:27017/outbox?authSource=admin
 
   cache:
     type: redis
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
 
 app:
   services:

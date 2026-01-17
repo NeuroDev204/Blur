@@ -1,9 +1,10 @@
 package com.blur.profileservice.service;
 
 import com.blur.common.dto.response.UserProfileResponse;
-import com.blur.common.event.Event;
+import com.blur.common.event.UserFollowedEvent;
 import com.blur.common.exception.BlurException;
 import com.blur.common.exception.ErrorCode;
+import com.blur.common.outbox.OutboxService;
 import com.blur.profileservice.dto.request.ProfileCreationRequest;
 import com.blur.profileservice.dto.request.UserProfileUpdateRequest;
 import com.blur.profileservice.entity.UserProfile;
@@ -24,7 +25,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -36,6 +36,7 @@ public class UserProfileService {
   UserProfileRepository userProfileRepository;
   com.blur.profileservice.mapper.userProfileMapper userProfileMapper;
   NotificationClient notificationClient;
+  private final OutboxService outboxService;
 
 
   @Caching(
@@ -141,34 +142,63 @@ public class UserProfileService {
       @CacheEvict(value = "following", key = "#root.target.getCurrentUserId()")
   })
   public String followUser(String followerId) {
-    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-    String reqUserId = authentication.getName();
+//    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+//    String reqUserId = authentication.getName();
+//
+//    if (reqUserId.equals(followerId)) {
+//      throw new BlurException(ErrorCode.CANNOT_FOLLOW_YOURSELF);
+//    }
+//
+//    // Lấy Neo4j UUID từ userId
+//    var requester = userProfileRepository.findUserProfileByUserId(reqUserId)
+//        .orElseThrow(() -> new BlurException(ErrorCode.PROFILE_NOT_FOUND));
+//
+//    var followingUser = userProfileRepository.findUserProfileById(followerId)
+//        .orElseThrow(() -> new BlurException(ErrorCode.PROFILE_NOT_FOUND));
+//    userProfileRepository.follow(requester.getId(), followerId);
+//    log.info("following: {}", followingUser);
+//
+//    // gui notification
+//    Event event = Event.builder()
+//        .senderId(requester.getId())
+//        .senderName(requester.getFirstName() + " " + requester.getLastName())
+//        .receiverId(followingUser.getId())
+//        .receiverName(followingUser.getFirstName() + " " + followingUser.getLastName())
+//        .receiverEmail(followingUser.getEmail())
+//        .timestamp(LocalDateTime.now())
+//        .build();
+//    log.info("Sending follow event: {}", event);
+//    notificationClient.sendFollowNotification(event);
 
-    if (reqUserId.equals(followerId)) {
+    String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+    if (userId.equals(followerId)) {
       throw new BlurException(ErrorCode.CANNOT_FOLLOW_YOURSELF);
     }
-
     // Lấy Neo4j UUID từ userId
-    var requester = userProfileRepository.findUserProfileByUserId(reqUserId)
+    var requester = userProfileRepository.findUserProfileByUserId(userId)
         .orElseThrow(() -> new BlurException(ErrorCode.PROFILE_NOT_FOUND));
 
     var followingUser = userProfileRepository.findUserProfileById(followerId)
         .orElseThrow(() -> new BlurException(ErrorCode.PROFILE_NOT_FOUND));
     userProfileRepository.follow(requester.getId(), followerId);
-    log.info("following: {}", followingUser);
-
-    // gui notification
-    Event event = Event.builder()
-        .senderId(requester.getId())
-        .senderName(requester.getFirstName() + " " + requester.getLastName())
-        .receiverId(followingUser.getId())
-        .receiverName(followingUser.getFirstName() + " " + followingUser.getLastName())
-        .receiverEmail(followingUser.getEmail())
-        .timestamp(LocalDateTime.now())
+    UserFollowedEvent event = UserFollowedEvent.builder()
+        .followedUserId(followingUser.getUserId())
+        .followedProfileId(followingUser.getId())
+        .followedEmail(followingUser.getEmail())
+        .followedName(followingUser.getFirstName() + " " + followingUser.getLastName())
+        .followerId(requester.getUserId())
+        .followerProfileId(requester.getId())
+        .followerName(requester.getFirstName() + " " + requester.getLastName())
+        .followerImageUrl(requester.getImageUrl())
+        .aggregateId(followingUser.getId())
+        .aggregateType("Follow")
         .build();
-    log.info("Sending follow event: {}", event);
-    notificationClient.sendFollowNotification(event);
-
+    outboxService.save(
+        "user.follow",
+        "Follow",
+        followingUser.getId(),
+        event
+    );
 
     return "You are following " + followingUser.getFirstName();
   }

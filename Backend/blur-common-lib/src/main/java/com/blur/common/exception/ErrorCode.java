@@ -78,8 +78,9 @@ public enum ErrorCode {
   SEND_EVENT_FAILED(8005, "Send event failed", HttpStatus.INTERNAL_SERVER_ERROR),
   WEBRTC_OFFER_FAILED(8006, "WebRTC offer failed", HttpStatus.INTERNAL_SERVER_ERROR),
   WEBRTC_ANSWER_FAILED(8007, "WebRTC answer failed", HttpStatus.INTERNAL_SERVER_ERROR),
-  ICE_CANDIDATE_FAILED(8008, "ICE candidate failed", HttpStatus.INTERNAL_SERVER_ERROR);
-
+  ICE_CANDIDATE_FAILED(8008, "ICE candidate failed", HttpStatus.INTERNAL_SERVER_ERROR),
+  // ============= Kafka ERRORS (9000-9998) =============
+  OUTBOX_PUBLISHER_FAILED(9000, "Outbox publisher failed", HttpStatus.INTERNAL_SERVER_ERROR);
   private final int code;
   private final String message;
   private final HttpStatus httpStatusCode;
