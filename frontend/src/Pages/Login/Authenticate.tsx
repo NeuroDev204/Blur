@@ -1,8 +1,6 @@
 import { useToast } from "@chakra-ui/react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../../service/LocalStorageService";
-import { setToken } from "../../service/LocalStorageService";
 
 interface UserDetails {
     noPassword?: boolean;
@@ -11,7 +9,7 @@ interface UserDetails {
 
 interface AuthResponse {
     result?: {
-        token?: string;
+        authenticated?: boolean;
     };
 }
 
@@ -45,6 +43,7 @@ const Authenticate: React.FC = () => {
                 `/api/identity/auth/outbound/authentication?code=${authCode}`,
                 {
                     method: "POST",
+                    credentials: "include", // ⭐ QUAN TRỌNG: Cho phép nhận cookie
                 }
             )
                 .then((response) => {
@@ -52,22 +51,23 @@ const Authenticate: React.FC = () => {
                 })
                 .then((data) => {
                     console.log("data: ", data);
-                    if (data.result?.token) {
-                        setToken(data.result.token);
+                    // Token đã được set trong HttpOnly cookie bởi server
+                    // Không cần setToken() nữa
+                    if (data.result?.authenticated) {
+                        getUserDetails();
                     }
                 });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const getUserDetails = async (accessToken: string) => {
+    const getUserDetails = async () => {
         try {
             const response = await fetch(
                 "http://localhost:8888/api/identity/users/",
                 {
                     method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
+                    credentials: "include", // ⭐ Gửi cookie tự động
                 }
             );
             const data: UserResponse = await response.json();
@@ -80,12 +80,25 @@ const Authenticate: React.FC = () => {
     };
 
     useEffect(() => {
-        const accessToken = localStorage.getItem("token");
-
-        if (accessToken) {
-            // Lấy thông tin người dùng
-            getUserDetails(accessToken);
-        }
+        // Check authentication bằng cách gọi API introspect
+        const checkAuth = async () => {
+            try {
+                const response = await fetch(
+                    "http://localhost:8888/api/identity/auth/introspect",
+                    {
+                        method: "POST",
+                        credentials: "include", // ⭐ Gửi cookie tự động
+                    }
+                );
+                const data = await response.json();
+                if (data.result?.valid) {
+                    getUserDetails();
+                }
+            } catch (error) {
+                console.error("Auth check failed:", error);
+            }
+        };
+        checkAuth();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);
 

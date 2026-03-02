@@ -125,8 +125,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.11.0</version> <!-- hoặc bản bạn đang dùng -->
 				<configuration>
-					<source>17</source> <!-- hoặc 11, tùy version JDK -->
-					<target>17</target>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 				</configuration>
 			</plugin>
 			<plugin>

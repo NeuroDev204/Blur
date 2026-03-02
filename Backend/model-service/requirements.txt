@@ -1,0 +1,66 @@
+# ============================================
+# GLOBAL REQUIREMENTS - Vietnamese Toxic Comment Detection
+# ============================================
+# 
+# FOR GPU/CUDA SUPPORT - Run this FIRST:
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# THEN install this file:
+# pip install -r requirements.txt
+
+# ============================================
+# DEEP LEARNING & NLP
+# ============================================
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+datasets>=2.0.0
+accelerate>=0.20.0
+sentencepiece>=0.1.99
+
+# ============================================
+# DATA PROCESSING
+# ============================================
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.2.0
+
+# ============================================
+# WEB SCRAPING
+# ============================================
+selenium>=4.10.0
+undetected-chromedriver>=3.5.0
+webdriver-manager>=4.0.0
+aiohttp>=3.8.0
+requests>=2.28.0
+
+# ============================================
+# AUTOMATION
+# ============================================
+pyautogui>=0.9.54
+
+# ============================================
+# VIETNAMESE NLP
+# ============================================
+pyvi>=0.1.1
+langid>=1.1.6
+
+# ============================================
+# API SERVER
+# ============================================
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# ============================================
+# VISUALIZATION
+# ============================================
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# ============================================
+# UTILITIES
+# ============================================
+tqdm>=4.65.0
+huggingface-hub>=0.14.0
+python-dotenv>=1.0.0
+colorama>=0.4.6

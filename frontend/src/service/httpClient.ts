@@ -6,8 +6,8 @@ const httpClient: AxiosInstance = axios.create({
     timeout: 10000,
     headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-    }
+    },
+    withCredentials: true, // ⭐ QUAN TRỌNG: Cho phép gửi/nhận cookies
 })
 
 export default httpClient

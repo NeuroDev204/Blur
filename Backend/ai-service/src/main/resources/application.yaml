@@ -1,17 +1,17 @@
 server:
-  port: 9090
+  port:
 
 spring:
   application:
-    name: ai-service
+    name: ${SPRING_APPLICATION_NAME}
 
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:root@localhost:27017/ai_service_db?authSource=admin}
+      uri: ${MONGODB_URI}
 
 ai:
   openai:
-    api-key: ${GEMINI_KEY:""}
+    api-key: ${GEMINI_KEY}
     option:
       model: gemini-2.5-flash
     chat:

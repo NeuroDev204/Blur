@@ -1,0 +1,56 @@
+package org.identityservice.util;
+
+import java.time.Duration;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
+import org.springframework.stereotype.Component;
+
+@Component
+public class CookieUtil {
+
+    @Value("${jwt.valid-duration}")
+    private long validDuration;
+
+    @Value("${cookie.domain:localhost}")
+    private String cookieDomain;
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
+    public static final String ACCESS_TOKEN_COOKIE_NAME = "access_token";
+    public static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
+
+    public ResponseCookie createAccessTokenCookie(String token) {
+        return ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, token)
+                .httpOnly(true) // JavaScript không thể truy cập
+                .secure(cookieSecure) // true cho production (HTTPS)
+                .path("/") // Cookie valid cho tất cả paths
+                .maxAge(Duration.ofSeconds(validDuration))
+                .sameSite("Lax") // CSRF protection
+                .domain(cookieDomain)
+                .build();
+    }
+
+    public ResponseCookie createRefreshTokenCookie(String token, long refreshDuration) {
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/api/identity/auth/refresh") // Chỉ gửi khi refresh
+                .maxAge(Duration.ofSeconds(refreshDuration))
+                .sameSite("Strict")
+                .domain(cookieDomain)
+                .build();
+    }
+
+    public ResponseCookie createLogoutCookie(String cookieName) {
+        return ResponseCookie.from(cookieName, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .path("/")
+                .maxAge(0) // Xóa cookie
+                .sameSite("Lax")
+                .domain(cookieDomain)
+                .build();
+    }
+}

@@ -1,7 +1,6 @@
 // src/contexts/SocketContext.tsx
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, ReactNode } from "react"
 import { SOCKET_URL } from "../utils/constants"
-import { getToken } from "../utils/auth"
 
 // Extend Window interface for Socket.IO
 declare global {
@@ -102,11 +101,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }, [])
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) {
-            return
-        }
-
         const script = document.createElement("script")
         script.src = "https://cdn.socket.io/4.5.4/socket.io.min.js"
         script.async = true
@@ -115,8 +109,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
             if (socketRef.current) {
                 return
             }
+            // ⭐ Sử dụng withCredentials để gửi cookie tự động
             const socket = window.io(SOCKET_URL, {
-                query: { token },
+                withCredentials: true, // ⭐ QUAN TRỌNG: Gửi cookie cho WebSocket
                 autoConnect: true,
                 reconnection: true,
                 reconnectionDelay: 1000,

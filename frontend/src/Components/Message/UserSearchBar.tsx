@@ -61,8 +61,8 @@ const UserSearchBar = ({ onSelectUser, onConversationCreated }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
+        credentials: 'include', // ⭐ Gửi cookie tự động
         body: JSON.stringify({
           type: 'DIRECT',
           participantIds: [userId]

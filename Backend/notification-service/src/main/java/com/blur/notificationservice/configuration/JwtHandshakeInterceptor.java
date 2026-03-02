@@ -35,15 +35,39 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
         String token = null;
         if (request instanceof ServletServerHttpRequest servletRequest) {
             HttpServletRequest req = servletRequest.getServletRequest();
-            String authHeader = req.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-            } else {
+            
+            // 1. ⭐ Thử lấy token từ Cookie trước (ưu tiên cao nhất)
+            jakarta.servlet.http.Cookie[] cookies = req.getCookies();
+            if (cookies != null) {
+                for (jakarta.servlet.http.Cookie cookie : cookies) {
+                    if ("access_token".equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        log.info("🍪 Token found in cookie");
+                        break;
+                    }
+                }
+            }
+            
+            // 2. Fallback: lấy từ Authorization header
+            if (token == null) {
+                String authHeader = req.getHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                    log.info("🔑 Token found in Authorization header");
+                }
+            }
+            
+            // 3. Fallback: lấy từ query parameter
+            if (token == null) {
                 token = req.getParameter("token");
+                if (token != null) {
+                    log.info("🔗 Token found in query parameter");
+                }
             }
         }
 
         if (token == null) {
+            log.warn("❌ No token found in cookie, header, or query param");
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return false;
         }

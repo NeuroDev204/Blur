@@ -77,8 +77,6 @@ const HomePage: React.FC = () => {
     const observerRef = useRef<IntersectionObserver | null>(null); // ✅ THÊM: Ref để quản lý observer
     const isProcessingNewPostRef = useRef(false); // ✅ THÊM: Flag xử lý post mới
 
-    const token = localStorage.getItem('token');
-
     // ✅ Load user + stories (1 lần duy nhất)
     const fetchData = useCallback(async () => {
         try {
@@ -131,8 +129,6 @@ const HomePage: React.FC = () => {
 
     // ✅ Gọi lần đầu tiên
     useEffect(() => {
-        if (!token) return;
-
         fetchData();
 
         (async () => {
@@ -155,7 +151,7 @@ const HomePage: React.FC = () => {
                 setIsLoadingMore(false);
             }
         })();
-    }, [token, fetchData]);
+    }, [fetchData]);
 
     // ✅ CẢI TIẾN: callback khi sentinel vào viewport
     const onIntersect = useCallback(async (entries: IntersectionObserverEntry[]) => {

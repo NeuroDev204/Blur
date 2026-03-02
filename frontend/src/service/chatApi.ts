@@ -2,6 +2,9 @@ import axios, { AxiosError } from 'axios'
 
 const API_BASE_URL = 'http://localhost:8888/api'
 
+// Configure axios to send cookies
+axios.defaults.withCredentials = true
+
 // Types
 interface ConversationData {
     type: 'DIRECT' | 'GROUP'
@@ -43,14 +46,13 @@ interface UnreadCountResponse {
 /**
  * Create a new conversation
  */
-export const createConversation = async (data: ConversationData, token: string): Promise<Conversation> => {
+export const createConversation = async (data: ConversationData): Promise<Conversation> => {
     try {
         const response = await axios.post<Conversation>(
             `${API_BASE_URL}/chat/conversations/create`,
             data,
             {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -81,15 +83,10 @@ export const createConversation = async (data: ConversationData, token: string):
 /**
  * Get all conversations for current user
  */
-export const getConversations = async (token: string): Promise<Conversation[]> => {
+export const getConversations = async (): Promise<Conversation[]> => {
     try {
         const response = await axios.get<Conversation[]>(
-            `${API_BASE_URL}/chat/conversations`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
+            `${API_BASE_URL}/chat/conversations`
         )
         return response.data
     } catch (error) {
@@ -101,15 +98,10 @@ export const getConversations = async (token: string): Promise<Conversation[]> =
 /**
  * Get conversation by ID
  */
-export const getConversationById = async (conversationId: string, token: string): Promise<Conversation> => {
+export const getConversationById = async (conversationId: string): Promise<Conversation> => {
     try {
         const response = await axios.get<Conversation>(
-            `${API_BASE_URL}/chat/conversations/${conversationId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
+            `${API_BASE_URL}/chat/conversations/${conversationId}`
         )
         return response.data
     } catch (error) {
@@ -121,14 +113,13 @@ export const getConversationById = async (conversationId: string, token: string)
 /**
  * Send a message in a conversation
  */
-export const sendMessage = async (conversationId: string, messageData: MessageData, token: string): Promise<Message> => {
+export const sendMessage = async (conversationId: string, messageData: MessageData): Promise<Message> => {
     try {
         const response = await axios.post<Message>(
             `${API_BASE_URL}/chat/conversations/${conversationId}/messages`,
             messageData,
             {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -145,7 +136,6 @@ export const sendMessage = async (conversationId: string, messageData: MessageDa
  */
 export const getMessages = async (
     conversationId: string,
-    token: string,
     page: number = 0,
     size: number = 50
 ): Promise<PaginatedMessages> => {
@@ -153,9 +143,6 @@ export const getMessages = async (
         const response = await axios.get<PaginatedMessages>(
             `${API_BASE_URL}/chat/conversations/${conversationId}/messages`,
             {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
                 params: { page, size }
             }
         )
@@ -169,14 +156,13 @@ export const getMessages = async (
 /**
  * Mark a conversation as read
  */
-export const markConversationAsRead = async (conversationId: string, token: string): Promise<Conversation | null> => {
+export const markConversationAsRead = async (conversationId: string): Promise<Conversation | null> => {
     try {
         const response = await axios.put<Conversation>(
             `${API_BASE_URL}/chat/conversations/mark-as-read?conversationId=${conversationId}`,
             {},
             {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -191,15 +177,10 @@ export const markConversationAsRead = async (conversationId: string, token: stri
 /**
  * Delete a conversation
  */
-export const deleteConversation = async (conversationId: string, token: string): Promise<void> => {
+export const deleteConversation = async (conversationId: string): Promise<void> => {
     try {
         await axios.delete(
-            `${API_BASE_URL}/chat/conversations/${conversationId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
+            `${API_BASE_URL}/chat/conversations/${conversationId}`
         )
     } catch (error) {
         console.error('Error deleting conversation:', error)
@@ -212,8 +193,7 @@ export const deleteConversation = async (conversationId: string, token: string):
  */
 export const markMessageAsRead = async (
     conversationId: string,
-    messageId: string,
-    token: string
+    messageId: string
 ): Promise<Message | null> => {
     try {
         const response = await axios.put<Message>(
@@ -221,7 +201,6 @@ export const markMessageAsRead = async (
             {},
             {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -236,15 +215,10 @@ export const markMessageAsRead = async (
 /**
  * Get unread message count
  */
-export const getUnreadCount = async (token: string): Promise<number> => {
+export const getUnreadCount = async (): Promise<number> => {
     try {
         const response = await axios.get<UnreadCountResponse>(
-            `${API_BASE_URL}/chat/unread-count`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            }
+            `${API_BASE_URL}/chat/unread-count`
         )
         return response.data.count || 0
     } catch (error) {

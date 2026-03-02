@@ -9,26 +9,36 @@ export const registerUser = async <T = unknown>(data: RegistrationData): Promise
     return response.data?.result as T
 }
 
-export const loginUser = async (username: string, password: string): Promise<string> => {
-    const response = await axiosClient.post<ApiResponse<{ token: string }>>('/identity/auth/token', {
+export const loginUser = async (username: string, password: string): Promise<boolean> => {
+    const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/identity/auth/token', {
         username,
         password,
     })
     if (response.data?.code !== 1000) {
         throw new Error(response.data?.message || 'Login failed')
     }
-    return response.data?.result?.token || ''
+    // Token is now set in HttpOnly cookie by the server
+    // Return authentication status instead of token
+    return response.data?.result?.authenticated ?? false
 }
 
 export const logoutUser = async (): Promise<void> => {
-    const token = localStorage.getItem('token')
-    if (token) {
-        await axiosClient.post('/identity/auth/logout', { token })
-    }
-    localStorage.removeItem('token')
+    // Server sẽ đọc token từ cookie và xóa cookie
+    await axiosClient.post('/identity/auth/logout')
 }
 
-export const introspectToken = async (token: string): Promise<boolean> => {
-    const response = await axiosClient.post<ApiResponse<{ valid: boolean }>>('/identity/auth/introspect', { token })
-    return response.data?.result?.valid ?? false
+export const introspectToken = async (): Promise<boolean> => {
+    try {
+        // Server sẽ đọc token từ cookie
+        const response = await axiosClient.post<ApiResponse<{ valid: boolean }>>('/identity/auth/introspect')
+        return response.data?.result?.valid ?? false
+    } catch {
+        // Nếu có lỗi (401, network error, etc.), return false
+        return false
+    }
+}
+
+export const refreshToken = async (): Promise<boolean> => {
+    const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/identity/auth/refresh')
+    return response.data?.result?.authenticated ?? false
 }

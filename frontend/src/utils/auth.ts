@@ -1,22 +1,26 @@
-export const getToken = (): string | null => localStorage.getItem("token")
+import { introspectToken } from '../api/authAPI'
 
-interface DecodedToken {
-    sub?: string
-    userId?: string
-    user_id?: string
-    id?: string
+// Không thể lấy token từ client-side nữa vì HttpOnly Cookie
+// Sử dụng API call để verify authentication status
+
+export const isAuthenticated = async (): Promise<boolean> => {
+    try {
+        return await introspectToken()
+    } catch {
+        return false
+    }
 }
 
+// Để lấy userId, cần endpoint mới hoặc lưu userId riêng
 export const getUserId = (): string | null => {
-    const token = localStorage.getItem("token")
-    if (!token) return null
+    // Option 1: Lưu userId trong sessionStorage khi login
+    return sessionStorage.getItem('userId')
+}
 
-    try {
-        const payload = token.split('.')[1]
-        const decoded: DecodedToken = JSON.parse(atob(payload))
-        return decoded.sub || decoded.userId || decoded.user_id || decoded.id || null
-    } catch (error) {
-        console.error("Cannot decode token:", error)
-        return null
-    }
+export const setUserId = (userId: string): void => {
+    sessionStorage.setItem('userId', userId)
+}
+
+export const clearUserId = (): void => {
+    sessionStorage.removeItem('userId')
 }

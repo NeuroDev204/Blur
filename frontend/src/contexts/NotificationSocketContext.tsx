@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react"
-import { getToken } from "../service/LocalStorageService"
 import { useNotification } from "../contexts/NotificationContext"
+import { introspectToken } from "../api/authAPI"
 
 interface NotificationSocketProviderProps {
     children: ReactNode
@@ -30,17 +30,19 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
     const { addNotification } = useNotification()
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) {
-            console.log("📵 No token, skipping notification socket connection")
-            return
-        }
-
         let client: StompClient | null = null
+        let isMounted = true
 
         // Lazy load sockjs-client and @stomp/stompjs to prevent module-level crash
         const initSocket = async () => {
             try {
+                // ⭐ Kiểm tra auth bằng introspect thay vì getToken
+                const isAuth = await introspectToken()
+                if (!isAuth) {
+                    console.log("📵 Not authenticated, skipping notification socket connection")
+                    return
+                }
+
                 console.log("🔌 Loading notification socket libraries...")
 
                 // Dynamic imports to prevent blank page issue
@@ -49,21 +51,20 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
                     import("sockjs-client")
                 ])
 
-                // Decode token to get userId
-                const payload = token.split('.')[1]
-                const decoded = JSON.parse(atob(payload))
-                const userId = decoded.sub
+                if (!isMounted) return
 
-                console.log("👤 Connecting notification socket for userId:", userId)
+                // ⭐ SockJS với cookie auth
+                // Note: SockJS tự động gửi cookie khi cùng origin
+                console.log("👤 Connecting notification socket with cookie auth...")
+
+                const sockJsOptions = {
+                    transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+                }
 
                 client = new Client({
                     webSocketFactory: () =>
-                        new SockJS(
-                            `http://localhost:8082/notification/ws-notification?token=${token}`
-                        ) as WebSocket,
-                    connectHeaders: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                        new SockJS(`http://localhost:8082/notification/ws-notification`, null, sockJsOptions) as WebSocket,
+                    // ⭐ Không cần Authorization header, cookie sẽ được gửi tự động
                     reconnectDelay: 5000,
                     debug: (str) => console.log("[STOMP]", str),
 
@@ -71,7 +72,8 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
                         console.log("✅ Connected to /ws-notification")
                         setIsConnected(true)
 
-                        client?.subscribe(`/user/${userId}/notification`, (message) => {
+                        // ⭐ Subscribe với userId từ session (server sẽ xác định từ cookie)
+                        client?.subscribe(`/user/queue/notification`, (message) => {
                             try {
                                 const data: NotificationPayload = JSON.parse(message.body)
                                 console.log("🔔 Realtime notification received:", data)
@@ -115,6 +117,7 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
         initSocket()
 
         return () => {
+            isMounted = false
             if (client) {
                 try {
                     client.deactivate()

@@ -8,18 +8,16 @@ const axiosClient: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true, // ⭐ QUAN TRỌNG: Cho phép gửi/nhận cookies
 })
 
-const getToken = (): string | null => {
-    return localStorage.getItem('token')
-}
+// Không cần interceptor để gắn token vào header nữa
+// Browser sẽ tự động gửi HttpOnly Cookie
 
 axiosClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        const token = getToken()
-        if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
+        // Không cần gắn Authorization header nữa
+        // Cookie sẽ được browser tự động gửi với withCredentials: true
         return config
     },
     (error: AxiosError) => {
@@ -32,19 +30,9 @@ axiosClient.interceptors.response.use(
         return response
     },
     (error: AxiosError<{ message?: string; code?: number }>) => {
-        if (error.response) {
-            const { status } = error.response
-            switch (status) {
-                case 401:
-                    localStorage.removeItem('token')
-                    break
-                case 403:
-                case 404:
-                case 500:
-                default:
-                    break
-            }
-        }
+        // ⭐ KHÔNG tự động redirect về login khi 401
+        // Để Router xử lý authentication check
+        // Chỉ reject error để caller xử lý
         return Promise.reject(error)
     }
 )

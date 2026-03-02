@@ -7,5 +7,29 @@
 /Backend/profile-service/.env
 /Backend/story-service/.env
 
+/FULL_JAVA_IMPLEMENTATION.md
+/neo4j-follow-recommendation.md
+
+# Large ML model artifacts
+*.safetensors
+/Backend/model-service/models/
+
+# IDE/editor files
+/.idea/
+/.vscode/
+/Backend/.vscode/
+
+# Python cache/artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Model-service generated files
+/Backend/model-service/data/
+/Backend/model-service/scraper/chrome_profile/
+/Backend/model-service/config/*.txt
+/Backend/model-service/legacy/debug_*.html
+
 
 

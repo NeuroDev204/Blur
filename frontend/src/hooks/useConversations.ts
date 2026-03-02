@@ -21,18 +21,13 @@ export const useConversations = (): UseConversationsReturn => {
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const token = localStorage.getItem('token')
 
     const loadConversations = useCallback(async () => {
         try {
             setLoading(true)
             setError(null)
 
-            if (!token) {
-                setError("Authentication required. Please login again.")
-                return
-            }
-
+            // Không cần check token nữa vì cookie được gửi tự động
             const result = await getMyConversations()
             setConversations(result || [])
         } catch (err) {
@@ -51,7 +46,7 @@ export const useConversations = (): UseConversationsReturn => {
         } finally {
             setLoading(false)
         }
-    }, [token])
+    }, [])
 
     useEffect(() => {
         loadConversations()

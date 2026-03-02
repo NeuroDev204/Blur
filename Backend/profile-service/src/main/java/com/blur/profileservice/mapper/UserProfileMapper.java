@@ -4,14 +4,15 @@ import com.blur.profileservice.dto.request.ProfileCreationRequest;
 import com.blur.profileservice.dto.request.UserProfileUpdateRequest;
 import com.blur.profileservice.dto.response.UserProfileResponse;
 import com.blur.profileservice.entity.UserProfile;
-import org.mapstruct.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.MappingTarget;
 
 import java.time.LocalDate;
 
 @Mapper(componentModel = "spring")
 public interface UserProfileMapper {
 
-    @Mapping(target = "dob", expression = "java(stringToLocalDate(request.getDob()))")
+    //    @Mapping(target = "dob", expression = "java(stringToLocalDate(request.getDob()))")
     void updateUserProfile(@MappingTarget UserProfile userProfile, UserProfileUpdateRequest request);
 
     UserProfileResponse toUserProfileResponse(UserProfile userProfile);

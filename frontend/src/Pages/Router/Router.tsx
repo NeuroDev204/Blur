@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Route, Routes, useLocation, Navigate } from "react-router-dom"
 import HomePage from "../HomePage/HomePage"
 import Profile from "../Profile/Profile"
@@ -14,15 +14,48 @@ import SearchPage from "../Search/SearchPage"
 import { SidebarComponent } from "../../Components/Sidebar/SidebarComponent"
 import NotificationsPage from "../Notification/NotificationPage"
 import PostDetailPage from "../../Components/Post/PostDetailPage"
+import { introspectToken } from "../../api/authAPI"
 
 const Router: React.FC = () => {
     const location = useLocation()
-    const isAuthenticated = !!localStorage.getItem("token")
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
     const [isMobile, setIsMobile] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
-    const authRoutes = ["/login", "/register", "/create-password", "/activate"]
+    const authRoutes = ["/login", "/register", "/create-password", "/activate", "/authenticate"]
     const isAuthPage = authRoutes.includes(location.pathname)
+
+    // Check authentication status asynchronously
+    useEffect(() => {
+        const checkAuth = async () => {
+            // ⭐ Auth pages không cần check - cho phép render
+            if (isAuthPage) {
+                return // Không set isAuthenticated để giữ trạng thái hiện tại
+            }
+
+            try {
+                console.log("🔐 Checking authentication...")
+                const valid = await introspectToken()
+                console.log("✅ Auth result:", valid)
+                setIsAuthenticated(valid)
+            } catch (error) {
+                console.error("❌ Auth check failed:", error)
+                setIsAuthenticated(false)
+            }
+        }
+        checkAuth()
+    }, [location.pathname, isAuthPage])
+
+    // ⭐ Listen for login success event
+    useEffect(() => {
+        const handleLoginSuccess = () => {
+            console.log("🔄 Login success, setting authenticated to true")
+            setIsAuthenticated(true)
+        }
+
+        window.addEventListener('auth-login-success', handleLoginSuccess)
+        return () => window.removeEventListener('auth-login-success', handleLoginSuccess)
+    }, [])
 
     useEffect(() => {
         const checkMobile = () => {
@@ -32,19 +65,50 @@ const Router: React.FC = () => {
         window.addEventListener('resize', checkMobile)
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
+
     useEffect(() => {
         if (isMobile) {
             setSidebarOpen(false)
         }
     }, [location.pathname, isMobile])
-    if (!isAuthenticated && !isAuthPage) {
+
+    // ⭐ Auth pages: cho render bình thường
+    if (isAuthPage) {
+        return (
+            <div className="flex min-h-screen">
+                <div className="flex-1 min-h-screen w-full max-w-full overflow-x-hidden px-4 md:px-0">
+                    <div className="w-full max-w-full">
+                        <Routes>
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/register" element={<RegisterPage />} />
+                            <Route path="/create-password" element={<CreatePassword />} />
+                            <Route path="/activate" element={<ActivationPage />} />
+                            <Route path="/authenticate" element={<Authenticate />} />
+                        </Routes>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    // Show loading while checking auth status
+    if (isAuthenticated === null) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
+            </div>
+        )
+    }
+
+    // Not authenticated - redirect to login
+    if (!isAuthenticated) {
         return <Navigate to="/login" replace />
     }
-    const shouldShowSidebar = isAuthenticated && !isAuthPage
 
+    // Authenticated - show main app
     return (
         <div className="flex min-h-screen">
-            {shouldShowSidebar && isMobile && (
+            {isMobile && (
                 <button
                     onClick={() => setSidebarOpen(!sidebarOpen)}
                     className="fixed top-4 left-4 z-50 p-2 bg-white rounded-md shadow-md border md:hidden"
@@ -75,38 +139,32 @@ const Router: React.FC = () => {
                 </button>
             )}
 
-            {shouldShowSidebar && isMobile && sidebarOpen && (
+            {isMobile && sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
-            {shouldShowSidebar && (
-                <>
-                    <div className="hidden md:block w-[240px] h-screen bg-white border-r flex-shrink-0">
-                        <SidebarComponent />
-                    </div>
-
-                    <div
-                        className={`
-              md:hidden fixed top-0 left-0 w-64 h-screen bg-white border-r z-50
-              transition-transform duration-300 ease-in-out
-              ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            `}
-                    >
-                        <SidebarComponent />
-                    </div>
-                </>
-            )}
+            <div className="hidden md:block w-[240px] h-screen bg-white border-r flex-shrink-0">
+                <SidebarComponent />
+            </div>
 
             <div
                 className={`
-          flex-1 min-h-screen w-full max-w-full overflow-x-hidden
-          ${shouldShowSidebar && isMobile ? 'pt-16 px-4' : ''}
-          ${shouldShowSidebar && !isMobile ? 'pl-3' : ''}
-          ${!shouldShowSidebar ? 'px-4 md:px-0' : ''}
-        `}
+                    md:hidden fixed top-0 left-0 w-64 h-screen bg-white border-r z-50
+                    transition-transform duration-300 ease-in-out
+                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
+            >
+                <SidebarComponent />
+            </div>
+
+            <div
+                className={`
+                    flex-1 min-h-screen w-full max-w-full overflow-x-hidden
+                    ${isMobile ? 'pt-16 px-4' : 'pl-3'}
+                `}
             >
                 <div className="w-full max-w-full">
                     <Routes>
@@ -114,12 +172,7 @@ const Router: React.FC = () => {
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/profile/user" element={<OtherUserProfile />} />
                         <Route path="/message" element={<MessagePage />} />
-                        <Route path="/authenticate" element={<Authenticate />} />
                         <Route path="/account/edit" element={<EditAccountPage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/register" element={<RegisterPage />} />
-                        <Route path="/create-password" element={<CreatePassword />} />
-                        <Route path="/activate" element={<ActivationPage />} />
                         <Route path="/search" element={<SearchPage />} />
                         <Route path="/notification" element={<NotificationsPage />} />
                         <Route path="/post/:postId" element={<PostDetailPage />} />

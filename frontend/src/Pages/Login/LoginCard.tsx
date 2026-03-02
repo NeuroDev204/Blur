@@ -3,7 +3,6 @@ import { FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa"
 import { useNavigate } from "react-router-dom"
 import { useToast } from "@chakra-ui/react"
 import { OAuthConfig } from "../../Config/configuration"
-import { setToken } from "../../service/LocalStorageService"
 import axios from "axios"
 
 const STORAGE_KEY = "rememberedCredentials"
@@ -65,7 +64,9 @@ const LoginCard: React.FC = () => {
         setIsLoading(true)
 
         try {
-            const response = await axios.post(API_LOGIN_URL, formData)
+            const response = await axios.post(API_LOGIN_URL, formData, {
+                withCredentials: true, // ⭐ QUAN TRỌNG: Cho phép nhận cookie từ server
+            })
 
             if (response.data.code !== 1000) {
                 throw new Error("Invalid credentials")
@@ -77,8 +78,16 @@ const LoginCard: React.FC = () => {
                 localStorage.removeItem(STORAGE_KEY)
             }
 
-            setToken(response.data.result?.token)
+            // Token đã được set trong HttpOnly cookie bởi server
             showToast("Welcome back!", "Login successful", "success")
+
+            // ⭐ Đợi một chút để cookie được set hoàn toàn
+            await new Promise(resolve => setTimeout(resolve, 100))
+
+            // ⭐ Dispatch event để Router biết cần re-check auth
+            window.dispatchEvent(new Event('auth-login-success'))
+
+            // Navigate sau khi event đã dispatch
             navigate("/")
         } catch {
             showToast("Login Failed", "Invalid username or password", "error")

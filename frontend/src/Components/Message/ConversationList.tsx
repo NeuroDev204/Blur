@@ -280,8 +280,8 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          },
+          credentials: 'include', // ⭐ Gửi cookie tự động
         });
 
         if (!response.ok) {
@@ -313,8 +313,8 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        },
+        credentials: 'include', // ⭐ Gửi cookie tự động
       });
 
       if (!response.ok) {

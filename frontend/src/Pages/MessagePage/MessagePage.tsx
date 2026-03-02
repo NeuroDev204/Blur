@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from 'react-hot-toast';
-import { getUserId, getToken } from "../../utils/auth";
+import { getUserId } from "../../utils/auth";
 import { apiCall, profileApiCall } from "../../service/api";
 import { useSocket } from "../../contexts/SocketContext";
 import { useNotification, requestNotificationPermission } from "../../contexts/NotificationContext";
@@ -259,10 +259,8 @@ const MessagePage: React.FC = () => {
         await fetchMessages(conv.id);
 
         try {
-            const token = getToken();
-            if (token) {
-                markConversationAsRead(conv.id, token).catch(() => { });
-            }
+            // Cookie được gửi tự động, không cần token
+            markConversationAsRead(conv.id).catch(() => { });
         } catch (err) {
             // Error marking as read
         }
@@ -404,10 +402,8 @@ const MessagePage: React.FC = () => {
             });
 
             try {
-                const token = getToken();
-                if (token) {
-                    markConversationAsRead(data.conversationId, token).catch(() => { });
-                }
+                // Cookie được gửi tự động, không cần token
+                markConversationAsRead(data.conversationId).catch(() => { });
             } catch (err) {
                 // Error auto-marking as read
             }
