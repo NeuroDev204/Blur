@@ -4,8 +4,9 @@ import org.identityservice.dto.request.PermissionRequest;
 import org.identityservice.dto.response.PermissionResponse;
 import org.identityservice.entity.Permission;
 import org.mapstruct.Mapper;
+import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PermissionMapper {
     Permission toPermission(PermissionRequest permissionRequest);
 
