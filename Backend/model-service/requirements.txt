@@ -65,3 +65,9 @@ tqdm>=4.65.0
 huggingface-hub>=0.14.0
 python-dotenv>=1.0.0
 colorama>=0.4.6
+
+# Kafka async client
+aiokafka>=0.10.0
+
+# Pydantic settings management
+pydantic-settings>=2.0.0

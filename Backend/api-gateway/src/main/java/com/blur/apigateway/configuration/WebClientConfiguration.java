@@ -20,10 +20,10 @@ import java.util.List;
 @Configuration
 public class WebClientConfiguration {
 
-    @Value("${app.services.identity}")
+    @Value("${app.services.user}")
     private String identityServiceUrl;
 
-    @Value("${app.services.chat}")
+    @Value("${app.services.communication}")
     private String chatServiceUrl;
 
     @Value("${CORS_ALLOWED_ORIGIN:http://localhost:3000}")

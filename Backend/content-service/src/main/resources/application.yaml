@@ -1,0 +1,60 @@
+server:
+  port: ${SERVER_PORT:8082}
+  address: 0.0.0.0
+  servlet:
+    context-path: /post
+
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:content-service}
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/content-service}
+
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: 1
+      timeout: ${REDIS_TIME_OUT:60000}
+      lettuce:
+        pool:
+          max-active: ${MAX_ACTIVE:8}
+          max-idle: ${MAX_IDLE:8}
+          min-idle: ${MIN_IDLE:0}
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${TIME_TO_LIVE:600000}
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: ${REDIS_KEY_PREFIX:content-service:}
+      enable-statistics: true
+
+app:
+  service:
+    identity:
+      url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+    profile:
+      url: ${PROFILE_SERVICE_URL:http://localhost:8081}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: content-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

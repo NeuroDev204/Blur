@@ -1,0 +1,29 @@
+package com.blur.communicationservice.dto.response;
+
+import java.time.Instant;
+import java.util.List;
+
+import com.blur.communicationservice.entity.ParticipantInfo;
+
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+@Data
+@Builder
+@NoArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@AllArgsConstructor
+public class ConversationResponse {
+
+    String id;
+    String type;
+    String participantsHash;
+    String conversationAvatar;
+    String conversationName;
+    List<ParticipantInfo> participants;
+    Instant createdDate;
+    Instant modifiedDate;
+    String lastMessage;
+    Instant lastMessageTime;
+    String lastMessageSender;
+}
