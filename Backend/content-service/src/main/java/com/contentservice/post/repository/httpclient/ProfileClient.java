@@ -11,6 +11,6 @@ public interface ProfileClient {
     @GetMapping("/internal/users/{userId}")
     ApiResponse<UserProfileResponse> getProfile(@PathVariable("userId") String userId);
 
-    @GetMapping("/users/{profileId}")
+    @GetMapping("/profile/users/{profileId}")
     ApiResponse<UserProfileResponse> getProfileByProfileId(@PathVariable String profileId);
 }

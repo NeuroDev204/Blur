@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { createChatMessage } from '../api/messageApi'
 import httpClient from '../service/httpClient'
-import { getToken } from '../service/LocalStorageService'
 import { API } from '../service/configuration'
 import { AxiosError } from 'axios'
 
@@ -57,18 +56,11 @@ export const useMessages = (selectedChat: SelectedChat | null): UseMessagesRetur
             setLoading(true)
             setError(null)
 
-            const token = getToken()
-            if (!token) {
-                setError("Authentication required")
-                return
-            }
-
+            // ⭐ httpClient đã có withCredentials: true, không cần manual token
             const res = await httpClient.get<ApiResponse>(`${API.GET_MESSAGES}`, {
                 params: { conversationId },
-                headers: { Authorization: `Bearer ${token}` },
             })
 
-            console.log("Messages response:", res)
 
             const list: Message[] = (res.data?.result || []).map((m) => ({
                 id: m.id,
@@ -79,7 +71,6 @@ export const useMessages = (selectedChat: SelectedChat | null): UseMessagesRetur
 
             setMessages(list)
         } catch (err) {
-            console.error("Error loading messages:", err)
             const axiosError = err as AxiosError<{ message?: string }>
 
             if (axiosError.response?.status === 403) {
@@ -121,25 +112,15 @@ export const useMessages = (selectedChat: SelectedChat | null): UseMessagesRetur
         addMessage(newMsg)
 
         try {
-            const token = getToken()
-            if (!token) {
-                throw new Error("No authentication token")
-            }
-
-            await createChatMessage({
-                conversationId,
-                message: messageText
-            })
+            await createChatMessage(conversationId, messageText)
 
             socketEmit("send_message", {
                 conversationId,
                 message: messageText,
             })
 
-            console.log("Message sent successfully")
             return true
         } catch (err) {
-            console.error("Failed to send message:", err)
             const axiosError = err as AxiosError<{ message?: string }>
 
             setMessages(prev => prev.filter(msg => msg.id !== newMsg.id))

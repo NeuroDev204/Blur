@@ -7,7 +7,6 @@ import com.contentservice.story.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,7 +14,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/comment")
 @RequiredArgsConstructor
-@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CommentReplyController {
     CommentReplyService commentReplyService;
@@ -26,15 +24,9 @@ public class CommentReplyController {
             @RequestParam(required = false) String parentReplyId,
             @RequestBody CreateCommentRequest comment) {
 
-        log.info("🟢🟢🟢 [CONTROLLER] ========== CREATE REPLY REQUEST ==========");
-        log.info("🟢 [CONTROLLER] Comment ID: {}", commentId);
-        log.info("🟢 [CONTROLLER] Parent Reply ID: {}", parentReplyId);
-        log.info("🟢 [CONTROLLER] Content: {}", comment.getContent());
-        log.info("🟢🟢🟢 [CONTROLLER] Calling CommentReplyService...");
 
         CommentResponse result = commentReplyService.createCommentReply(commentId, parentReplyId, comment);
 
-        log.info("🟢🟢🟢 [CONTROLLER] Service returned successfully, reply ID: {}", result.getId());
 
         return ApiResponse.<CommentResponse>builder()
                 .result(result)

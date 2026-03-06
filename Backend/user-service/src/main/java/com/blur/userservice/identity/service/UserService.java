@@ -17,7 +17,6 @@ import com.blur.userservice.profile.service.UserProfileService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -33,7 +32,6 @@ import org.springframework.util.StringUtils;
 import java.util.HashSet;
 import java.util.List;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -99,7 +97,6 @@ public class UserService {
     @PreAuthorize("hasRole('ADMIN')")
     @Cacheable(value = "users", unless = "#result == null || #result.isEmpty()")
     public List<UserResponse> getUsers() {
-        log.info("Getting users");
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 

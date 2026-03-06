@@ -41,7 +41,6 @@ const UserSearchBar = ({ onSelectUser, onConversationCreated }) => {
         setSearchResults((data as any)?.result || []);
         setShowResults(true);
       } catch (error) {
-        console.error("❌ Error searching users:", error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -76,7 +75,6 @@ const UserSearchBar = ({ onSelectUser, onConversationCreated }) => {
       const data = await response.json();
       return data?.result || data;
     } catch (error) {
-      console.error("❌ Error creating conversation:", error);
       throw error;
     }
   };

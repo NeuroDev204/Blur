@@ -137,10 +137,10 @@ const ChatArea = ({
       name: receiver.firstName && receiver.lastName
         ? `${receiver.firstName} ${receiver.lastName}`.trim()
         : receiver.username || 'Unknown',
-      avatar: receiver.avatar || conversation.conversationAvatar || null,
+      avatar: receiver.imageUrl || receiver.avatar || conversation.conversationAvatar || null,
       conversationId: conversation._id || conversation.id,
       currentUserName: currentUserName,
-      currentUserAvatar: currentUser?.avatar || null
+      currentUserAvatar: currentUser?.imageUrl || currentUser?.avatar || null
     };
     initiateCall(receiverData, 'VOICE');
   }, [conversation, callState.isInCall, currentUser, currentUserId, initiateCall]);
@@ -183,10 +183,10 @@ const ChatArea = ({
       name: receiver.firstName && receiver.lastName
         ? `${receiver.firstName} ${receiver.lastName}`.trim()
         : receiver.username || 'Unknown',
-      avatar: receiver.avatar || conversation.conversationAvatar || null,
+      avatar: receiver.imageUrl || receiver.avatar || conversation.conversationAvatar || null,
       conversationId: conversation._id || conversation.id,
       currentUserName: currentUserName,
-      currentUserAvatar: currentUser?.avatar || null
+      currentUserAvatar: currentUser?.imageUrl || currentUser?.avatar || null
     };
     initiateCall(receiverData, 'VIDEO');
   }, [conversation, callState.isInCall, currentUser, currentUserId, initiateCall]);
@@ -378,16 +378,15 @@ const ChatArea = ({
     });
 
     try {
-      const response = await fetch('http://localhost:9090/chat', {
+      const response = await fetch('http://localhost:8888/api/chat/ai/chat', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          // Authorization có thể bỏ vì endpoint này đã public
-          // 'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          conversationId: null, // Luôn tạo conversation mới cho mỗi lần hỗ trợ
-          userId: localStorage.getItem('userId') || 'anonymous', // Lấy userId từ localStorage
+          conversationId: null,
+          userId: localStorage.getItem('userId') || 'anonymous',
           message: input
         })
       });
@@ -407,7 +406,6 @@ const ChatArea = ({
         throw new Error(data.error || 'Phản hồi từ AI không hợp lệ.');
       }
     } catch (error) {
-      console.error("❌ Error calling AI service:", error);
       toast.error((error as Error).message || 'Không thể kết nối tới AI.', {
         id: aiToast,
         duration: 3000

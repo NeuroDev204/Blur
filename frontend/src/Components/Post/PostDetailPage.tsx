@@ -104,13 +104,11 @@ const PostDetailPage = () => {
           const userData = await fetchUserByUserId(decoded.sub);
           setCurrentUser(userData);
         } catch (error) {
-          console.error("Error fetching current user:", error);
         }
       };
 
       fetchCurrentUser();
     } catch (error) {
-      console.error("Error decoding token:", error);
     }
   }, [token]);
 
@@ -178,7 +176,6 @@ const PostDetailPage = () => {
           setIsPostLiked(liked);
         }
       } catch (error) {
-        console.error("❌ Error fetching data:", error);
         if (!post) {
           toast({
             title: "Không thể tải bài viết",
@@ -201,25 +198,20 @@ const PostDetailPage = () => {
     const fetchUsersForComments = async () => {
       if (!comments.length) return;
 
-      console.log('📥 Fetching users for', comments.length, 'comments');
 
       const newUsers = {};
       await Promise.all(
         comments.map(async (cmt) => {
           if (!cmt.userId || commentUsers[cmt.userId]) return;
           try {
-            console.log('🔄 Fetching user:', cmt.userId);
             const userData = await fetchUserByUserId(cmt.userId);
-            console.log('✅ Fetched user:', cmt.userId, userData);
             newUsers[cmt.userId] = userData;
           } catch (err) {
-            console.error("❌ Error fetching comment user:", err);
           }
         })
       );
 
       if (Object.keys(newUsers).length > 0) {
-        console.log('💾 Updating commentUsers with:', newUsers);
         setCommentUsers((prev) => ({ ...prev, ...newUsers }));
       }
     };
@@ -264,13 +256,11 @@ const PostDetailPage = () => {
         await likePost(postId);
       }
     } catch (error) {
-      console.error("❌ Error toggling like:", error);
       try {
         const likeRes = await fetchLikePost(postId);
         setLikes(Array.isArray(likeRes) ? likeRes : []);
         setIsPostLiked(likeRes.some((l: any) => l.userId === userId));
       } catch (refetchError) {
-        console.error("Error refetching likes:", refetchError);
       }
     }
   };
@@ -312,7 +302,6 @@ const PostDetailPage = () => {
       setReplyingTo(null);
       setReplyParentId(null);
     } catch (error) {
-      console.error("❌ Error creating comment:", error);
       toast({
         title: "Không thể gửi bình luận",
         status: "error",

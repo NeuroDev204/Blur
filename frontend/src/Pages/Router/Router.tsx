@@ -34,12 +34,9 @@ const Router: React.FC = () => {
             }
 
             try {
-                console.log("🔐 Checking authentication...")
                 const valid = await introspectToken()
-                console.log("✅ Auth result:", valid)
                 setIsAuthenticated(valid)
             } catch (error) {
-                console.error("❌ Auth check failed:", error)
                 setIsAuthenticated(false)
             }
         }
@@ -49,7 +46,6 @@ const Router: React.FC = () => {
     // ⭐ Listen for login success event
     useEffect(() => {
         const handleLoginSuccess = () => {
-            console.log("🔄 Login success, setting authenticated to true")
             setIsAuthenticated(true)
         }
 

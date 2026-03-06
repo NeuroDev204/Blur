@@ -19,9 +19,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 import com.blur.communicationservice.configuration.CustomJwtDecoder;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
@@ -41,7 +39,6 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
         String token = extractToken(request);
 
         if (token == null) {
-            log.warn("No token found in cookie, header, or query param");
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return false;
         }
@@ -55,10 +52,8 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             attributes.put("principal", principal);
             attributes.put("userId", userId);
 
-            log.debug("WebSocket handshake success for userId {}", userId);
             return true;
         } catch (JwtException e) {
-            log.warn("JWT validation failed: {}", e.getMessage());
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return false;
         }

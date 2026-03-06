@@ -23,12 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Component
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class ReplyCommentEventHandler implements EventHandler<Event> {
 
     RedisTemplate<String, String> redisTemplate;
@@ -52,7 +50,6 @@ public class ReplyCommentEventHandler implements EventHandler<Event> {
 
         // ❌ Nếu tự reply chính mình → bỏ qua, không tạo noti
         if (event.getSenderId().equals(event.getReceiverId())) {
-            log.info("Skip reply notification because sender == receiver, userId={}", event.getSenderId());
             return;
         }
 
@@ -123,13 +120,7 @@ public class ReplyCommentEventHandler implements EventHandler<Event> {
 
             helper.setText(emailContent, true);
             emailSender.send(message);
-            log.info("Reply comment notification email sent to {}", notification.getReceiverEmail());
         } catch (Exception e) {
-            log.error(
-                    "Failed to send reply notification email to {}: {}",
-                    notification.getReceiverEmail(),
-                    e.getMessage(),
-                    e);
         }
     }
 }

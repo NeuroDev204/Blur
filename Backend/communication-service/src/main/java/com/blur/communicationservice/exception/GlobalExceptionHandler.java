@@ -7,9 +7,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.blur.communicationservice.dto.ApiResponse;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @RestControllerAdvice
 @SuppressWarnings("rawtypes")
 public class GlobalExceptionHandler {

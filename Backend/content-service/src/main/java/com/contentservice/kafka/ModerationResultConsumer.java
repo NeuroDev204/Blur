@@ -3,14 +3,12 @@ package com.contentservice.kafka;
 import com.contentservice.post.repository.CommentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ModerationResultConsumer {
@@ -38,7 +36,6 @@ public class ModerationResultConsumer {
                 commentRepository.save(comment);
             });
         } catch (Exception e) {
-            log.error("Consume moderation result failed", e);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.blur.communicationservice.chat.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.security.core.Authentication;
@@ -16,8 +17,10 @@ import com.blur.communicationservice.dto.request.AiChatRequest;
 import com.blur.communicationservice.dto.request.ChatMessageRequest;
 import com.blur.communicationservice.dto.response.AiChatResponse;
 import com.blur.communicationservice.dto.response.ChatMessageResponse;
+import com.blur.communicationservice.dto.response.MessageReadReceiptResponse;
 import com.blur.communicationservice.dto.response.UserProfileResponse;
 import com.blur.communicationservice.entity.ChatMessage;
+import com.blur.communicationservice.entity.Conversation;
 import com.blur.communicationservice.entity.MediaAttachment;
 import com.blur.communicationservice.entity.ParticipantInfo;
 import com.blur.communicationservice.enums.MessageType;
@@ -30,9 +33,7 @@ import com.blur.communicationservice.websocket.service.WebSocketNotificationServ
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -103,17 +104,18 @@ public class ChatMessageService {
                         .avatar(userInfo.getImageUrl())
                         .build())
                 .createdDate(Instant.now())
+                .isRead(false)
                 .readBy(List.of(userInfo.getUserId()))
                 .build();
 
         chatMessage = chatMessageRepository.save(chatMessage);
+        touchConversation(conversation, chatMessage);
+        evictUnreadCachesForParticipants(conversation, userInfo.getUserId());
 
         // ==================== AI LOGIC WITH BROADCASTING ====================
         if (Boolean.TRUE.equals(conversation.getAiEnabled())
                 && request.getMessage() != null
                 && !request.getMessage().isBlank()) {
-
-            log.info("AI enabled for conversation: {}", conversation.getId());
 
             try {
                 // 1. Goi AI Service (LOCAL CALL - khong qua Feign)
@@ -125,13 +127,11 @@ public class ChatMessageService {
                 AiChatResponse aiRes = aiConversationService.chat(aiReq);
 
                 if (aiRes.isSuccess()) {
-                    log.info("AI response received successfully");
 
                     // 2. Luu AI conversation ID lan dau
                     if (conversation.getAiConversationId() == null && aiRes.getConversationId() != null) {
                         conversation.setAiConversationId(aiRes.getConversationId());
                         conversationRepository.save(conversation);
-                        log.info("Saved AI conversation ID: {}", aiRes.getConversationId());
                     }
 
                     // 3. Tao AI message
@@ -153,17 +153,14 @@ public class ChatMessageService {
 
                     // 4. Luu vao database
                     ChatMessage savedAiMessage = chatMessageRepository.save(aiMessage);
-                    log.info("Saved AI message to database: {}", savedAiMessage.getId());
 
                     // 5. BROADCAST AI MESSAGE TOI TAT CA PARTICIPANTS
                     broadcastAiMessage(savedAiMessage, conversation.getId());
 
                 } else {
-                    log.error("AI service returned error: {}", aiRes.getError());
                 }
 
             } catch (Exception e) {
-                log.error("Error calling AI service: {}", e.getMessage(), e);
             }
         }
 
@@ -172,7 +169,6 @@ public class ChatMessageService {
 
     private void broadcastAiMessage(ChatMessage aiMessage, String conversationId) {
         try {
-            log.info("Broadcasting AI message to conversation: {}", conversationId);
 
             // Lay danh sach participants de gui STOMP cho tung user
             var conversation = conversationRepository.findById(conversationId).orElse(null);
@@ -184,10 +180,7 @@ public class ChatMessageService {
                 webSocketNotificationService.sendChatMessage(participant.getUserId(), aiResponse);
             }
 
-            log.info("AI message broadcasted via STOMP to conversation: {}", conversationId);
-
         } catch (Exception e) {
-            log.error("Error broadcasting AI message: {}", e.getMessage(), e);
         }
     }
 
@@ -284,15 +277,25 @@ public class ChatMessageService {
     public String markAsRead(String conversationId, String userId) {
         List<ChatMessage> messages =
                 chatMessageRepository.findAllByConversationIdOrderByCreatedDateDesc(conversationId);
+        List<String> updatedMessageIds = new ArrayList<>();
 
         for (ChatMessage msg : messages) {
+            if (msg.getReadBy() == null) {
+                msg.setReadBy(new ArrayList<>());
+            }
+
             if (!msg.getReadBy().contains(userId)) {
                 msg.getReadBy().add(userId);
                 msg.setIsRead(true);
+                updatedMessageIds.add(msg.getId());
             }
         }
 
-        chatMessageRepository.saveAll(messages);
+        if (!updatedMessageIds.isEmpty()) {
+            chatMessageRepository.saveAll(messages);
+            broadcastReadReceipt(conversationId, userId, updatedMessageIds);
+        }
+        redisCacheService.evictUnreadCount(conversationId, userId);
 
         return "mark as read";
     }
@@ -327,6 +330,7 @@ public class ChatMessageService {
                 .attachments(msg.getAttachments())
                 .sender(msg.getSender())
                 .createdDate(msg.getCreatedDate())
+                .isRead(Boolean.TRUE.equals(msg.getIsRead()))
                 .readBy(msg.getReadBy())
                 .build();
 
@@ -343,5 +347,59 @@ public class ChatMessageService {
 
     public String getCurrentUserId() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    private void evictUnreadCachesForParticipants(Conversation conversation, String senderId) {
+        if (conversation.getParticipants() == null) {
+            return;
+        }
+
+        for (ParticipantInfo participant : conversation.getParticipants()) {
+            if (participant.getUserId() == null || participant.getUserId().equals(senderId)) {
+                continue;
+            }
+            redisCacheService.evictUnreadCount(conversation.getId(), participant.getUserId());
+        }
+    }
+
+    private void touchConversation(Conversation conversation, ChatMessage chatMessage) {
+        conversation.setModifiedDate(chatMessage.getCreatedDate());
+        conversation.setLastMessage(chatMessage.getMessage());
+        conversation.setLastMessageTime(chatMessage.getCreatedDate());
+        conversation.setLastMessageSender(buildSenderName(chatMessage.getSender()));
+        conversationRepository.save(conversation);
+    }
+
+    private String buildSenderName(ParticipantInfo sender) {
+        if (sender == null) {
+            return "";
+        }
+
+        String fullName = (orEmpty(sender.getFirstName()) + " " + orEmpty(sender.getLastName())).trim();
+        if (!fullName.isBlank()) {
+            return fullName;
+        }
+        return orEmpty(sender.getUsername());
+    }
+
+    private void broadcastReadReceipt(String conversationId, String readByUserId, List<String> messageIds) {
+        var conversation = conversationRepository.findById(conversationId).orElse(null);
+        if (conversation == null || conversation.getParticipants() == null) {
+            return;
+        }
+
+        MessageReadReceiptResponse receipt = MessageReadReceiptResponse.builder()
+                .conversationId(conversationId)
+                .readByUserId(readByUserId)
+                .messageIds(messageIds)
+                .readAt(Instant.now())
+                .build();
+
+        for (ParticipantInfo participant : conversation.getParticipants()) {
+            if (participant.getUserId() == null) {
+                continue;
+            }
+            webSocketNotificationService.sendChatReadReceipt(participant.getUserId(), receipt);
+        }
     }
 }

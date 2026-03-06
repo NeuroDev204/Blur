@@ -3,31 +3,26 @@ import { BsFillBookmarkFill } from "react-icons/bs";
 import { MdGridOn } from "react-icons/md";
 import ReqUserPostCard from "./ReqUserPostCard";
 import { fetchUserPosts } from "../../api/postApi";
-import { getToken } from "../../service/LocalStorageService";
 
 const ReqUserPostPart = () => {
   const [activeTab, setActiveTab] = useState("Post");
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const token = getToken();
 
   useEffect(() => {
     const getUserPosts = async () => {
       try {
         setIsLoading(true);
-        const result = await fetchUserPosts(token);
+        const result = await fetchUserPosts();
         setPosts(result);
       } catch (error) {
-        console.error("Error:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (token) {
-      getUserPosts();
-    }
-  }, [token]);
+    getUserPosts();
+  }, []);
 
   const tabs = [
     { tab: "Post", icon: <MdGridOn className="w-5 h-5" />, label: "Posts" },
@@ -75,18 +70,16 @@ const ReqUserPostPart = () => {
             <button
               key={item.tab}
               onClick={() => setActiveTab(item.tab)}
-              className={`group flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                activeTab === item.tab
+              className={`group flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${activeTab === item.tab
                   ? "text-sky-600 font-semibold"
                   : "text-gray-500 hover:text-gray-700"
-              }`}
+                }`}
             >
               <div
-                className={`transition-all duration-200 ${
-                  activeTab === item.tab
+                className={`transition-all duration-200 ${activeTab === item.tab
                     ? "scale-110"
                     : "group-hover:scale-105"
-                }`}
+                  }`}
               >
                 {item.icon}
               </div>
@@ -99,7 +92,7 @@ const ReqUserPostPart = () => {
             </button>
           ))}
         </div>
-        
+
         {/* Active tab indicator line */}
         <div className="relative h-0.5 bg-gradient-to-r from-transparent via-sky-400 to-transparent opacity-50"></div>
       </div>

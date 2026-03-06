@@ -11,6 +11,7 @@ interface Notification {
     timestamp?: string;
     type?: string;
     seen?: boolean;
+    read?: boolean;
 }
 
 interface NotificationItemProps {
@@ -20,12 +21,13 @@ interface NotificationItemProps {
 }
 
 const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onMarkRead, onClick }) => {
-    const { id, senderName, senderImageUrl, content, timestamp, type, seen } = notification;
+    const { id, senderName, senderImageUrl, content, timestamp, type, seen, read } = notification;
+    const isSeen = seen ?? read ?? false;
 
     return (
         <div
             onClick={() => onClick(notification)}
-            className={`group flex items-center p-4 hover:bg-sky-50/50 transition-all duration-200 cursor-pointer border-l-4 ${seen
+            className={`group flex items-center p-4 hover:bg-sky-50/50 transition-all duration-200 cursor-pointer border-l-4 ${isSeen
                     ? 'border-l-transparent bg-white'
                     : 'border-l-sky-500 bg-sky-50/30'
                 }`}
@@ -33,7 +35,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onMar
             {/* Avatar */}
             <div className="relative mr-4 flex-shrink-0">
                 <div className="relative">
-                    <div className={`absolute inset-0 rounded-full blur-sm transition-opacity ${!seen
+                    <div className={`absolute inset-0 rounded-full blur-sm transition-opacity ${!isSeen
                             ? 'bg-gradient-to-br from-sky-400 to-blue-500 opacity-20'
                             : 'opacity-0'
                         }`}></div>
@@ -70,12 +72,12 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onMar
 
                     {/* Action buttons */}
                     <div className="ml-4 flex items-center gap-2 flex-shrink-0">
-                        {type === 'follow' && (
+                        {type === 'Follow' && (
                             <button className="bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-xs px-4 py-2 rounded-xl font-semibold transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5">
                                 Follow
                             </button>
                         )}
-                        {type === 'message' && (
+                        {type === 'Message' && (
                             <button className="bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white text-xs px-4 py-2 rounded-xl font-semibold transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5">
                                 Reply
                             </button>
@@ -87,7 +89,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onMar
                 </div>
 
                 {/* Unread indicator */}
-                {!seen && (
+                {!isSeen && (
                     <button
                         onClick={(e: MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();

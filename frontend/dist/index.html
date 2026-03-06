@@ -9,8 +9,12 @@
     <link rel="apple-touch-icon" href="/logo.webp" />
     <link rel="manifest" href="/manifest.json" />
     <title>Blur</title>
-    <script type="module" crossorigin src="/assets/index-eYoitwPO.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CAdCK8XF.css">
+    <!-- Polyfill for sockjs-client (requires 'global' which doesn't exist in browser) -->
+    <script>
+      window.global = window;
+    </script>
+    <script type="module" crossorigin src="/assets/index-BvEnEZiK.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DShZ-cah.css">
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

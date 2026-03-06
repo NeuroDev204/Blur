@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -23,7 +22,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
-@Slf4j
 @Configuration
 @EnableCaching
 public class RedisConfig {
@@ -51,7 +49,6 @@ public class RedisConfig {
         mapper.activateDefaultTyping(
                 LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
 
-        log.info("Redis ObjectMapper configured for MongoDB entities");
         return mapper;
     }
 
@@ -71,7 +68,6 @@ public class RedisConfig {
 
         template.afterPropertiesSet();
 
-        log.info("✅ RedisTemplate configured for MongoDB");
         return template;
     }
 
@@ -113,10 +109,8 @@ public class RedisConfig {
             }
             try {
                 byte[] bytes = objectMapper.writeValueAsBytes(value);
-                log.debug("Serialized object of type: {}", value.getClass().getName());
                 return bytes;
             } catch (Exception e) {
-                log.error("❌ Serialize error for type {}: {}", value.getClass().getName(), e.getMessage(), e);
                 // Don't cache if serialization fails
                 throw new org.springframework.data.redis.serializer.SerializationException(
                         "Could not serialize: " + e.getMessage(), e);
@@ -131,12 +125,8 @@ public class RedisConfig {
             }
             try {
                 Object result = objectMapper.readValue(bytes, Object.class);
-                log.debug(
-                        "Deserialized object of type: {}",
-                        result != null ? result.getClass().getName() : "null");
                 return result;
             } catch (Exception e) {
-                log.error("❌ Deserialize error: {}", e.getMessage());
                 // Return null on error - cache miss, will fetch from DB
                 return null;
             }

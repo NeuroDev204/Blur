@@ -3,7 +3,6 @@ import { LuCircleDashed } from "react-icons/lu";
 import { MdGridOn } from "react-icons/md";
 import { BiMessageRounded } from "react-icons/bi";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getToken } from "../../service/LocalStorageService";
 import {
   fetchUserInfo,
   fetchUserProfileById,
@@ -27,7 +26,6 @@ const ProfileUserDetails = () => {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isMessageLoading, setIsMessageLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const token = getToken();
   const [params] = useSearchParams();
   const profileId = params.get("profileId");
 
@@ -36,16 +34,16 @@ const ProfileUserDetails = () => {
       try {
         setIsLoading(true);
 
-        const loggedInUser = await fetchUserInfo(token);
+        const loggedInUser = await fetchUserInfo();
         setCurrentUser(loggedInUser);
 
-        const profileData = await fetchUserProfileById(profileId, token);
+        const profileData = await fetchUserProfileById(profileId);
         setUser(profileData);
 
         if (profileData?.id) {
           const [followerData, followingData] = await Promise.all([
-            getFollowers(profileData.id, token),
-            getFollowings(profileData.id, token),
+            getFollowers(profileData.id),
+            getFollowings(profileData.id),
           ]);
           setFollowers(followerData || []);
           setFollowings(followingData || []);
@@ -56,19 +54,18 @@ const ProfileUserDetails = () => {
           setIsFollowing(isUserFollowing);
         }
 
-        const postData = await getPostsByUserId(profileData.userId, token);
+        const postData = await getPostsByUserId(profileData.userId);
         setPosts(postData);
       } catch (error) {
-        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (token && profileId) {
+    if (profileId) {
       fetchData();
     }
-  }, [profileId, token]);
+  }, [profileId]);
 
   const handleFollowToggle = async () => {
     if (!currentUser) return;
@@ -76,17 +73,16 @@ const ProfileUserDetails = () => {
     try {
       setIsActionLoading(true);
       if (isFollowing) {
-        await unfollowUser(user.id, token);
+        await unfollowUser(user.id);
         setFollowers((prev) =>
           prev.filter((follower) => follower.id !== currentUser.id)
         );
       } else {
-        await followUser(user.id, token);
+        await followUser(user.id);
         setFollowers((prev) => [...prev, currentUser]);
       }
       setIsFollowing(!isFollowing);
     } catch (error) {
-      console.error("Error toggling follow status:", error);
     } finally {
       setIsActionLoading(false);
     }
@@ -97,20 +93,18 @@ const ProfileUserDetails = () => {
 
     try {
       setIsMessageLoading(true);
-      
+
       // Gọi API tạo conversation
       const conversationData = await createConversation(
         {
           type: "DIRECT",
           participantIds: [user.userId]
-        },
-        token
+        }
       );
 
       // Navigate đến trang chat với conversationId
       navigate(`/message`);
     } catch (error) {
-      console.error("Error creating conversation:", error);
       // Có thể hiển thị toast notification ở đây
       alert("Unable to start conversation. Please try again.");
     } finally {
@@ -165,7 +159,7 @@ const ProfileUserDetails = () => {
                 <h2 className="text-2xl font-bold text-gray-800">
                   {user?.firstName} {user?.lastName}
                 </h2>
-                
+
                 {isOwnProfile ? (
                   <div className="flex gap-3">
                     <button
@@ -186,11 +180,10 @@ const ProfileUserDetails = () => {
                     <button
                       onClick={handleFollowToggle}
                       disabled={isActionLoading}
-                      className={`px-8 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isFollowing
+                      className={`px-8 py-2.5 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing
                           ? "bg-gray-100 text-gray-800 hover:bg-gray-200"
                           : "bg-gradient-to-r from-sky-400 to-blue-500 text-white hover:from-sky-500 hover:to-blue-600"
-                      }`}
+                        }`}
                     >
                       {isActionLoading ? (
                         <span className="flex items-center gap-2">
@@ -283,7 +276,7 @@ const ProfileUserDetails = () => {
                 No posts yet
               </h3>
               <p className="text-sm text-gray-500 text-center max-w-sm">
-                {isOwnProfile 
+                {isOwnProfile
                   ? "Share your first photo or video to get started"
                   : `${user?.firstName} hasn't posted anything yet`
                 }

@@ -7,14 +7,12 @@ import com.blur.userservice.identity.service.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Slf4j
 @RestController
 @RequestMapping("/test-data")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -42,8 +40,6 @@ public class TestDataController {
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
 
-        log.info("=== Starting User Generation ===");
-        log.info("Target: {} users", userCount);
 
         try {
             Random random = new Random();
@@ -73,12 +69,10 @@ public class TestDataController {
 
                     // Log tiến độ mỗi 500 users
                     if ((i + 1) % 500 == 0) {
-                        log.info("Created {}/{} users", i + 1, userCount);
                     }
 
                 } catch (Exception e) {
                     failCount.incrementAndGet();
-                    log.debug("Failed to create user {}: {}", i, e.getMessage());
                 }
             }
 
@@ -90,8 +84,6 @@ public class TestDataController {
             result.put("durationFormatted", formatDuration(duration));
             result.put("nextStep", "Now call POST /profile/internal/generate-follows to create random follows");
 
-            log.info("=== User Generation Complete ===");
-            log.info("Created {} users in {}", successCount.get(), formatDuration(duration));
 
             return ApiResponse.<Map<String, Object>>builder()
                     .code(1000)
@@ -100,7 +92,6 @@ public class TestDataController {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error generating users: ", e);
             result.put("error", e.getMessage());
             result.put("usersCreatedBeforeError", successCount.get());
             return ApiResponse.<Map<String, Object>>builder()

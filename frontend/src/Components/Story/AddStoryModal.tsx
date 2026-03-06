@@ -96,7 +96,6 @@ const AddStoryModal: React.FC<AddStoryModalProps> = ({ onClose, onStoryCreated }
           const thumbnailFile = await generateThumbnail(media as File);
           thumbnailUrl = await uploadToCloudnary(thumbnailFile as File);
         } catch (thumbnailError) {
-          console.error("Error generating thumbnail:", thumbnailError);
         }
       }
       const storyData = {
@@ -121,7 +120,6 @@ const AddStoryModal: React.FC<AddStoryModalProps> = ({ onClose, onStoryCreated }
         onClose();
       }
     } catch (err) {
-      console.error("Error creating story:", err);
       setError("Có lỗi xảy ra khi tạo story. Vui lòng thử lại sau.");
       toast({
         title: "Lỗi",

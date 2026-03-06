@@ -22,7 +22,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Destinations cho subscribe (server -> client)
         registry.enableSimpleBroker(
                 "/topic", // broadcast (typing, online status)
-                "/user" // user-specific (chat messages, notifications, call signals)
+                "/queue" // point-to-point user queues
                 );
         // Destinations cho send (client -> server)
         registry.setApplicationDestinationPrefixes("/app");

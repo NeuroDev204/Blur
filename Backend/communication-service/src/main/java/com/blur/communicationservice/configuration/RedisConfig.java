@@ -22,9 +22,7 @@ import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Configuration
 @EnableCaching
 @RequiredArgsConstructor
@@ -88,10 +86,8 @@ public class RedisConfig {
 
             if (keys != null && !keys.isEmpty()) {
                 template.delete(keys);
-                log.info("Cleaned {} corrupted cache entries from Redis for communication-service", keys.size());
             }
         } catch (Exception e) {
-            log.warn("Failed to cleanup communication-service cache on startup, but it's safe to continue", e);
         }
     }
 }

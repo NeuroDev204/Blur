@@ -21,10 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
-@Slf4j
 @Component
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LikePostEventHandler implements EventHandler<Event> {
@@ -66,10 +64,8 @@ public class LikePostEventHandler implements EventHandler<Event> {
                 .postId(event.getPostId())
                 .build();
         boolean isOnline = redisService.isUserOnline(event.getReceiverId());
-        log.info("🔎 Receiver {} online? {}", event.getReceiverId(), isOnline);
         notificationService.save(notification);
         if (isOnline) {
-            log.info("📡 Sending realtime notification to {}", notification.getReceiverId());
             notificationWebSocketService.sendNotification(notification);
         } else {
             sendLikePostNotification(notification);
@@ -117,13 +113,7 @@ public class LikePostEventHandler implements EventHandler<Event> {
             helper.setText(emailContent, true); // HTML enabled
 
             emailSender.send(message);
-            log.info("Like post email notification sent to {}", notification.getReceiverEmail());
         } catch (Exception e) {
-            log.error(
-                    "Failed to send like post email notification to {}: {}",
-                    notification.getReceiverEmail(),
-                    e.getMessage(),
-                    e);
         }
     }
 }

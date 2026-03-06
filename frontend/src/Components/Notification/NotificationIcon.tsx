@@ -2,7 +2,7 @@
 import { Clock, Heart, MessageCircle, UserPlus } from 'lucide-react';
 import React from 'react';
 
-type NotificationType = 'LikePost' | 'CommentPost' | 'follow' | 'message' | string;
+type NotificationType = 'LikePost' | 'CommentPost' | 'Follow' | 'Message' | string;
 
 interface NotificationIconProps {
     type: NotificationType;
@@ -26,13 +26,13 @@ const NotificationIcon: React.FC<NotificationIconProps> = ({ type, className = '
                     <MessageCircle {...iconProps} className="text-white" />
                 </div>
             );
-        case 'follow':
+        case 'Follow':
             return (
                 <div className={`${baseClass} bg-gradient-to-br from-emerald-400 to-emerald-500`}>
                     <UserPlus {...iconProps} className="text-white" />
                 </div>
             );
-        case 'message':
+        case 'Message':
             return (
                 <div className={`${baseClass} bg-gradient-to-br from-violet-400 to-violet-500`}>
                     <MessageCircle {...iconProps} className="text-white" />

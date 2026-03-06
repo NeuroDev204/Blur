@@ -24,6 +24,7 @@ interface Message {
   createdDate?: string;
   sender?: Sender;
   isPending?: boolean;
+  isFailed?: boolean;
   isRead?: boolean;
   isAiMessage?: boolean;
   messageType?: string;
@@ -64,10 +65,18 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
 
   // Status Icon
   const StatusIcon = useMemo(() => {
+    if (msg.isFailed) return null;
     if (msg.isPending) return null;
     if (msg.isRead) return <CheckCheck size={12} strokeWidth={2.5} />;
     return <Check size={12} strokeWidth={2.5} />;
-  }, [msg.isPending, msg.isRead]);
+  }, [msg.isFailed, msg.isPending, msg.isRead]);
+
+  const deliveryStatus = useMemo(() => {
+    if (msg.isFailed) return 'Gửi thất bại';
+    if (msg.isPending) return 'Đang gửi';
+    if (msg.isRead) return 'Đã xem';
+    return 'Đã gửi';
+  }, [msg.isFailed, msg.isPending, msg.isRead]);
 
   // Has attachments
   const hasAttachments = useMemo(() =>
@@ -272,14 +281,14 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
               <span className="text-[11px] text-gray-400 font-normal">
                 {time}
               </span>
+              {isMe && (
+                <span className="text-[11px] text-gray-400 font-normal">
+                  • {deliveryStatus}
+                </span>
+              )}
               {isMe && StatusIcon && (
                 <span className="text-gray-400">
                   {StatusIcon}
-                </span>
-              )}
-              {msg.isPending && (
-                <span className="text-[11px] text-gray-400 font-normal">
-                  • Đang gửi
                 </span>
               )}
             </div>
@@ -294,6 +303,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
     prevProps.msg.message === nextProps.msg.message &&
     prevProps.msg.messageType === nextProps.msg.messageType &&
     prevProps.msg.isAiMessage === nextProps.msg.isAiMessage && // ✅ ADD THIS
+    prevProps.msg.isFailed === nextProps.msg.isFailed &&
     prevProps.msg.isPending === nextProps.msg.isPending &&
     prevProps.msg.isRead === nextProps.msg.isRead &&
     prevProps.msg.attachments === nextProps.msg.attachments &&

@@ -21,12 +21,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Component
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class FollowEventHandler implements EventHandler<Event> {
     JavaMailSender emailSender;
     NotificationService notificationService;
@@ -91,9 +89,7 @@ public class FollowEventHandler implements EventHandler<Event> {
 
             helper.setText(emailContent, true);
             emailSender.send(message);
-            log.info("Follow email sent to {}", notification.getReceiverEmail());
         } catch (Exception e) {
-            log.error("Failed to send follow email to {}: {}", notification.getReceiverEmail(), e.getMessage());
         }
     }
 }

@@ -23,12 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Component
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class CommentEventHandler implements EventHandler<Event> {
     RedisTemplate<String, String> redisTemplate;
     SimpMessagingTemplate simpMessagingTemplate;
@@ -50,7 +48,6 @@ public class CommentEventHandler implements EventHandler<Event> {
         event.setTimestamp(LocalDateTime.now());
 
         var profile = profileClient.getProfile(event.getSenderId());
-        log.info("profile: {}", profile);
 
         Notification notification = Notification.builder()
                 .postId(event.getPostId()) // 👈 THÊM DÒNG NÀY
@@ -121,13 +118,7 @@ public class CommentEventHandler implements EventHandler<Event> {
 
             helper.setText(emailContent, true); // HTML enabled
             emailSender.send(message);
-            log.info("Comment notification email sent to {}", notification.getReceiverEmail());
         } catch (Exception e) {
-            log.error(
-                    "Failed to send comment notification email to {}: {}",
-                    notification.getReceiverEmail(),
-                    e.getMessage(),
-                    e);
         }
     }
 }

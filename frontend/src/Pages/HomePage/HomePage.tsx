@@ -88,7 +88,6 @@ const HomePage: React.FC = () => {
             setUser(userInfo);
             setStories(userStories || []);
         } catch (error) {
-            console.error("Error fetching user/stories:", error);
         } finally {
             setIsLoading(false);
         }
@@ -112,7 +111,6 @@ const HomePage: React.FC = () => {
 
             setPosts(prev => {
                 const merged = mergeUniqueById(prev, newPosts);
-                console.log(`📋 Loaded page ${page}: ${newPosts.length} posts, Total: ${merged.length}`);
                 return merged;
             });
 
@@ -121,7 +119,6 @@ const HomePage: React.FC = () => {
             }
             setHasMore(Boolean(hasNextPage && newPosts.length > 0));
         } catch (error) {
-            console.error("Error loading posts:", error);
         } finally {
             setIsLoadingMore(false);
         }
@@ -146,7 +143,6 @@ const HomePage: React.FC = () => {
                 setPage(2);
                 setHasMore(Boolean(hasNextPage && first.length > 0));
             } catch (e) {
-                console.error("Error loading first page:", e);
             } finally {
                 setIsLoadingMore(false);
             }
@@ -195,17 +191,14 @@ const HomePage: React.FC = () => {
 
     // ✅ SỬA: Loại bỏ useCallback, dùng function bình thường để tránh stale closure
     const handlePostCreated = (created: Post) => {
-        console.log("🚀 [HomePage] handlePostCreated triggered with:", created);
 
         if (!created) {
-            console.error("❌ [HomePage] No post data received!");
             return;
         }
 
         isProcessingNewPostRef.current = true;
         if (observerRef.current && sentinelRef.current) {
             observerRef.current.unobserve(sentinelRef.current);
-            console.log("⏸️ Observer đã tạm dừng");
         }
 
         // ✅ Thêm bài viết mới lên đầu feed
@@ -217,7 +210,6 @@ const HomePage: React.FC = () => {
             };
 
             const updatedPosts = [newPost, ...prev];
-            console.log("✅ [HomePage] Updated feed length:", updatedPosts.length);
             return [...updatedPosts]; // ⚡ Đảm bảo luôn trả mảng mới (force render)
         });
 
@@ -225,7 +217,6 @@ const HomePage: React.FC = () => {
         setTimeout(() => {
             if (observerRef.current && sentinelRef.current) {
                 observerRef.current.observe(sentinelRef.current);
-                console.log("▶️ Observer đã được bật lại");
             }
             isProcessingNewPostRef.current = false;
         }, 500);

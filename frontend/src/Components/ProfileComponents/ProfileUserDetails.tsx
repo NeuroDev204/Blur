@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { LuCircleDashed } from "react-icons/lu";
 import { MdEdit } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
-import { getToken } from "../../service/LocalStorageService";
 import { fetchUserInfo, getFollowers, getFollowings } from "../../api/userApi";
 import { fetchUserPosts } from "../../api/postApi";
 
@@ -13,25 +12,23 @@ const ProfileUserDetails = () => {
   const [followers, setFollowers] = useState([]);
   const [followings, setFollowings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const token = getToken();
 
   useEffect(() => {
     const getUserInfo = async () => {
       try {
         setIsLoading(true);
-        const result = await fetchUserInfo(token);
+        const result = await fetchUserInfo();
         setUser(result);
 
         if (result?.id) {
           const [followerData, followingData] = await Promise.all([
-            getFollowers(result.id, token),
-            getFollowings(result.id, token),
+            getFollowers(result.id),
+            getFollowings(result.id),
           ]);
           setFollowers(followerData || []);
           setFollowings(followingData || []);
         }
       } catch (error) {
-        console.log("Error fetching user:", error);
       } finally {
         setIsLoading(false);
       }
@@ -39,18 +36,15 @@ const ProfileUserDetails = () => {
 
     const getUserPosts = async () => {
       try {
-        const result = await fetchUserPosts(token);
+        const result = await fetchUserPosts();
         setPosts(result);
       } catch (error) {
-        console.log("Error fetching posts:", error);
       }
     };
 
-    if (token) {
-      getUserInfo();
-      getUserPosts();
-    }
-  }, [token]);
+    getUserInfo();
+    getUserPosts();
+  }, []);
 
   if (isLoading) {
     return (

@@ -90,7 +90,6 @@ export const getConversations = async (): Promise<Conversation[]> => {
         )
         return response.data
     } catch (error) {
-        console.error('Error fetching conversations:', error)
         throw error
     }
 }
@@ -105,7 +104,6 @@ export const getConversationById = async (conversationId: string): Promise<Conve
         )
         return response.data
     } catch (error) {
-        console.error('Error fetching conversation:', error)
         throw error
     }
 }
@@ -126,7 +124,6 @@ export const sendMessage = async (conversationId: string, messageData: MessageDa
         )
         return response.data
     } catch (error) {
-        console.error('Error sending message:', error)
         throw error
     }
 }
@@ -148,7 +145,6 @@ export const getMessages = async (
         )
         return response.data
     } catch (error) {
-        console.error('Error fetching messages:', error)
         throw error
     }
 }
@@ -169,7 +165,6 @@ export const markConversationAsRead = async (conversationId: string): Promise<Co
         )
         return response.data
     } catch (error) {
-        console.error('Error marking conversation as read:', error)
         return null
     }
 }
@@ -183,7 +178,6 @@ export const deleteConversation = async (conversationId: string): Promise<void> 
             `${API_BASE_URL}/chat/conversations/${conversationId}`
         )
     } catch (error) {
-        console.error('Error deleting conversation:', error)
         throw error
     }
 }
@@ -207,7 +201,6 @@ export const markMessageAsRead = async (
         )
         return response.data
     } catch (error) {
-        console.error('Error marking message as read:', error)
         return null
     }
 }
@@ -222,7 +215,6 @@ export const getUnreadCount = async (): Promise<number> => {
         )
         return response.data.count || 0
     } catch (error) {
-        console.error('Error fetching unread count:', error)
         return 0
     }
 }

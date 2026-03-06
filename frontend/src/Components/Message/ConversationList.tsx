@@ -288,9 +288,7 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
           throw new Error('Failed to mark as read');
         }
 
-        console.log('✅ Marked conversation as read:', conv.id);
       } catch (error) {
-        console.error('❌ Error marking as read:', error);
       }
     }
   }, [onSelect, unreadByConversation]);
@@ -307,7 +305,6 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
     const conversationId = deleteDialog.conversation.id;
 
     try {
-      console.log(`🗑️ Deleting conversation: ${conversationId}`);
 
       const response = await fetch(`http://localhost:8888/api/chat/conversations?conversationId=${conversationId}`, {
         method: 'DELETE',
@@ -322,7 +319,6 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
       }
 
       const data = await response.json();
-      console.log('✅ Conversation deleted successfully:', data);
 
       // Close dialog
       setDeleteDialog({ isOpen: false, conversation: null });
@@ -348,7 +344,6 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
         });
       }
     } catch (error) {
-      console.error('❌ Failed to delete conversation:', error);
 
       // Show error notification
       if (window.toast) {

@@ -1,9 +1,8 @@
 import { Input, Skeleton, SkeletonCircle } from "@chakra-ui/react";
-import axios from "axios";
 import React, { useState, ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import { IoSearchOutline, IoPersonOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
-import { getToken } from "../../service/LocalStorageService";
+import { searchUsersByFirstName } from "../../api/userApi";
 
 interface SearchResult {
     id: string;
@@ -13,18 +12,11 @@ interface SearchResult {
     imageUrl?: string;
 }
 
-interface ApiResponse {
-    code: number;
-    message?: string;
-    result: SearchResult[];
-}
-
 const SearchPage: React.FC = () => {
     const [search, setSearch] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const token = getToken();
 
     const handleSearch = async (e: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLInputElement>) => {
         e.preventDefault();
@@ -32,24 +24,11 @@ const SearchPage: React.FC = () => {
 
         setLoading(true);
         try {
-            const response = await axios.get<ApiResponse>(
-                `http://localhost:8888/api/profile/users/search/${search}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (response?.data.code !== 1000) {
-                throw new Error(response?.data.message);
-            }
-            setResults(response?.data.result);
-
+            // ⭐ Sử dụng API function thay vì raw axios với manual token
+            const searchResults = await searchUsersByFirstName(search);
+            setResults(searchResults as unknown as SearchResult[]);
         } catch (error) {
             const err = error as Error;
-            console.error(err.message);
             setResults([]);
         } finally {
             setLoading(false);

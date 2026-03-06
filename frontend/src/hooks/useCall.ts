@@ -62,6 +62,11 @@ interface CallEventData {
     candidate?: RTCIceCandidateInit
 }
 
+interface PendingOfferData {
+    callerId: string
+    offer: RTCSessionDescriptionInit
+}
+
 // ============ CONSTANTS ============
 const INITIAL_CALL_STATE: CallState = {
     isInCall: false,
@@ -177,6 +182,7 @@ export const useCall = (currentUserId: string) => {
     const isCleaningUpRef = useRef<boolean>(false)
     const hasAnsweredRef = useRef<boolean>(false)
     const pendingCallInfoRef = useRef<PendingCallInfo | null>(null)
+    const pendingOfferRef = useRef<PendingOfferData | null>(null)
 
     // ============ SYNC STATE TO REF ============
     useEffect(() => {
@@ -230,6 +236,7 @@ export const useCall = (currentUserId: string) => {
         remoteUserIdRef.current = null
         hasAnsweredRef.current = false
         pendingCallInfoRef.current = null
+        pendingOfferRef.current = null
 
         setCallState(INITIAL_CALL_STATE)
         setCallDuration(0)
@@ -318,6 +325,36 @@ export const useCall = (currentUserId: string) => {
             }
         )
     }, [socketAPI, startCallTimer, verifyAndEnableAudio])
+
+    const processIncomingOffer = useCallback(async (callerId: string, offer: RTCSessionDescriptionInit) => {
+        if (!webRTCService.localStream) {
+            pendingOfferRef.current = { callerId, offer }
+            return false
+        }
+
+        try {
+            remoteUserIdRef.current = callerId
+            setupPeerConnection(callerId)
+
+            const answer = await webRTCService.createAnswer(offer)
+            const answerSent = socketAPI.sendWebRTCAnswer(callerId, answer)
+
+            if (!answerSent) {
+                throw new Error('Socket answer failed')
+            }
+
+            pendingOfferRef.current = null
+
+            setTimeout(() => {
+                verifyAndEnableAudio()
+            }, 500)
+
+            return true
+        } catch {
+            pendingOfferRef.current = { callerId, offer }
+            return false
+        }
+    }, [setupPeerConnection, socketAPI, verifyAndEnableAudio])
 
     // ============ CALL ACTIONS ============
     const initiateCall = useCallback(async (receiverData: ReceiverData, callType: 'VOICE' | 'VIDEO') => {
@@ -441,6 +478,14 @@ export const useCall = (currentUserId: string) => {
             const success = socketAPI.answerCall(currentState.callId || '')
             if (!success) throw new Error('Socket answer failed')
 
+            const pendingOffer = pendingOfferRef.current
+            if (callerId && pendingOffer?.callerId === callerId && pendingOffer.offer) {
+                const processed = await processIncomingOffer(callerId, pendingOffer.offer)
+                if (!processed) {
+                    throw new Error('WebRTC offer not ready')
+                }
+            }
+
             setCallState(prev => ({
                 ...prev,
                 isIncoming: false,
@@ -467,7 +512,7 @@ export const useCall = (currentUserId: string) => {
             })
             cleanup()
         }
-    }, [socketAPI, cleanup, setupPeerConnection])
+    }, [socketAPI, cleanup, processIncomingOffer, setupPeerConnection])
 
     const rejectCall = useCallback(() => {
         const currentState = callStateRef.current
@@ -682,40 +727,18 @@ export const useCall = (currentUserId: string) => {
         try {
             const eventData = data as CallEventData
             const callerId = eventData.from || remoteUserIdRef.current
-            if (!callerId) {
+            const offer = eventData.offer
+
+            if (!callerId || !offer) {
                 return
             }
 
-            let retries = 0
-            const maxRetries = 30
-
-            while (!webRTCService.localStream && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 100))
-                retries++
-            }
-
-            if (!webRTCService.localStream) {
-                return
-            }
-
-            try {
-                if (eventData.offer) {
-                    const answer = await webRTCService.createAnswer(eventData.offer)
-                    socketAPI.sendWebRTCAnswer(callerId, answer)
-                }
-
-                setTimeout(() => {
-                    verifyAndEnableAudio()
-                }, 500)
-
-            } catch {
-                // Error creating answer
-            }
-
+            pendingOfferRef.current = { callerId, offer }
+            await processIncomingOffer(callerId, offer)
         } catch {
             // Error handling WebRTC offer
         }
-    }, [socketAPI, verifyAndEnableAudio])
+    }, [processIncomingOffer])
 
     const handleWebRTCAnswer = useCallback(async (data: unknown) => {
         try {

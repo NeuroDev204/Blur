@@ -22,7 +22,6 @@ const ReqUserPostCard = ({ post }) => {
         const commentData = await fetchAllComments(post.id);
         setCommentsCount(commentData?.length || 0);
       } catch (err) {
-        console.error("Lỗi khi load likes/comments", err);
       } finally {
         setIsLoading(false);
       }

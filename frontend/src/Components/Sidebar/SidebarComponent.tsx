@@ -5,8 +5,7 @@ import { menuItems } from "./SidebarConfig";
 import { useNavigate } from "react-router-dom";
 import { useDisclosure, useToast } from "@chakra-ui/react";
 import LogoutModal from "./LogoutModal";
-import { removeToken } from "../../service/LocalStorageService";
-import { getUserDetails } from "../../service/JwtService";
+
 import CreatePostModal from "../Post/CreatePostModal";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { fetchUserInfo } from "../../api/userApi";
@@ -90,13 +89,10 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
 
   useEffect(() => {
     const fetchUser = async () => {
-      const userData = getUserDetails();
-      if (!userData) return;
       try {
         const userProfile = await fetchUserInfo();
         setUser(userProfile);
       } catch (error) {
-        console.error("Error:", error);
       }
     };
     fetchUser();
@@ -106,7 +102,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
     try {
       e.preventDefault();
       await logoutUser();
-      removeToken();
+      // Token is managed by HttpOnly Cookie - server handles cleanup on logout
       showToast("Logout successful!", "", "success");
       navigate("/login");
     } catch (err) {

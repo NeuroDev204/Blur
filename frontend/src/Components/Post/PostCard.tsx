@@ -90,7 +90,6 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
         setIsPostLiked(matched);
       } catch (error) {
-        console.error("Error fetching data:", error);
         setLikes([]);
         setComments([]);
         setIsPostLiked(false);
@@ -246,7 +245,6 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
       setComment("");
     } catch (error) {
-      console.error("Error creating comment/reply:", error);
 
       toast({
         title: parentCommentId
@@ -314,7 +312,6 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
       setIsPostLiked(matched);
     } catch (error) {
-      console.error("Error toggling like:", error);
 
       // Rollback to previous state
       setIsPostLiked(previousLiked);
@@ -350,7 +347,6 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
         setIsPostLiked(matched);
       } catch (refetchError) {
-        console.error("Error refetching likes:", refetchError);
       }
     }
   };
@@ -369,7 +365,6 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
         position: "top-right",
       });
     } catch (error) {
-      console.error("Error saving post:", error);
       toast({
         title: "Failed to save post",
         status: "error",

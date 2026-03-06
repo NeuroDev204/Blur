@@ -8,7 +8,6 @@ import com.contentservice.story.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -18,7 +17,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/comment")
 @RequiredArgsConstructor
-@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CommentController {
     CommentService commentService;
@@ -41,11 +39,9 @@ public class CommentController {
 
     @GetMapping("/{postId}/all-comments")
     public ApiResponse<List<CommentResponse>> getAllCommentsWithReplies(@PathVariable String postId) {
-        log.info("🔵 [CONTROLLER] Getting all comments + replies for post: {}", postId);
 
         // 1. Lấy tất cả comments gốc
         List<CommentResponse> rootComments = commentService.getAllCommentByPostId(postId);
-        log.info("   → Found {} root comments", rootComments.size());
 
         // 2. Lấy tất cả replies của từng comment
         List<CommentResponse> allReplies = new ArrayList<>();
@@ -53,14 +49,12 @@ public class CommentController {
             List<CommentResponse> replies = commentReplyService.getAllCommentReplyByCommentId(comment.getId());
             allReplies.addAll(replies);
         }
-        log.info("   → Found {} replies", allReplies.size());
 
         // 3. Merge lại: comments + replies
         List<CommentResponse> allComments = new ArrayList<>();
         allComments.addAll(rootComments);
         allComments.addAll(allReplies);
 
-        log.info("✅ [CONTROLLER] Returning {} total comments (root + replies)", allComments.size());
 
         return ApiResponse.<List<CommentResponse>>builder()
                 .result(allComments)

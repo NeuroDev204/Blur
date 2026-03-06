@@ -5,7 +5,6 @@ import com.blur.userservice.identity.entity.User;
 import com.blur.userservice.identity.repository.RoleRepository;
 import com.blur.userservice.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +14,6 @@ import java.util.HashSet;
 
 @Configuration
 @RequiredArgsConstructor
-@Slf4j
 public class AppConfiguration {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
@@ -39,7 +37,6 @@ public class AppConfiguration {
                         .build();
                 userRepository.save(user);
 
-                log.info("admin user created with default password admin");
             }
         };
     }

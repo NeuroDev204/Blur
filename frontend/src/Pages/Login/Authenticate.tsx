@@ -34,7 +34,6 @@ const Authenticate: React.FC = () => {
     };
 
     useEffect(() => {
-        console.log("windows href: ", window.location.href);
         const authCodeRegex = /code=([^&]+)/;
         const isMatch = window.location.href.match(authCodeRegex);
         if (isMatch) {
@@ -50,7 +49,6 @@ const Authenticate: React.FC = () => {
                     return response.json() as Promise<AuthResponse>;
                 })
                 .then((data) => {
-                    console.log("data: ", data);
                     // Token đã được set trong HttpOnly cookie bởi server
                     // Không cần setToken() nữa
                     if (data.result?.authenticated) {
@@ -95,7 +93,6 @@ const Authenticate: React.FC = () => {
                     getUserDetails();
                 }
             } catch (error) {
-                console.error("Auth check failed:", error);
             }
         };
         checkAuth();
@@ -104,7 +101,6 @@ const Authenticate: React.FC = () => {
 
     // Lắng nghe sự thay đổi của userDetails
     useEffect(() => {
-        console.log("User details: ", userDetails); // Debug giá trị userDetails
         if (userDetails.noPassword === true && !isLoggedIn) {
             navigate("http://localhost:8888/api/identity/create-password");
         } else if (userDetails.noPassword === false && isLoggedIn) {

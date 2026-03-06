@@ -74,7 +74,6 @@ public class WebClientConfiguration {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfig);
 
-        System.out.println("✅ CORS Filter configured for: http://localhost:3000");
 
         return new CorsWebFilter(source);
     }
@@ -83,6 +82,8 @@ public class WebClientConfiguration {
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 .route("websocket_route", r -> r.path("/ws/**")
+                        .filters(f -> f.prefixPath("/chat")
+                                .dedupeResponseHeader("Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers", "RETAIN_FIRST"))
                         .uri(chatServiceUrl))
                 .build();
     }

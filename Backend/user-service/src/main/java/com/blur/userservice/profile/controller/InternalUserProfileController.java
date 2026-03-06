@@ -10,7 +10,6 @@ import com.blur.userservice.profile.service.UserProfileService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -18,7 +17,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -96,8 +94,6 @@ public class InternalUserProfileController {
         long startTime = System.currentTimeMillis();
         Map<String, Object> result = new HashMap<>();
 
-        log.info("=== Starting Random Follow Generation ===");
-        log.info("Min follows: {}, Max follows: {}", minFollows, maxFollows);
 
         try {
             // CHỈ lấy danh sách IDs - tránh load full entity + relationships
@@ -113,7 +109,6 @@ public class InternalUserProfileController {
                         .build();
             }
 
-            log.info("Found {} profile IDs, creating random follows...", profileCount);
 
             Random random = new Random();
             AtomicInteger totalFollows = new AtomicInteger(0);
@@ -143,15 +138,9 @@ public class InternalUserProfileController {
                     }
                 }
 
-                // Log tiến độ
-                if ((i + 1) % 500 == 0) {
-                    log.info("Processed {}/{} profiles, total follows: {}",
-                            i + 1, profileCount, totalFollows.get());
-                }
             }
 
             // Cập nhật follow counts cho tất cả users
-            log.info("Updating follow counts...");
             long updatedCount = userProfileRepository.updateAllFollowCounts();
 
             long duration = System.currentTimeMillis() - startTime;
@@ -164,8 +153,6 @@ public class InternalUserProfileController {
             result.put("durationFormatted", formatDuration(duration));
             result.put("avgFollowsPerUser", (double) totalFollows.get() / profileCount);
 
-            log.info("=== Random Follow Generation Complete ===");
-            log.info("Created {} follows in {}", totalFollows.get(), formatDuration(duration));
 
             return ApiResponse.<Map<String, Object>>builder()
                     .code(1000)
@@ -174,7 +161,6 @@ public class InternalUserProfileController {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error generating follows: ", e);
             result.put("error", e.getMessage());
             return ApiResponse.<Map<String, Object>>builder()
                     .code(5000)
@@ -213,7 +199,6 @@ public class InternalUserProfileController {
                 updated++;
 
                 if (updated % 500 == 0) {
-                    log.info("Updated city for {}/{} profiles", updated, allProfileIds.size());
                 }
             }
 
@@ -229,7 +214,6 @@ public class InternalUserProfileController {
                     .build();
 
         } catch (Exception e) {
-            log.error("Error generating cities: ", e);
             result.put("error", e.getMessage());
             return ApiResponse.<Map<String, Object>>builder()
                     .code(5000)

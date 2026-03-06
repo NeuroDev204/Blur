@@ -17,7 +17,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -30,7 +29,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Builder
 @RequiredArgsConstructor
 @Service
@@ -56,27 +54,21 @@ public class CommentReplyService {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String currentUserId = auth.getName();
 
-        log.info("🔵 [STEP 1] Creating reply - Current User ID: {}", currentUserId);
 
         // 1. Tìm comment gốc
         var comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
 
-        log.info("🔵 [STEP 2] Found comment ID: {} created by user: {}", comment.getId(), comment.getUserId());
 
         // 2. Nếu reply vào 1 reply khác
         CommentReply parentReply = null;
         if (parentReplyId != null) {
             parentReply = commentReplyRepository.findById(parentReplyId)
                     .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
-            log.info("🔵 [STEP 3] Found parent reply ID: {} created by user: {}",
-                    parentReply.getId(), parentReply.getUserId());
         } else {
-            log.info("🔵 [STEP 3] No parent reply - replying directly to comment");
         }
 
         // 3. Lấy profile người đang reply (sender)
-        log.info("🔵 [STEP 4] Fetching sender profile...");
         var senderProfileRes = profileClient.getProfile(currentUserId);
         var senderProfile = senderProfileRes.getResult();
 
@@ -86,13 +78,9 @@ public class CommentReplyService {
         String senderImageUrl = senderProfile.getImageUrl();
 
         if (senderFullName.isEmpty()) {
-            log.warn("⚠️ [STEP 4] Sender has no first/last name, fetching username from Identity...");
             var senderIdentity = identityClient.getUser(currentUserId);
             senderFullName = senderIdentity.getResult().getUsername();
         }
-
-        log.info("🔵 [STEP 4] Sender info - Full Name: '{}', Image URL: '{}'",
-                senderFullName, senderImageUrl);
 
         // 4. Tạo CommentReply
         CommentReply commentReply = CommentReply.builder()
@@ -106,35 +94,26 @@ public class CommentReplyService {
                 .build();
 
         commentReply = commentReplyRepository.save(commentReply);
-        log.info("✅ [STEP 5] CommentReply saved with ID: {}", commentReply.getId());
 
         // 5. Xác định người nhận thông báo
         String receiverUserId;
         if (parentReply != null) {
             receiverUserId = parentReply.getUserId();
-            log.info("🔵 [STEP 6] Receiver is PARENT REPLY owner: {}", receiverUserId);
         } else {
             receiverUserId = comment.getUserId();
-            log.info("🔵 [STEP 6] Receiver is COMMENT owner: {}", receiverUserId);
         }
 
         // 6. Kiểm tra xem có phải tự reply không
         if (receiverUserId.equals(currentUserId)) {
-            log.warn("⚠️ [STEP 7] SKIP notification - User is replying to their own comment/reply");
             return commentMapper.toCommentResponse(commentReply);
         }
 
-        log.info("✅ [STEP 7] Different users detected - Preparing notification...");
-        log.info("   → Sender ID: {}", currentUserId);
-        log.info("   → Receiver ID: {}", receiverUserId);
 
         try {
             // Lấy thông tin sender từ Identity
-            log.info("🔵 [STEP 8] Fetching sender identity info...");
             var senderIdentity = identityClient.getUser(currentUserId);
 
             // Lấy thông tin receiver
-            log.info("🔵 [STEP 9] Fetching receiver info...");
             var receiverIdentity = identityClient.getUser(receiverUserId);
             var receiverProfileRes = profileClient.getProfile(receiverUserId);
             var receiverProfile = receiverProfileRes.getResult();
@@ -146,9 +125,6 @@ public class CommentReplyService {
             if (receiverFullName.isEmpty()) {
                 receiverFullName = receiverIdentity.getResult().getUsername();
             }
-
-            log.info("🔵 [STEP 9] Receiver info - Full Name: '{}', Email: '{}'",
-                    receiverFullName, receiverIdentity.getResult().getEmail());
 
             // Tạo Event
             Event event = Event.builder()
@@ -164,21 +140,12 @@ public class CommentReplyService {
                     .timestamp(LocalDateTime.now())
                     .build();
 
-            log.info("🔵 [STEP 10] Event created:");
-            log.info("   → Post ID: {}", event.getPostId());
-            log.info("   → Sender: {} ({})", event.getSenderName(), event.getSenderId());
-            log.info("   → Receiver: {} ({})", event.getReceiverName(), event.getReceiverId());
-            log.info("   → Image URL: {}", event.getSenderImageUrl());
 
             // GỬI NOTIFICATION QUA FEIGN CLIENT
-            log.info("🔵 [STEP 11] Publishing reply comment notification event...");
             notificationEventPublisher.publishReplyCommentEvent(event);
 
-            log.info("✅✅✅ [STEP 12] NOTIFICATION SENT SUCCESSFULLY! ✅✅✅");
 
         } catch (Exception e) {
-            log.error("❌❌❌ [ERROR] Failed to send notification: {}", e.getMessage());
-            log.error("Stack trace:", e);
             // Không throw exception để không làm fail toàn bộ reply action
         }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import toast, { Toaster } from 'react-hot-toast';
-import { getUserId } from "../../utils/auth";
+import { getUserId, setUserId } from "../../utils/auth";
 import { apiCall, profileApiCall } from "../../service/api";
 import { useSocket } from "../../contexts/SocketContext";
 import { useNotification, requestNotificationPermission } from "../../contexts/NotificationContext";
@@ -74,6 +74,13 @@ interface MessageEventData {
     isAiMessage?: boolean;
 }
 
+interface MessageReadReceiptData {
+    conversationId: string;
+    readByUserId: string;
+    messageIds: string[];
+    readAt?: string;
+}
+
 interface NotificationData {
     id: string;
     conversationId: string;
@@ -103,10 +110,17 @@ const MessagePage: React.FC = () => {
     const [messagesError, setMessagesError] = useState<string | null>(null);
     const currentConversationRef = useRef<string | null>(null);
     const messagesFetchedRef = useRef(new Set<string>());
+    const handledConversationQueryRef = useRef<string | null>(null);
+    const resolvedCurrentUserId = currentUserId || currentUser?.userId || null;
 
     const navigate = useNavigate();
+    const location = useLocation();
     const { sendMessage, isConnected, error, registerMessageCallbacks } = useSocket();
     const { addNotification } = useNotification();
+    const conversationIdFromQuery = useMemo(
+        () => new URLSearchParams(location.search).get("conversationId"),
+        [location.search]
+    );
 
     // === MAKE TOAST AVAILABLE GLOBALLY ===
     useEffect(() => {
@@ -123,21 +137,56 @@ const MessagePage: React.FC = () => {
 
     // === INIT USER ID ===
     useEffect(() => {
-        const userId = getUserId();
-        setCurrentUserId(userId);
+        let isMounted = true;
+
+        const resolveCurrentUser = async () => {
+            const storedUserId = getUserId();
+
+            if (storedUserId && isMounted) {
+                setCurrentUserId(storedUserId);
+            }
+
+            try {
+                const response = await profileApiCall<{ result?: User }>('/users/myInfo');
+
+                if (!isMounted || !response?.result) {
+                    return;
+                }
+
+                setCurrentUser(response.result);
+
+                if (response.result.userId) {
+                    setCurrentUserId(response.result.userId);
+                    setUserId(response.result.userId);
+                }
+            } catch (error) {
+                if (!storedUserId) {
+                }
+            }
+        };
+
+        resolveCurrentUser();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     // === FETCH CURRENT USER INFO ===
     useEffect(() => {
-        const fetchCurrentUserInfo = async () => {
-            if (!currentUserId) return;
+        if (!currentUserId || currentUser) return;
 
+        const fetchCurrentUserInfo = async () => {
             try {
                 try {
                     const response = await profileApiCall<{ result?: User }>('/users/myInfo');
 
                     if (response?.result) {
                         setCurrentUser(response.result);
+                        if (response.result.userId) {
+                            setCurrentUserId(response.result.userId);
+                            setUserId(response.result.userId);
+                        }
                         return;
                     }
                 } catch (apiError) {
@@ -165,7 +214,40 @@ const MessagePage: React.FC = () => {
         };
 
         fetchCurrentUserInfo();
-    }, [currentUserId, conversations]);
+    }, [currentUser, currentUserId, conversations]);
+
+    const sortConversationsByLastActivity = useCallback((items: Conversation[]) => (
+        [...items].sort((a, b) => {
+            const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+            const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+            return timeB - timeA;
+        })
+    ), []);
+
+    const formatConversationPreview = useCallback((data: MessageEventData) => {
+        if (data.message && data.message.trim()) {
+            return data.message.length > 50 ? `${data.message.slice(0, 50)}...` : data.message;
+        }
+
+        switch (data.messageType) {
+            case 'IMAGE':
+                return 'Hình ảnh';
+            case 'VIDEO':
+                return 'Video';
+            case 'FILE':
+                return 'Tệp đính kèm';
+            case 'MIXED':
+                return 'Tin nhắn có đính kèm';
+            case 'VOICE_CALL':
+                return 'Cuộc gọi thoại';
+            case 'VIDEO_CALL':
+                return 'Cuộc gọi video';
+            default:
+                return data.attachments && data.attachments.length > 0
+                    ? 'Tin nhắn có đính kèm'
+                    : 'Tin nhắn';
+        }
+    }, []);
 
     // === FETCH CONVERSATIONS WITH LAST MESSAGES ===
     const fetchConversations = useCallback(async () => {
@@ -173,28 +255,43 @@ const MessagePage: React.FC = () => {
             const data = await apiCall<{ result?: Conversation[] }>("/conversations/my-conversations");
             const convs = data.result || [];
 
-            console.log('✅ Fetched conversations with last messages:', convs);
 
-            // ✅ Backend đã trả về lastMessage và lastMessageTime
-            // Sort: unread first, then by lastMessageTime
-            const sortedConvs = convs.sort((a, b) => {
-                // Priority 1: Unread conversations first (handled by ConversationList)
-
-                // Priority 2: Sort by lastMessageTime
-                const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
-                const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-                return timeB - timeA;
-            });
-
-            setConversations(sortedConvs);
+            setConversations(sortConversationsByLastActivity(convs));
         } catch (err) {
-            console.error('❌ Error fetching conversations:', err);
             toast.error('Không thể tải danh sách trò chuyện', {
                 duration: 2000,
                 style: { borderRadius: '12px', fontSize: '14px' }
             });
         }
-    }, []);
+    }, [sortConversationsByLastActivity]);
+
+    const updateConversationPreview = useCallback((data: MessageEventData) => {
+        let updatedExistingConversation = false;
+        const previewMessage = formatConversationPreview(data);
+        const previewTime = data.createdDate || new Date().toISOString();
+
+        setConversations((prev) => {
+            const existingConversation = prev.find((conv) => conv.id === data.conversationId);
+            if (!existingConversation) {
+                return prev;
+            }
+
+            updatedExistingConversation = true;
+
+            return sortConversationsByLastActivity([
+                {
+                    ...existingConversation,
+                    lastMessage: previewMessage,
+                    lastMessageTime: previewTime,
+                },
+                ...prev.filter((conv) => conv.id !== data.conversationId),
+            ]);
+        });
+
+        if (!updatedExistingConversation) {
+            fetchConversations();
+        }
+    }, [fetchConversations, formatConversationPreview, sortConversationsByLastActivity]);
 
     // ✅ Initial load
     useEffect(() => {
@@ -236,7 +333,6 @@ const MessagePage: React.FC = () => {
             setLoadingMessages(false);
         } catch (err) {
             const error = err as Error;
-            console.error('❌ Error fetching messages:', error);
             setMessagesError(error.message || 'Failed to load messages');
             setLoadingMessages(false);
             toast.error('Không thể tải tin nhắn. Vui lòng thử lại.', {
@@ -248,7 +344,7 @@ const MessagePage: React.FC = () => {
 
     // === HANDLE SELECT CONVERSATION ===
     const handleSelectConversation = useCallback(async (conv: Conversation) => {
-        if (!currentUserId || !conv) return;
+        if (!conv) return;
 
         setSelectedChat(conv);
         currentConversationRef.current = conv.id;
@@ -264,7 +360,31 @@ const MessagePage: React.FC = () => {
         } catch (err) {
             // Error marking as read
         }
-    }, [currentUserId, fetchMessages]);
+    }, [fetchMessages]);
+
+    useEffect(() => {
+        if (!conversationIdFromQuery) {
+            handledConversationQueryRef.current = null;
+            return;
+        }
+
+        if (!conversationIdFromQuery || conversations.length === 0) {
+            return;
+        }
+
+        if (handledConversationQueryRef.current === conversationIdFromQuery) {
+            return;
+        }
+
+        const targetConversation = conversations.find((conv) => conv.id === conversationIdFromQuery);
+        if (!targetConversation) {
+            return;
+        }
+
+        handledConversationQueryRef.current = conversationIdFromQuery;
+        handleSelectConversation(targetConversation);
+        navigate("/message", { replace: true });
+    }, [conversationIdFromQuery, conversations, handleSelectConversation, navigate]);
 
     // === HANDLE CONVERSATION DELETED ===
     const handleConversationDeleted = useCallback((deletedConversationId: string) => {
@@ -281,10 +401,8 @@ const MessagePage: React.FC = () => {
 
     // === CALLBACK: MESSAGE SENT ===
     const handleMessageSent = useCallback((data: MessageEventData) => {
-        console.log('📤 Message sent event:', data);
 
-        // ✅ Refresh conversations để lấy lastMessage mới
-        fetchConversations();
+        updateConversationPreview(data);
 
         // Update messages if current conversation
         if (data.conversationId === currentConversationRef.current) {
@@ -306,17 +424,16 @@ const MessagePage: React.FC = () => {
                     messageType: data.messageType,
                     attachments: data.attachments,
                     isPending: false,
-                    isRead: data.isRead,
+                    isRead: Boolean(data.isRead),
                 };
 
                 return updated;
             });
         }
-    }, [fetchConversations]);
+    }, [updateConversationPreview]);
 
     // === CALLBACK: MESSAGE RECEIVED ===
     const handleMessageReceived = useCallback((data: MessageEventData) => {
-        console.log('📥 Message received event:', data);
 
         const messageSenderId = data.senderId || data.sender?.userId;
         const isCurrentConversation = data.conversationId === currentConversationRef.current;
@@ -324,30 +441,22 @@ const MessagePage: React.FC = () => {
         // ✅ Check if it's AI message
         const isAiMessage = messageSenderId === 'AI_BOT' || data.isAiMessage === true;
 
-        // ✅ Refresh conversations to update last message
-        fetchConversations();
+        updateConversationPreview(data);
 
         // Show notification if needed
-        if (!isCurrentConversation || document.hidden) {
-            // ✅ Special handling for AI messages
-            const senderName = isAiMessage
-                ? '🤖 AI Assistant'
-                : `${data.sender?.firstName || ''} ${data.sender?.lastName || ''}`.trim()
-                || data.sender?.username
-                || 'Người dùng';
+        if ((!isCurrentConversation || document.hidden) && isAiMessage) {
+            const senderName = '🤖 AI Assistant';
 
             addNotification({
                 id: data.id,
                 conversationId: data.conversationId,
                 senderName,
                 senderUsername: data.sender?.username,
-                avatar: isAiMessage
-                    ? null // AI will have gradient avatar
-                    : data.sender?.avatar,
+                avatar: null,
                 message: data.message,
                 attachments: data.attachments,
                 createdDate: data.createdDate,
-                isAiMessage, // ✅ ADD THIS
+                isAiMessage,
                 onClick: (notification: NotificationData) => {
                     setConversations(prev => {
                         const conv = prev.find(c => c.id === notification.conversationId);
@@ -357,24 +466,24 @@ const MessagePage: React.FC = () => {
                         return prev;
                     });
 
-                    if (window.location.pathname !== '/messages') {
-                        navigate('/messages');
+                    if (window.location.pathname !== '/message') {
+                        navigate('/message');
                     }
                 },
             } as unknown as Parameters<typeof addNotification>[0]);
+        }
 
-            // ✅ Show toast for AI messages even if tab is active
-            if (isAiMessage && isCurrentConversation && !document.hidden) {
-                toast('🤖 AI đã trả lời', {
-                    duration: 2000,
-                    style: {
-                        borderRadius: '12px',
-                        background: 'linear-gradient(135deg, #10b981, #059669)',
-                        color: '#fff',
-                        fontSize: '14px',
-                    }
-                });
-            }
+        // ✅ Show toast for AI messages even if tab is active
+        if (isAiMessage && isCurrentConversation && !document.hidden) {
+            toast('🤖 AI đã trả lời', {
+                duration: 2000,
+                style: {
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff',
+                    fontSize: '14px',
+                }
+            });
         }
 
         // Add message to current conversation
@@ -394,7 +503,7 @@ const MessagePage: React.FC = () => {
                     messageType: data.messageType,
                     attachments: data.attachments,
                     isPending: false,
-                    isRead: data.isRead,
+                    isRead: Boolean(data.isRead),
                     isAiMessage, // ✅ ADD THIS FLAG
                 };
 
@@ -408,15 +517,41 @@ const MessagePage: React.FC = () => {
                 // Error auto-marking as read
             }
         }
-    }, [addNotification, navigate, handleSelectConversation, fetchConversations]);
+    }, [addNotification, navigate, handleSelectConversation, updateConversationPreview]);
+
+    const handleMessagesRead = useCallback((data: MessageReadReceiptData) => {
+
+        if (!data?.conversationId || !data.messageIds || data.messageIds.length === 0) {
+            return;
+        }
+
+        if (data.conversationId !== currentConversationRef.current) {
+            return;
+        }
+
+        if (data.readByUserId === resolvedCurrentUserId) {
+            return;
+        }
+
+        const readIds = new Set(data.messageIds);
+        setMessages((prev) =>
+            prev.map((message) => (
+                readIds.has(message.id) && message.senderId !== data.readByUserId
+                    ? { ...message, isRead: true }
+                    : message
+            ))
+        );
+    }, [resolvedCurrentUserId]);
 
     // === REGISTER CALLBACKS ===
     useEffect(() => {
-        registerMessageCallbacks({
+        const unregister = registerMessageCallbacks({
             onMessageSent: handleMessageSent as (data: unknown) => void,
             onMessageReceived: handleMessageReceived as (data: unknown) => void,
+            onMessagesRead: handleMessagesRead as (data: unknown) => void,
         });
-    }, [registerMessageCallbacks, handleMessageSent, handleMessageReceived]);
+        return unregister;
+    }, [registerMessageCallbacks, handleMessageSent, handleMessageReceived, handleMessagesRead]);
 
     // === HANDLE CONVERSATION CREATED (from UserSearchBar) ===
     const handleConversationCreated = useCallback(
@@ -467,7 +602,7 @@ const MessagePage: React.FC = () => {
     // === HANDLE SEND MESSAGE ===
     const handleSendMessage = useCallback(
         async (text: string, attachments: Attachment[] = []) => {
-            if ((!text.trim() && attachments.length === 0) || !selectedChat || !currentUserId) {
+            if ((!text.trim() && attachments.length === 0) || !selectedChat || !resolvedCurrentUserId) {
                 return;
             }
 
@@ -488,7 +623,7 @@ const MessagePage: React.FC = () => {
             const tempMessage: Message = {
                 id: tempId,
                 message: text,
-                senderId: currentUserId,
+                senderId: resolvedCurrentUserId,
                 conversationId: selectedChat.id,
                 createdDate: new Date().toISOString(),
                 isPending: true,
@@ -516,7 +651,7 @@ const MessagePage: React.FC = () => {
                 );
             }
         },
-        [selectedChat, currentUserId, isConnected, sendMessage]
+        [selectedChat, resolvedCurrentUserId, isConnected, sendMessage]
     );
 
     // === HANDLE BACK (Mobile) ===
@@ -552,7 +687,7 @@ const MessagePage: React.FC = () => {
                     messages={messages}
                     onSendMessage={handleSendMessage}
                     isConnected={isConnected}
-                    currentUserId={currentUserId}
+                    currentUserId={resolvedCurrentUserId}
                     currentUser={currentUser}
                     loadingMessages={loadingMessages}
                     messagesError={messagesError}

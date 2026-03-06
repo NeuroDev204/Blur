@@ -12,9 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @ControllerAdvice
 @SuppressWarnings("rawtypes")
 public class GlobalExceptionHandler {
@@ -25,6 +23,16 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
 
         return ResponseEntity.badRequest()
+                .body(ApiResponse.builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build());
+    }
+
+    @ExceptionHandler(value = com.blur.userservice.profile.exception.AppException.class)
+    ResponseEntity<ApiResponse> handleProfileAppException(com.blur.userservice.profile.exception.AppException e) {
+        com.blur.userservice.profile.exception.ErrorCode errorCode = e.getErrorCode();
+        return ResponseEntity.status(errorCode.getHttpStatusCode())
                 .body(ApiResponse.builder()
                         .code(errorCode.getCode())
                         .message(errorCode.getMessage())
@@ -63,7 +71,6 @@ public class GlobalExceptionHandler {
             var constrainViolation =
                     e.getBindingResult().getAllErrors().getFirst().unwrap(ConstraintViolation.class);
             attributes = constrainViolation.getConstraintDescriptor().getAttributes();
-            log.info(attributes.toString());
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Invalid key: " + enumKey);
         }

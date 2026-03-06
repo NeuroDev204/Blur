@@ -1,24 +1,14 @@
 // src/contexts/SocketContext.tsx
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo, ReactNode } from "react"
-import { SOCKET_URL } from "../utils/constants"
-
-// Extend Window interface for Socket.IO
-declare global {
-    interface Window {
-        io: (url: string, options: Record<string, unknown>) => SocketType
-    }
-}
-
-interface SocketType {
-    on: (event: string, callback: (data?: unknown) => void) => void
-    off: (event: string) => void
-    emit: (event: string, data?: unknown) => void
-    disconnect: () => void
-}
+import { Client, IMessage } from "@stomp/stompjs"
+import SockJS from "sockjs-client"
+import { WS_URL } from "../utils/constants"
+import { introspectToken } from "../api/authAPI"
 
 interface MessageCallbacks {
     onMessageSent: ((data: unknown) => void) | null
     onMessageReceived: ((data: unknown) => void) | null
+    onMessagesRead: ((data: unknown) => void) | null
 }
 
 interface CallCallbacks {
@@ -34,12 +24,12 @@ interface CallCallbacks {
 }
 
 interface SocketContextValue {
-    socket: SocketType | null
+    socket: Client | null
     isConnected: boolean
     error: string
     sendMessage: (messageData: unknown) => boolean
     sendTypingIndicator: (conversationId: string, isTyping: boolean) => void
-    registerMessageCallbacks: (callbacks: Partial<MessageCallbacks>) => void
+    registerMessageCallbacks: (callbacks: Partial<MessageCallbacks>) => () => void
     initiateCall: (callData: unknown) => boolean
     answerCall: (callId: string) => boolean
     rejectCall: (callId: string) => boolean
@@ -57,14 +47,11 @@ interface SocketProviderProps {
 const SocketContext = createContext<SocketContextValue | null>(null)
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
-    const socketRef = useRef<SocketType | null>(null)
+    const clientRef = useRef<Client | null>(null)
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState("")
 
-    const messageCallbacksRef = useRef<MessageCallbacks>({
-        onMessageSent: null,
-        onMessageReceived: null,
-    })
+    const messageCallbacksRef = useRef<Set<Partial<MessageCallbacks>>>(new Set())
 
     const callCallbacksRef = useRef<CallCallbacks>({
         onCallInitiated: null,
@@ -79,9 +66,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     })
 
     const registerMessageCallbacks = useCallback((callbacks: Partial<MessageCallbacks>) => {
-        messageCallbacksRef.current = {
-            ...messageCallbacksRef.current,
-            ...callbacks
+        messageCallbacksRef.current.add(callbacks)
+
+        return () => {
+            messageCallbacksRef.current.delete(callbacks)
         }
     }, [])
 
@@ -101,185 +89,138 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }, [])
 
     useEffect(() => {
-        const script = document.createElement("script")
-        script.src = "https://cdn.socket.io/4.5.4/socket.io.min.js"
-        script.async = true
+        let client: Client | null = null
+        let isMounted = true
 
-        script.onload = () => {
-            if (socketRef.current) {
-                return
+        const initSocket = async () => {
+            try {
+                const isAuth = await introspectToken()
+                if (!isAuth || !isMounted) return
+
+                client = new Client({
+                    webSocketFactory: () =>
+                        new SockJS(WS_URL, null, {
+                            transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+                        }) as WebSocket,
+                    reconnectDelay: 3000,
+
+                    onConnect: () => {
+                        if (!isMounted) return
+                        setIsConnected(true)
+                        setError("")
+
+                        // Subscribe to chat messages
+                        client?.subscribe("/user/queue/chat/message", (message: IMessage) => {
+                            const data = JSON.parse(message.body)
+                            if (data?.tempMessageId) {
+                                messageCallbacksRef.current.forEach((callbacks) => {
+                                    callbacks.onMessageSent?.(data)
+                                })
+                                return
+                            }
+
+                            messageCallbacksRef.current.forEach((callbacks) => {
+                                callbacks.onMessageReceived?.(data)
+                            })
+                        })
+
+                        client?.subscribe("/user/queue/chat/read", (message: IMessage) => {
+                            const data = JSON.parse(message.body)
+                            messageCallbacksRef.current.forEach((callbacks) => {
+                                callbacks.onMessagesRead?.(data)
+                            })
+                        })
+
+                        // Subscribe to typing indicators
+                        client?.subscribe("/user/queue/chat/typing", (message: IMessage) => {
+                            // Typing indicator received
+                        })
+
+                        // Subscribe to call events
+                        client?.subscribe("/user/queue/call", (message: IMessage) => {
+                            const data = JSON.parse(message.body) as { event?: string; [key: string]: unknown }
+                            const event = data.event
+                            switch (event) {
+                                case "call:initiated":
+                                    callCallbacksRef.current.onCallInitiated?.(data)
+                                    break
+                                case "call:incoming":
+                                    callCallbacksRef.current.onIncomingCall?.(data)
+                                    break
+                                case "call:answered":
+                                    callCallbacksRef.current.onCallAnswered?.(data)
+                                    break
+                                case "call:rejected":
+                                    callCallbacksRef.current.onCallRejected?.(data)
+                                    break
+                                case "call:ended":
+                                    callCallbacksRef.current.onCallEnded?.(data)
+                                    break
+                                case "call:failed":
+                                    callCallbacksRef.current.onCallFailed?.(data)
+                                    break
+                            }
+                        })
+
+                        // Subscribe to WebRTC signaling
+                        client?.subscribe("/user/queue/webrtc", (message: IMessage) => {
+                            const data = JSON.parse(message.body) as { event?: string; data?: unknown }
+                            const event = data.event
+                            switch (event) {
+                                case "webrtc:offer":
+                                    callCallbacksRef.current.onWebRTCOffer?.(data.data)
+                                    break
+                                case "webrtc:answer":
+                                    callCallbacksRef.current.onWebRTCAnswer?.(data.data)
+                                    break
+                                case "webrtc:ice-candidate":
+                                    callCallbacksRef.current.onICECandidate?.(data.data)
+                                    break
+                            }
+                        })
+                    },
+
+                    onStompError: (frame) => {
+                        setError("WebSocket error")
+                        setIsConnected(false)
+                    },
+
+                    onDisconnect: () => {
+                        setIsConnected(false)
+                    },
+                })
+
+                client.activate()
+                clientRef.current = client
+            } catch (err) {
+                setError("Khong the ket noi socket")
             }
-            // ⭐ Sử dụng withCredentials để gửi cookie tự động
-            const socket = window.io(SOCKET_URL, {
-                withCredentials: true, // ⭐ QUAN TRỌNG: Gửi cookie cho WebSocket
-                autoConnect: true,
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionAttempts: 10,
-                timeout: 20000,
-                transports: ["websocket", "polling"],
-            })
-
-            socketRef.current = socket
-
-            socket.on("connect", () => {
-                setIsConnected(true)
-                setError("")
-            })
-
-            socket.on("disconnect", () => {
-                setIsConnected(false)
-            })
-
-            socket.on("connect_error", () => {
-                setError("Không thể kết nối socket")
-                setIsConnected(false)
-            })
-
-            socket.on("reconnect_attempt", () => {
-                // Reconnecting...
-            })
-
-            socket.on("reconnect", () => {
-                setIsConnected(true)
-                setError("")
-            })
-
-            socket.on("connected", () => {
-                // Connected event received
-            })
-
-            // Chat events
-            socket.on("message_sent", (data) => {
-                if (messageCallbacksRef.current.onMessageSent) {
-                    messageCallbacksRef.current.onMessageSent(data)
-                }
-            })
-
-            socket.on("message_received", (data) => {
-                if (messageCallbacksRef.current.onMessageReceived) {
-                    messageCallbacksRef.current.onMessageReceived(data)
-                }
-            })
-
-            socket.on("user_typing", () => {
-                // User typing event
-            })
-
-            socket.on("message_error", (error) => {
-                const err = error as { message?: string }
-                setError(err?.message || "Lỗi khi gửi tin nhắn")
-            })
-
-            socket.on("auth_error", () => {
-                setError("Lỗi xác thực. Vui lòng đăng nhập lại.")
-            })
-
-            // Call events
-            socket.on("call:initiated", (data) => {
-                console.log("✅ Received call:initiated event:", data)
-                if (callCallbacksRef.current.onCallInitiated) {
-                    callCallbacksRef.current.onCallInitiated(data)
-                }
-            })
-
-            socket.on("call:incoming", (data) => {
-                console.log("📞 Received call:incoming event:", data)
-                if (callCallbacksRef.current.onIncomingCall) {
-                    callCallbacksRef.current.onIncomingCall(data)
-                }
-            })
-
-            socket.on("call:answered", (data) => {
-                console.log("✅ Received call:answered event:", data)
-                if (callCallbacksRef.current.onCallAnswered) {
-                    callCallbacksRef.current.onCallAnswered(data)
-                }
-            })
-
-            socket.on("call:rejected", (data) => {
-                if (callCallbacksRef.current.onCallRejected) {
-                    callCallbacksRef.current.onCallRejected(data)
-                }
-            })
-
-            socket.on("call:ended", (data) => {
-                if (callCallbacksRef.current.onCallEnded) {
-                    callCallbacksRef.current.onCallEnded(data)
-                }
-            })
-
-            socket.on("call:failed", (data) => {
-                if (callCallbacksRef.current.onCallFailed) {
-                    callCallbacksRef.current.onCallFailed(data)
-                }
-            })
-
-            socket.on("webrtc:offer", (data) => {
-                if (callCallbacksRef.current.onWebRTCOffer) {
-                    callCallbacksRef.current.onWebRTCOffer(data)
-                }
-            })
-
-            socket.on("webrtc:answer", (data) => {
-                if (callCallbacksRef.current.onWebRTCAnswer) {
-                    callCallbacksRef.current.onWebRTCAnswer(data)
-                }
-            })
-
-            socket.on("webrtc:ice-candidate", (data) => {
-                if (callCallbacksRef.current.onICECandidate) {
-                    callCallbacksRef.current.onICECandidate(data)
-                }
-            })
         }
 
-        script.onerror = () => {
-            setError("Không thể tải thư viện Socket.IO")
-        }
-
-        document.head.appendChild(script)
+        initSocket()
 
         return () => {
-            if (socketRef.current) {
-                socketRef.current.off("connect")
-                socketRef.current.off("disconnect")
-                socketRef.current.off("connect_error")
-                socketRef.current.off("reconnect_attempt")
-                socketRef.current.off("reconnect")
-                socketRef.current.off("connected")
-                socketRef.current.off("message_sent")
-                socketRef.current.off("message_received")
-                socketRef.current.off("user_typing")
-                socketRef.current.off("message_error")
-                socketRef.current.off("auth_error")
-                socketRef.current.off("call:initiated")
-                socketRef.current.off("call:incoming")
-                socketRef.current.off("call:answered")
-                socketRef.current.off("call:rejected")
-                socketRef.current.off("call:ended")
-                socketRef.current.off("call:failed")
-                socketRef.current.off("webrtc:offer")
-                socketRef.current.off("webrtc:answer")
-                socketRef.current.off("webrtc:ice-candidate")
-
-                socketRef.current.disconnect()
-                socketRef.current = null
+            isMounted = false
+            if (client) {
+                try {
+                    client.deactivate()
+                } catch (e) {
+                }
             }
-
-            if (script.parentNode) {
-                script.parentNode.removeChild(script)
-            }
+            clientRef.current = null
         }
     }, [])
 
     const sendMessage = useCallback((messageData: unknown): boolean => {
-        if (!socketRef.current || !isConnected) {
+        if (!clientRef.current || !isConnected) {
             return false
         }
 
         try {
-            socketRef.current.emit("send_message", messageData)
+            clientRef.current.publish({
+                destination: "/app/chat.send",
+                body: JSON.stringify(messageData),
+            })
             return true
         } catch {
             return false
@@ -287,113 +228,104 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }, [isConnected])
 
     const sendTypingIndicator = useCallback((conversationId: string, isTyping: boolean): void => {
-        if (!socketRef.current || !isConnected) {
+        if (!clientRef.current || !isConnected) {
             return
         }
 
         try {
-            socketRef.current.emit("typing", { conversationId, isTyping })
+            clientRef.current.publish({
+                destination: "/app/chat.typing",
+                body: JSON.stringify({ conversationId, isTyping }),
+            })
         } catch {
             // Error sending typing indicator
         }
     }, [isConnected])
 
     const initiateCall = useCallback((callData: unknown): boolean => {
-        if (!socketRef.current || !isConnected) {
-            console.error("❌ Socket not connected or socketRef is null")
+        if (!clientRef.current || !isConnected) {
             return false
         }
 
         try {
-            console.log("📡 Emitting call:initiate event:", callData)
-            socketRef.current.emit("call:initiate", callData)
+            clientRef.current.publish({
+                destination: "/app/call.initiate",
+                body: JSON.stringify(callData),
+            })
             return true
-        } catch (error) {
-            console.error("❌ Error emitting call:initiate:", error)
+        } catch {
             return false
         }
     }, [isConnected])
 
     const answerCall = useCallback((callId: string): boolean => {
-        if (!socketRef.current || !isConnected) {
-            return false
-        }
-
+        if (!clientRef.current || !isConnected) return false
         try {
-            socketRef.current.emit("call:answer", { callId })
+            clientRef.current.publish({
+                destination: "/app/call.answer",
+                body: JSON.stringify({ callId }),
+            })
             return true
-        } catch {
-            return false
-        }
+        } catch { return false }
     }, [isConnected])
 
     const rejectCall = useCallback((callId: string): boolean => {
-        if (!socketRef.current || !isConnected) {
-            return false
-        }
-
+        if (!clientRef.current || !isConnected) return false
         try {
-            socketRef.current.emit("call:reject", { callId })
+            clientRef.current.publish({
+                destination: "/app/call.reject",
+                body: JSON.stringify({ callId }),
+            })
             return true
-        } catch {
-            return false
-        }
+        } catch { return false }
     }, [isConnected])
 
     const endCall = useCallback((callId: string): boolean => {
-        if (!socketRef.current || !isConnected) {
-            return false
-        }
-
+        if (!clientRef.current || !isConnected) return false
         try {
-            socketRef.current.emit("call:end", { callId })
+            clientRef.current.publish({
+                destination: "/app/call.end",
+                body: JSON.stringify({ callId }),
+            })
             return true
-        } catch {
-            return false
-        }
+        } catch { return false }
     }, [isConnected])
 
     const sendWebRTCOffer = useCallback((toUserId: string, offer: unknown): boolean => {
-        if (!socketRef.current || !isConnected) {
-            return false
-        }
-
+        if (!clientRef.current || !isConnected) return false
         try {
-            socketRef.current.emit("webrtc:offer", { to: toUserId, offer })
+            clientRef.current.publish({
+                destination: "/app/webrtc.offer",
+                body: JSON.stringify({ to: toUserId, offer }),
+            })
             return true
-        } catch {
-            return false
-        }
+        } catch { return false }
     }, [isConnected])
 
     const sendWebRTCAnswer = useCallback((toUserId: string, answer: unknown): boolean => {
-        if (!socketRef.current || !isConnected) {
-            return false
-        }
-
+        if (!clientRef.current || !isConnected) return false
         try {
-            socketRef.current.emit("webrtc:answer", { to: toUserId, answer })
+            clientRef.current.publish({
+                destination: "/app/webrtc.answer",
+                body: JSON.stringify({ to: toUserId, answer }),
+            })
             return true
-        } catch {
-            return false
-        }
+        } catch { return false }
     }, [isConnected])
 
     const sendICECandidate = useCallback((toUserId: string, candidate: unknown): boolean => {
-        if (!socketRef.current || !isConnected) {
-            return false
-        }
-
+        if (!clientRef.current || !isConnected) return false
         try {
-            socketRef.current.emit("webrtc:ice-candidate", { to: toUserId, candidate })
+            clientRef.current.publish({
+                destination: "/app/webrtc.ice-candidate",
+                body: JSON.stringify({ to: toUserId, candidate }),
+            })
             return true
-        } catch {
-            return false
-        }
+        } catch { return false }
     }, [isConnected])
 
     const contextValue = useMemo<SocketContextValue>(() => ({
-        socket: socketRef.current,
+        socket: clientRef.current,
         isConnected,
         error,
         sendMessage,

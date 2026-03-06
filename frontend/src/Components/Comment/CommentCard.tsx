@@ -182,7 +182,6 @@ const CommentCard: React.FC<CommentCardProps> = ({
 
                                         <button
                                             onClick={() => {
-                                                console.log("Like reply:", reply.id);
                                             }}
                                             className="flex-shrink-0 -mt-1"
                                         >

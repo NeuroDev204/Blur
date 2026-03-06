@@ -11,7 +11,6 @@ import com.contentservice.post.repository.PostSaveRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
@@ -23,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@Slf4j
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
@@ -78,7 +76,6 @@ public class PostSaveService {
             Optional<Post> post = postRepository.findById(postSave.getPostId());
 
             if (post.isPresent()) {
-                log.info("post {}", post.get());
                 PostResponse postResponse = postMapper.toPostResponse(post.get());
                 postResponses.add(postResponse);
             }

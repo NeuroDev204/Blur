@@ -13,12 +13,10 @@ import com.blur.communicationservice.websocket.service.WebSocketSessionManager;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
 @Service("callNotificationService")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class CallNotificationService {
 
     WebSocketNotificationService webSocketNotificationService;
@@ -28,7 +26,6 @@ public class CallNotificationService {
      * Push notification khi co cuoc goi den qua STOMP WebSocket
      */
     public void sendIncomingCallNotification(String userId, String callerName, CallType callType) {
-        log.info("Sending incoming call notification to user: {}, caller: {}, type: {}", userId, callerName, callType);
 
         Notification notification = Notification.builder()
                 .receiverId(userId)
@@ -48,7 +45,6 @@ public class CallNotificationService {
      * Push notification khi nho cuoc goi
      */
     public void sendMissedCallNotification(String userId, String callerName, CallType callType) {
-        log.info("Sending missed call notification to user: {}, caller: {}, type: {}", userId, callerName, callType);
 
         Notification notification = Notification.builder()
                 .receiverId(userId)

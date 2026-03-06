@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from "react"
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, ReactNode } from "react"
 import { X } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
@@ -18,6 +18,7 @@ export interface NotificationData {
     seen?: boolean
     read?: boolean
     postId?: string
+    conversationId?: string
     senderId?: string
     onClick?: (notification: NotificationItem) => void
 }
@@ -33,6 +34,7 @@ export interface NotificationItem {
     type: string
     seen: boolean
     postId?: string
+    conversationId?: string
     senderId?: string
     onClick?: (notification: NotificationItem) => void
 }
@@ -70,7 +72,6 @@ export const useNotification = (): NotificationContextValue => {
 
 export const requestNotificationPermission = async (): Promise<boolean> => {
     if (!("Notification" in window)) {
-        console.log("Browser không hỗ trợ notification")
         return false
     }
 
@@ -162,20 +163,26 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     const [notifications, setNotifications] = useState<NotificationItem[]>([])
     const [mode, setMode] = useState<"toast" | "silent">("toast")
     const [notificationCounter, setNotificationCounter] = useState(0)
+    const dismissTimeoutsRef = useRef<Record<string, ReturnType<typeof window.setTimeout>>>({})
     const navigate = useNavigate()
 
+    const clearDismissTimeout = useCallback((notificationId: string) => {
+        const timeoutId = dismissTimeoutsRef.current[notificationId]
+        if (!timeoutId) return
+
+        window.clearTimeout(timeoutId)
+        delete dismissTimeoutsRef.current[notificationId]
+    }, [])
+
     const addNotification = useCallback((notificationData: NotificationData) => {
-        console.log("🔔 Adding notification:", notificationData)
 
         setNotifications((prev) => {
             if (!notificationData?.id) {
-                console.warn("⚠️ Notification missing ID")
                 return prev
             }
 
             const exists = prev.some((n) => n.id === notificationData.id)
             if (exists) {
-                console.log("⚠️ Notification already exists:", notificationData.id)
                 return prev
             }
 
@@ -198,14 +205,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
                 type: notificationData.type || "general",
                 seen: notificationData.seen ?? notificationData.read ?? false,
                 postId: notificationData.postId,
+                conversationId: notificationData.conversationId,
                 senderId: notificationData.senderId,
+                onClick: notificationData.onClick,
             }
 
             playNotificationSound()
             if (document.hidden) showBrowserNotification(notification)
             setNotificationCounter((c) => c + 1)
 
-            console.log("✅ Notification added to state")
             return [notification, ...prev]
         })
     }, [])
@@ -215,7 +223,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }, [])
 
     const removeNotification = useCallback((notificationId: string) => {
+        clearDismissTimeout(notificationId)
         setNotifications((prev) => prev.filter((n) => n.id !== notificationId))
+    }, [clearDismissTimeout])
+
+    useEffect(() => {
+        notifications.forEach((notification) => {
+            if (dismissTimeoutsRef.current[notification.id]) return
+
+            dismissTimeoutsRef.current[notification.id] = window.setTimeout(() => {
+                setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+                delete dismissTimeoutsRef.current[notification.id]
+            }, 5000)
+        })
+    }, [notifications])
+
+    useEffect(() => {
+        return () => {
+            Object.values(dismissTimeoutsRef.current).forEach((timeoutId) => {
+                window.clearTimeout(timeoutId)
+            })
+            dismissTimeoutsRef.current = {}
+        }
     }, [])
 
     const handleNotificationClick = useCallback(
@@ -226,6 +255,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
             if (notification.postId) {
                 navigate(`/post/${notification.postId}`)
+            }
+
+            if (notification.conversationId) {
+                navigate(`/message?conversationId=${notification.conversationId}`)
             }
 
             removeNotification(notification.id)

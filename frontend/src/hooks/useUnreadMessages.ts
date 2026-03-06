@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import axios from 'axios'
-import { getToken } from '../service/LocalStorageService'
+import axiosClient from '../api/axiosClient'
 import { useSocket } from '../contexts/SocketContext'
+import { getUserId } from '../utils/auth'
 
 interface UseUnreadMessagesOptions {
     autoRefresh?: boolean
@@ -14,6 +14,11 @@ interface UnreadByConversation {
 
 interface MessageData {
     conversationId: string
+    senderId?: string
+    sender?: {
+        userId?: string
+    }
+    readByUserId?: string
     [key: string]: unknown
 }
 
@@ -45,27 +50,15 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
     const [isLoading, setIsLoading] = useState(false)
 
     const { registerMessageCallbacks } = useSocket()
-
-    const BASE_URL = 'http://localhost:8888/api'
+    const currentUserId = getUserId()
 
     const fetchAllUnreadCounts = useCallback(async () => {
-        const token = getToken()
-        if (!token) {
-            console.warn('⚠️ No token found, cannot fetch unread counts')
-            return
-        }
-
         setIsLoading(true)
 
         try {
-            const conversationsRes = await axios.get<ApiResponse<Conversation[]>>(
-                `${BASE_URL}/chat/conversations/my-conversations`,
-                {
-                    headers: {
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                }
+            // ⭐ Sử dụng axiosClient (withCredentials: true) thay vì manual token
+            const conversationsRes = await axiosClient.get<ApiResponse<Conversation[]>>(
+                '/chat/conversations/my-conversations'
             )
 
             const conversations = conversationsRes.data?.result || []
@@ -79,21 +72,14 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
 
             const unreadPromises = conversations.map(async (conv) => {
                 try {
-                    const unreadRes = await axios.get<ApiResponse<number>>(
-                        `${BASE_URL}/chat/conversations/${conv.id}/unread-count`,
-                        {
-                            headers: {
-                                'Accept': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                        }
+                    const unreadRes = await axiosClient.get<ApiResponse<number>>(
+                        `/chat/conversations/${conv.id}/unread-count`
                     )
                     return {
                         conversationId: conv.id,
                         count: unreadRes.data?.result || 0,
                     }
                 } catch (error) {
-                    console.error(`❌ Error fetching unread for ${conv.id}:`, error)
                     return {
                         conversationId: conv.id,
                         count: 0,
@@ -114,36 +100,24 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
             setTotalUnread(total)
             setUnreadByConversation(unreadMap)
 
-            console.log('📊 Unread counts updated:', {
-                total,
-                byConversation: unreadMap,
-            })
         } catch (error) {
-            console.error('❌ Error fetching unread counts:', error)
         } finally {
             setIsLoading(false)
         }
     }, [])
 
     const markAsRead = useCallback(async (conversationId: string) => {
-        const token = getToken()
-        if (!token || !conversationId) return
+        if (!conversationId) return
 
         try {
-            await axios.put(
-                `${BASE_URL}/chat/conversations/mark-as-read`,
+            await axiosClient.put(
+                '/chat/conversations/mark-as-read',
                 null,
                 {
                     params: { conversationId },
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
                 }
             )
 
-            console.log(`✅ Marked conversation ${conversationId} as read`)
 
             setUnreadByConversation(prev => ({
                 ...prev,
@@ -156,7 +130,6 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
                 fetchAllUnreadCounts()
             }, 500)
         } catch (error) {
-            console.error('❌ Error marking as read:', error)
         }
     }, [unreadByConversation, fetchAllUnreadCounts])
 
@@ -183,7 +156,12 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
 
         const handleMessageReceived = (data: unknown) => {
             const messageData = data as MessageData
-            console.log('📨 New message received, updating unread count')
+            const senderId = messageData.senderId || messageData.sender?.userId
+
+            if (senderId && senderId === currentUserId) {
+                return
+            }
+
 
             setUnreadByConversation(prev => ({
                 ...prev,
@@ -198,18 +176,37 @@ export const useUnreadMessages = (options: UseUnreadMessagesOptions = {}): UseUn
         }
 
         const handleMessageSent = () => {
-            console.log('✅ Message sent, may need to refresh unread count')
 
             setTimeout(() => {
                 fetchAllUnreadCounts()
             }, 500)
         }
 
-        registerMessageCallbacks({
+        const handleMessagesRead = (data: unknown) => {
+            const messageData = data as MessageData
+            if (!messageData.conversationId) {
+                return
+            }
+
+            if (messageData.readByUserId === currentUserId) {
+                setUnreadByConversation(prev => ({
+                    ...prev,
+                    [messageData.conversationId]: 0,
+                }))
+
+                setTimeout(() => {
+                    fetchAllUnreadCounts()
+                }, 300)
+            }
+        }
+
+        const unregister = registerMessageCallbacks({
             onMessageReceived: handleMessageReceived,
             onMessageSent: handleMessageSent,
+            onMessagesRead: handleMessagesRead,
         })
-    }, [registerMessageCallbacks, fetchAllUnreadCounts])
+        return unregister
+    }, [currentUserId, registerMessageCallbacks, fetchAllUnreadCounts])
 
     return {
         totalUnread,

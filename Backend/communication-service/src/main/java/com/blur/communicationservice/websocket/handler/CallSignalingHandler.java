@@ -1,6 +1,7 @@
 package com.blur.communicationservice.websocket.handler;
 
 import java.security.Principal;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -15,9 +16,7 @@ import com.blur.communicationservice.websocket.service.WebSocketNotificationServ
 import com.blur.communicationservice.websocket.service.WebSocketSessionManager;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class CallSignalingHandler {
@@ -28,36 +27,48 @@ public class CallSignalingHandler {
 
     @MessageMapping("/call.initiate")
     public void onCallInitiate(@Payload Map<String, Object> data, Principal principal) {
-        String callerId = principal.getName();
-        String receiverId = (String) data.get("receiverId");
-        CallType callType = CallType.valueOf((String) data.get("callType"));
+        String callerId = principal != null ? principal.getName() : null;
+        CallSession session = null;
 
-        if (!sessionManager.isUserOnline(receiverId)) {
-            wsService.sendCallEvent(callerId, Map.of("event", "call:failed", "reason", "User offline"));
+        if (callerId == null || callerId.isBlank()) {
             return;
         }
 
-        CallSession session = callService.initiateCall(
-                callerId,
-                (String) data.get("callerName"),
-                (String) data.get("callerAvatar"),
-                receiverId,
-                (String) data.get("receiverName"),
-                (String) data.get("receiverAvatar"),
-                callType,
-                null,
-                (String) data.get("conversationId"));
+        try {
+            String receiverId = stringValue(data.get("receiverId"));
+            String callTypeValue = stringValue(data.get("callType"));
 
-        wsService.sendCallEvent(callerId, Map.of("event", "call:initiated", "callId", session.getId()));
-        wsService.sendCallEvent(
-                receiverId,
-                Map.of(
-                        "event", "call:incoming",
-                        "callId", session.getId(),
-                        "callerId", callerId,
-                        "callerName", data.getOrDefault("callerName", ""),
-                        "callerAvatar", data.getOrDefault("callerAvatar", ""),
-                        "callType", callType.name()));
+            if (receiverId.isBlank() || callTypeValue.isBlank()) {
+                wsService.sendCallEvent(callerId, failedEvent("Invalid call payload"));
+                return;
+            }
+
+            CallType callType = CallType.valueOf(callTypeValue);
+
+            if (!sessionManager.isUserOnline(receiverId)) {
+                wsService.sendCallEvent(callerId, failedEvent("User offline"));
+                return;
+            }
+
+            session = callService.initiateCall(
+                    callerId,
+                    stringValue(data.get("callerName")),
+                    nullableStringValue(data.get("callerAvatar")),
+                    receiverId,
+                    stringValue(data.get("receiverName")),
+                    nullableStringValue(data.get("receiverAvatar")),
+                    callType,
+                    null,
+                    nullableStringValue(data.get("conversationId")));
+
+            wsService.sendCallEvent(callerId, Map.of("event", "call:initiated", "callId", session.getId()));
+            wsService.sendCallEvent(receiverId, incomingCallEvent(session, callerId, callType, data));
+        } catch (RuntimeException ex) {
+            if (session != null) {
+                callService.updateCallStatus(session.getId(), CallStatus.FAILED, null);
+            }
+            wsService.sendCallEvent(callerId, failedEvent(ex.getMessage()));
+        }
     }
 
     @MessageMapping("/call.answer")
@@ -114,5 +125,35 @@ public class CallSignalingHandler {
         String to = (String) data.get("to");
         data.put("from", principal.getName());
         wsService.sendWebRTCSignal(to, Map.of("event", "webrtc:ice-candidate", "data", data));
+    }
+
+    private Map<String, Object> incomingCallEvent(
+            CallSession session, String callerId, CallType callType, Map<String, Object> data) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("event", "call:incoming");
+        payload.put("callId", session.getId());
+        payload.put("callerId", callerId);
+        payload.put("callerName", stringValue(data.get("callerName")));
+        payload.put("callerAvatar", stringValue(data.get("callerAvatar")));
+        payload.put("callType", callType.name());
+        return payload;
+    }
+
+    private Map<String, Object> failedEvent(String reason) {
+        return Map.of("event", "call:failed", "reason", stringValue(reason));
+    }
+
+    private String nullableStringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+
+        String stringValue = value.toString().trim();
+        return stringValue.isEmpty() ? null : stringValue;
+    }
+
+    private String stringValue(Object value) {
+        String stringValue = nullableStringValue(value);
+        return stringValue != null ? stringValue : "";
     }
 }

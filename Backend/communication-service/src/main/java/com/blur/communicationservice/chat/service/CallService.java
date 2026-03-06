@@ -18,8 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.blur.communicationservice.chat.repository.CallSessionRepository;
 import com.blur.communicationservice.chat.repository.ChatMessageRepository;
+import com.blur.communicationservice.chat.repository.ConversationRepository;
+import com.blur.communicationservice.dto.response.ChatMessageResponse;
 import com.blur.communicationservice.entity.CallSession;
 import com.blur.communicationservice.entity.ChatMessage;
+import com.blur.communicationservice.entity.Conversation;
 import com.blur.communicationservice.entity.ParticipantInfo;
 import com.blur.communicationservice.enums.CallStatus;
 import com.blur.communicationservice.enums.CallType;
@@ -43,6 +46,7 @@ public class CallService {
     private static final ThreadLocal<ChatMessage> lastCreatedCallMessage = new ThreadLocal<>();
     CallSessionRepository callSessionRepository;
     ChatMessageRepository chatMessageRepository; // ✅ ADD THIS
+    ConversationRepository conversationRepository;
     RedisCacheService redisCacheService;
     NotificationService notificationService;
     CacheManager cacheManager;
@@ -190,6 +194,14 @@ public class CallService {
             // ✅ STORE IN THREADLOCAL to retrieve in SocketHandler for broadcasting
             lastCreatedCallMessage.set(savedMessage);
 
+            Conversation conversation =
+                    conversationRepository.findById(session.getConversationId()).orElse(null);
+            if (conversation != null) {
+                touchConversation(conversation, savedMessage);
+                evictUnreadCachesForParticipants(conversation, session.getCallerId());
+                broadcastCallMessage(savedMessage, conversation);
+            }
+
             // ✅ EVICT CACHES to refresh conversation list
             redisCacheService.evictLastMessage(session.getConversationId());
             redisCacheService.invalidateConversationMessages(session.getConversationId());
@@ -262,6 +274,77 @@ public class CallService {
         ChatMessage message = lastCreatedCallMessage.get();
         lastCreatedCallMessage.remove();
         return message;
+    }
+
+    private void touchConversation(Conversation conversation, ChatMessage chatMessage) {
+        conversation.setModifiedDate(chatMessage.getCreatedDate());
+        conversation.setLastMessage(chatMessage.getMessage());
+        conversation.setLastMessageTime(chatMessage.getCreatedDate());
+        conversation.setLastMessageSender(buildSenderName(chatMessage.getSender()));
+        conversationRepository.save(conversation);
+    }
+
+    private void evictUnreadCachesForParticipants(Conversation conversation, String senderId) {
+        if (conversation.getParticipants() == null) {
+            return;
+        }
+
+        for (ParticipantInfo participant : conversation.getParticipants()) {
+            if (participant.getUserId() == null || participant.getUserId().equals(senderId)) {
+                continue;
+            }
+            redisCacheService.evictUnreadCount(conversation.getId(), participant.getUserId());
+        }
+    }
+
+    private void broadcastCallMessage(ChatMessage chatMessage, Conversation conversation) {
+        if (conversation.getParticipants() == null) {
+            return;
+        }
+
+        for (ParticipantInfo participant : conversation.getParticipants()) {
+            if (participant.getUserId() == null) {
+                continue;
+            }
+            webSocketNotificationService.sendChatMessage(
+                    participant.getUserId(), toChatMessageResponse(chatMessage, participant.getUserId()));
+        }
+    }
+
+    private ChatMessageResponse toChatMessageResponse(ChatMessage message, String currentUserId) {
+        ChatMessageResponse response = ChatMessageResponse.builder()
+                .id(message.getId())
+                .conversationId(message.getConversationId())
+                .message(message.getMessage())
+                .messageType(message.getMessageType())
+                .attachments(message.getAttachments())
+                .sender(message.getSender())
+                .createdDate(message.getCreatedDate())
+                .isRead(Boolean.TRUE.equals(message.getIsRead()))
+                .readBy(message.getReadBy())
+                .build();
+
+        if (currentUserId != null && message.getSender() != null) {
+            response.setMe(currentUserId.equals(message.getSender().getUserId()));
+        }
+
+        return response;
+    }
+
+    private String buildSenderName(ParticipantInfo sender) {
+        if (sender == null) {
+            return "";
+        }
+
+        String fullName = (orEmpty(sender.getFirstName()) + " " + orEmpty(sender.getLastName())).trim();
+        if (!fullName.isBlank()) {
+            return fullName;
+        }
+        return orEmpty(sender.getUsername());
+    }
+
+    private String orEmpty(String value) {
+        return value != null ? value : "";
     }
 
     public boolean isUserInCall(String userId) {

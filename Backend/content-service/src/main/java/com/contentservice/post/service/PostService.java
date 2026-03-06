@@ -18,7 +18,6 @@ import com.contentservice.story.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,7 +29,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -108,7 +106,6 @@ public class PostService {
                     profileId = userProfileResponse.getId();
                 }
             } catch (Exception e) {
-                log.error("Không lấy được profile cho userId: {}", post.getUserId());
             }
 
             return PostResponse.builder()
@@ -135,7 +132,6 @@ public class PostService {
         try {
             userProfile = profileClient.getProfile(userId).getResult();
         } catch (Exception e) {
-            log.error("Error getting profile", e);
         }
         return postRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream().map(postMapper::toPostResponse)
@@ -161,7 +157,6 @@ public class PostService {
         if (existingLike != null) {
 
             postLikeRepository.delete(existingLike);
-            log.info("👎 Post unliked - userId: {}, postId: {}", userId, postId);
             return "Post unliked successfully";
         } else {
 
@@ -172,7 +167,6 @@ public class PostService {
                     .build();
             postLikeRepository.save(like);
 
-            log.info("👍 Post liked - userId: {}, postId: {}", userId, postId);
 
             // ✅ GỬI THÔNG BÁO ĐẾN CHỦ BÀI VIẾT (CHỈ KHI LIKE)
             try {
@@ -190,9 +184,7 @@ public class PostService {
                         .build();
 
                 notificationEventPublisher.publishLikeEvent(event);
-                log.info("📧 Notification sent to userId: {}", post.getUserId());
             } catch (Exception e) {
-                log.error("❌ Error sending notification", e);
                 // Không throw exception, vẫn trả về like thành công
             }
 
@@ -206,15 +198,12 @@ public class PostService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
 
-        log.info("🔍 Unlike Post - userId: {}, postId: {}", userId, postId);
 
         PostLike postLike = postLikeRepository.findByUserIdAndPostId(userId, postId);
 
         if (postLike != null) {
             postLikeRepository.delete(postLike);
-            log.info("✅ Post unliked - userId: {}, postId: {}", userId, postId);
         } else {
-            log.warn("⚠️ PostLike not found - userId: {}, postId: {}", userId, postId);
         }
 
         return "Post unliked successfully";
@@ -222,7 +211,6 @@ public class PostService {
 
     public List<PostLike> getPostLikesByPostId(String postId) {
         List<PostLike> likes = postLikeRepository.findAllByPostId(postId);
-        log.info("📊 Get likes for postId: {} - count: {}", postId, likes.size());
         return likes;
     }
 

@@ -1,5 +1,7 @@
 package com.blur.userservice.profile.service;
 
+import com.blur.userservice.identity.entity.User;
+import com.blur.userservice.identity.repository.UserRepository;
 import com.blur.userservice.profile.dto.event.Event;
 import com.blur.userservice.profile.dto.request.ProfileCreationRequest;
 import com.blur.userservice.profile.dto.request.UserProfileUpdateRequest;
@@ -15,7 +17,6 @@ import com.blur.userservice.profile.repository.UserProfileRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -39,10 +40,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class UserProfileService {
     UserProfileRepository userProfileRepository;
     UserProfileMapper userProfileMapper;
+    UserRepository userRepository;
 
 
     @Caching(
@@ -53,6 +54,7 @@ public class UserProfileService {
     )
     public UserProfileResponse createProfile(ProfileCreationRequest request) {
         UserProfile userProfile = userProfileMapper.toUserProfile(request);
+        userProfile.setUserId(request.getUserId());
         userProfile.setUsername(request.getUsername());
         userProfile.setCreatedAt(LocalDate.now());
         userProfile.setEmail(request.getEmail());
@@ -97,9 +99,7 @@ public class UserProfileService {
 
     @Cacheable(value = "profileByUserId", key = "#userId", unless = "#result == null")
     public UserProfileResponse getByUserId(String userId) {
-        UserProfile userProfile = userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
-        return userProfileMapper.toUserProfileResponse(userProfile);
+        return userProfileMapper.toUserProfileResponse(getOrCreateProfileByUserId(userId));
     }
 
     @Cacheable(
@@ -110,11 +110,7 @@ public class UserProfileService {
     public UserProfileResponse myProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
-
-        UserProfile userProfile = userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
-
-        return userProfileMapper.toUserProfileResponse(userProfile);
+        return userProfileMapper.toUserProfileResponse(getOrCreateProfileByUserId(userId));
     }
 
     @Caching(
@@ -156,13 +152,11 @@ public class UserProfileService {
         }
 
         // Lấy Neo4j UUID từ userId
-        var requester = userProfileRepository.findUserProfileByUserId(reqUserId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+        var requester = getOrCreateProfileByUserId(reqUserId);
 
         var followingUser = userProfileRepository.findUserProfileById(followerId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
         userProfileRepository.follow(requester.getId(), followerId);
-        log.info("following: {}", followingUser);
 
         // gui notification
         Event event = Event.builder()
@@ -173,7 +167,6 @@ public class UserProfileService {
                 .receiverEmail(followingUser.getEmail())
                 .timestamp(LocalDateTime.now())
                 .build();
-        log.info("Sending follow event: {}", event);
 
 
         return "You are following " + followingUser.getFirstName();
@@ -187,8 +180,7 @@ public class UserProfileService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String reqUserId = authentication.getName();
 
-        var requester = userProfileRepository.findUserProfileByUserId(reqUserId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+        var requester = getOrCreateProfileByUserId(reqUserId);
 
         var followingUser = userProfileRepository.findUserProfileById(followerId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -402,7 +394,6 @@ public class UserProfileService {
             allEntries = true
     )
     public void invalidateRecommnedationCache() {
-        log.info("invalidating all recommendation caches");
     }
 
     // cap nhat follow counts
@@ -439,10 +430,33 @@ public class UserProfileService {
         }
 
         String userId = authentication.getName();
+        return getOrCreateProfileByUserId(userId).getId();
+    }
 
+    private UserProfile getOrCreateProfileByUserId(String userId) {
         return userProfileRepository.findByUserId(userId)
-                .map(UserProfile::getId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+                .orElseGet(() -> bootstrapProfile(userId));
+    }
+
+    private UserProfile bootstrapProfile(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
+
+
+        UserProfile userProfile = new UserProfile();
+        userProfile.setUserId(user.getId());
+        userProfile.setUsername(user.getUsername());
+        userProfile.setFirstName(user.getFirstName());
+        userProfile.setLastName(user.getLastName());
+        userProfile.setEmail(user.getEmail());
+        userProfile.setCreatedAt(LocalDate.now());
+
+        try {
+            return userProfileRepository.save(userProfile);
+        } catch (DataIntegrityViolationException ex) {
+            return userProfileRepository.findByUserId(userId)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
+        }
     }
 
     /**

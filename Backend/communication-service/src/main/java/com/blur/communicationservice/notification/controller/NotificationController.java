@@ -14,13 +14,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/notification")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class NotificationController {
     KafkaTemplate<String, String> kafkaTemplate;
     ObjectMapper objectMapper;
@@ -61,21 +59,21 @@ public class NotificationController {
         return ApiResponse.builder().build();
     }
 
-    @GetMapping("/notification/{userId}")
+    @GetMapping("/{userId}")
     public ApiResponse<List<Notification>> getAllNotificationsByUserId(@PathVariable("userId") String userId) {
         return ApiResponse.<List<Notification>>builder()
                 .result(notificationService.getForUser(userId))
                 .build();
     }
 
-    @PutMapping("/notification/markAsRead/{notificationId}")
+    @PutMapping("/markAsRead/{notificationId}")
     public ApiResponse<String> markAsRead(@PathVariable("notificationId") String notificationId) {
         return ApiResponse.<String>builder()
                 .result(notificationService.markAsRead(notificationId))
                 .build();
     }
 
-    @PutMapping("/notification/markAllAsRead")
+    @PutMapping("/markAllAsRead")
     public ApiResponse<String> markAllAsRead() {
         return ApiResponse.<String>builder()
                 .result(notificationService.markAllAsRead())

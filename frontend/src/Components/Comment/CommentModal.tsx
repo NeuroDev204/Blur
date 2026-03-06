@@ -126,7 +126,6 @@ const CommentModal = ({
               const userData = await fetchUserByUserId(cmt.userId);
               usersData[cmt.userId] = userData;
             } catch (error) {
-              console.error("Failed to fetch user:", error);
             }
           }
         })
@@ -171,7 +170,6 @@ const CommentModal = ({
   // ================== LIKE COMMENT (stub) ==================
   const handleToggleCommentLike = (cmt, willLike) => {
     // TODO: gọi API like/unlike comment nếu có
-    console.log("toggle like comment", cmt.id, willLike);
   };
 
   // ================== EMOJI ==================

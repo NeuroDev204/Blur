@@ -20,6 +20,7 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE)
 public class ChatMessageResponse {
     String id;
+    String tempMessageId;
     String conversationId;
     String message;
     MessageType messageType;

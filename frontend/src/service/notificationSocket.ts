@@ -1,36 +1,35 @@
 import { Client, IMessage } from "@stomp/stompjs"
-import { getToken } from "./LocalStorageService"
 import SockJS from "sockjs-client"
+import { WS_URL } from "../utils/constants"
 
 interface NotificationPayload {
     id: string
     type?: string
     message?: string
+    conversationId?: string
     [key: string]: unknown
 }
 
 let stompClient: Client | null = null
 
 export const connectNotificationSocket = (onMessageReceived: (notification: NotificationPayload) => void): void => {
-    const token = getToken()
-
     stompClient = new Client({
         webSocketFactory: () =>
-            new SockJS(
-                `/api/notification/ws/ws-notification?token=${token}`
-            ) as WebSocket,
+            new SockJS(WS_URL, null, {
+                transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+            }) as WebSocket,
         onConnect: () => {
-            console.log("Connected to notification socket")
-            stompClient?.subscribe(`/topic/notification`, (message: IMessage) => {
+            const handleMessage = (message: IMessage) => {
                 const notification: NotificationPayload = JSON.parse(message.body)
                 onMessageReceived(notification)
-            })
+            }
+
+            stompClient?.subscribe(`/user/notification`, handleMessage)
+            stompClient?.subscribe(`/user/queue/notification`, handleMessage)
         },
         onStompError: (frame) => {
-            console.error("STOMP error", frame)
         },
         onDisconnect: () => {
-            console.log("Disconnected from notification socket")
         },
     })
 
@@ -38,8 +37,7 @@ export const connectNotificationSocket = (onMessageReceived: (notification: Noti
 }
 
 export const disconnectNotificationSocket = (): void => {
-    if (stompClient && stompClient.connected) {
+    if (stompClient) {
         stompClient.deactivate()
-        console.log("Disconnected from notification socket")
     }
 }

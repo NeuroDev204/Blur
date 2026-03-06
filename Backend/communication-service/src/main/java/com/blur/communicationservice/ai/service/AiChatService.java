@@ -12,9 +12,7 @@ import com.blur.communicationservice.dto.request.AiChatRequest;
 import com.blur.communicationservice.dto.response.AiChatResponse;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiChatService {
@@ -24,7 +22,6 @@ public class AiChatService {
 
     public AiChatResponse chat(AiChatRequest request) {
         try {
-            log.info("Xu ly chat request: {}", request.getMessage());
 
             String url = geminiConfig.getBaseUrl() + "/" + geminiConfig.getCompletionsPath()
                     + "?key="
@@ -43,15 +40,12 @@ public class AiChatService {
             Map<String, Object> responseBody = response.getBody();
             String aiResponse = extractTextFromResponse(responseBody);
 
-            log.info("Nhan response tu Gemini thanh cong");
-
             AiChatResponse res = new AiChatResponse();
             res.setResponse(aiResponse);
             res.setSuccess(true);
             return res;
 
         } catch (Exception e) {
-            log.error("Loi khi goi Gemini API", e);
             AiChatResponse res = new AiChatResponse();
             res.setSuccess(false);
             res.setError(e.getMessage());

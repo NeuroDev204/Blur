@@ -2,7 +2,6 @@ package com.contentservice.post.exception;
 
 import com.contentservice.story.dto.response.ApiResponse;
 import jakarta.validation.ConstraintViolation;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,7 +11,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 import java.util.Objects;
 
-@Slf4j
 @RestControllerAdvice
 
 @SuppressWarnings("rawtypes")
@@ -62,7 +60,6 @@ public class GlobalExceptionHandler {
             var constrainViolation =
                     e.getBindingResult().getAllErrors().get(0).unwrap(ConstraintViolation.class);
             attributes = constrainViolation.getConstraintDescriptor().getAttributes();
-            log.info(attributes.toString());
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("Invalid key: " + enumKey);
         }

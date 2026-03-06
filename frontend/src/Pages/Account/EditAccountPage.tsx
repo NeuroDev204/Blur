@@ -1,9 +1,7 @@
-import axios from "axios";
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { getToken } from "../../service/LocalStorageService";
-import { fetchUserInfo } from "../../api/userApi";
+import { fetchUserInfo, updateUserProfile } from "../../api/userApi";
 import { useToast } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { uploadToCloudnary } from "../../Config/UploadToCloudinary";
@@ -21,6 +19,7 @@ interface FormData {
     imageUrl: string;
     address: string;
     dob: string;
+    [key: string]: unknown;
 }
 
 const EditAccountPage: React.FC = () => {
@@ -40,14 +39,13 @@ const EditAccountPage: React.FC = () => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
-    const token = getToken();
     const toast = useToast();
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const userInfo = await fetchUserInfo(token || "");
+                const userInfo = await fetchUserInfo();
                 if (userInfo) {
                     setFormData({
                         firstName: userInfo.firstName || "",
@@ -74,7 +72,7 @@ const EditAccountPage: React.FC = () => {
             }
         };
         fetchUser();
-    }, [token, toast]);
+    }, [toast]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -134,7 +132,6 @@ const EditAccountPage: React.FC = () => {
                 isClosable: true,
             });
         } catch (err) {
-            console.error("❌ Upload failed:", err);
             const error = err as Error;
             toast({
                 title: "Image upload failed",
@@ -153,21 +150,9 @@ const EditAccountPage: React.FC = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const userInfo = await fetchUserInfo(token || "");
-            const response = await axios.put(
-                `http://localhost:8888/api/profile/users/${userInfo.id}`,
-                formData,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (response.data?.code !== 1000) {
-                throw new Error(response.data?.message);
-            }
+            // ⭐ Sử dụng API functions thay vì raw axios với manual token
+            const userInfo = await fetchUserInfo();
+            await updateUserProfile(userInfo.id, formData);
 
             toast({
                 title: "Profile updated successfully!",

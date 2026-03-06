@@ -177,7 +177,6 @@ const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, stories, story
       }
       setIsLiked(!isLiked);
     } catch (error) {
-      console.error("Error liking/unliking story:", error);
     }
   };
 
@@ -219,7 +218,6 @@ const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, stories, story
         });
       }
     } catch (error) {
-      console.error("Error deleting story:", error);
       toast({
         title: "Lỗi",
         description: (error as Error).message || "Có lỗi xảy ra khi xóa story.",
@@ -328,7 +326,7 @@ const StoryModal: React.FC<StoryModalProps> = ({ isOpen, onClose, stories, story
                 autoPlay
                 playsInline
                 muted={isMuted}
-                onError={(e) => console.error("Video error:", e)}
+                onError={() => {}}
               />
             ) : (
               <img

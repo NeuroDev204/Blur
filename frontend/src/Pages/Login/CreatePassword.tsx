@@ -12,7 +12,8 @@ import {
 import React, { useEffect, useState, FormEvent, ChangeEvent } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { getToken } from "../../service/LocalStorageService";
+import axiosClient from "../../api/axiosClient";
+import { introspectToken } from "../../api/authAPI";
 
 interface UserDetails {
     noPassword?: boolean;
@@ -45,44 +46,34 @@ const CreatePassword: React.FC = () => {
 
     const checkPassword = (): boolean => password === confirmPassword;
 
-    const getUserDetails = async (accessToken: string) => {
-        const response = await fetch("/api/identity/users/", {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-        });
-        const data: { result?: UserDetails } = await response.json();
-        setUserDetails(data.result || {});
+    const getUserDetails = async () => {
+        try {
+            const response = await axiosClient.get<{ result?: UserDetails }>('/identity/users/');
+            setUserDetails(response.data?.result || {});
+        } catch (error) {
+        }
     };
 
-    const addPassword = (event: FormEvent<HTMLFormElement>) => {
+    const addPassword = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (checkPassword()) {
-            const body = { password };
-            fetch("http://localhost:8888/api/identity/users/create-password", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${getToken()}`,
-                },
-                body: JSON.stringify(body),
-            })
-                .then((response) => {
-                    return response.json() as Promise<ApiResponse>;
-                })
-                .then((data) => {
-                    if (data.code !== 1000) throw new Error(data.message);
-                    const token = getToken();
-                    if (token) {
-                        getUserDetails(token);
-                    }
-                    showToast("Password created", data.message, "success");
-                    navigate("/login");
-                })
-                .catch((error: Error) => {
-                    showToast("Error creating password", error.message, "error");
-                });
+            try {
+                const response = await axiosClient.post<ApiResponse>(
+                    '/identity/users/create-password',
+                    { password }
+                );
+
+                if (response.data.code !== 1000) {
+                    throw new Error(response.data.message);
+                }
+
+                getUserDetails();
+                showToast("Password created", response.data.message, "success");
+                navigate("/login");
+            } catch (error) {
+                const err = error as Error;
+                showToast("Error creating password", err.message, "error");
+            }
         } else {
             showToast(
                 "Password mismatch",
@@ -93,12 +84,15 @@ const CreatePassword: React.FC = () => {
     };
 
     useEffect(() => {
-        const accessToken = getToken();
-        if (!accessToken) {
-            navigate("/login");
-        } else {
-            getUserDetails(accessToken);
-        }
+        const checkAuth = async () => {
+            const isValid = await introspectToken();
+            if (!isValid) {
+                navigate("/login");
+            } else {
+                getUserDetails();
+            }
+        };
+        checkAuth();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate]);
 

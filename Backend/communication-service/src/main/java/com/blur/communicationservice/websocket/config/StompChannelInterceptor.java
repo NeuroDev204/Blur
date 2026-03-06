@@ -7,9 +7,6 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.stereotype.Component;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 @Component
 public class StompChannelInterceptor implements ChannelInterceptor {
 
@@ -21,7 +18,6 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(command)) {
             // Principal da duoc set trong JwtHandshakeInterceptor
             // Khong can verify lai o day
-            log.debug("STOMP CONNECT from session {}", accessor.getSessionId());
         }
 
         return message;

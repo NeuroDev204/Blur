@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState, MutableRefObject } from 'react'
-import { SOCKET_URL } from '../utils/constants'
-import { getToken } from '../utils/auth'
-
-// Socket.IO functionality - Window.io is declared elsewhere
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getIO = (): ((url: string, options: Record<string, unknown>) => SocketType) | undefined => (window as unknown as { io?: (url: string, options: Record<string, unknown>) => SocketType }).io;
-
-interface SocketType {
-    on: (event: string, callback: (data?: unknown) => void) => void
-    disconnect: () => void
-}
+import { Client, IMessage } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+import { WS_URL } from '../utils/constants'
 
 interface UseSocketReturn {
-    socketRef: MutableRefObject<SocketType | null>
+    socketRef: MutableRefObject<Client | null>
     isConnected: boolean
     error: string
 }
@@ -20,73 +12,47 @@ interface UseSocketReturn {
 export const useSocketHook = (onMessageReceived: (data: unknown) => void): UseSocketReturn => {
     const [isConnected, setIsConnected] = useState(false)
     const [error, setError] = useState("")
-    const socketRef = useRef<SocketType | null>(null)
+    const socketRef = useRef<Client | null>(null)
 
     useEffect(() => {
-        const token = getToken()
-        if (!token) {
-            setError("Vui lòng đăng nhập")
-            return
-        }
+        let isMounted = true
 
-        let isSubscribed = true
-        const script = document.createElement('script')
-        script.src = 'https://cdn.socket.io/4.5.4/socket.io.min.js'
-        script.async = true
+        const client = new Client({
+            webSocketFactory: () =>
+                new SockJS(WS_URL, null, {
+                    transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+                }) as WebSocket,
+            reconnectDelay: 3000,
 
-        script.onload = () => {
-            if (!isSubscribed) return
-
-            const io = getIO()
-            if (!io) {
-                setError("Socket.IO not loaded")
-                return
-            }
-
-            const socket = io(SOCKET_URL, {
-                query: { token },
-                autoConnect: true,
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionAttempts: 10,
-                timeout: 20000,
-                transports: ['websocket', 'polling']
-            })
-
-            socketRef.current = socket
-
-            socket.on("connect", () => {
-                console.log("🟢 Socket connected")
+            onConnect: () => {
+                if (!isMounted) return
                 setIsConnected(true)
                 setError("")
-            })
 
-            socket.on("disconnect", (reason) => {
-                console.log("🔴 Socket disconnected:", reason)
+                client.subscribe("/user/queue/chat/message", (message: IMessage) => {
+                    onMessageReceived(JSON.parse(message.body))
+                })
+            },
+
+            onStompError: () => {
+                setError("Khong the ket noi")
                 setIsConnected(false)
-            })
+            },
 
-            socket.on("connect_error", (err) => {
-                console.error("❌ Socket connection error:", err)
-                setError("Không thể kết nối")
+            onDisconnect: () => {
                 setIsConnected(false)
-            })
+            },
+        })
 
-            socket.on("message_received", onMessageReceived)
-        }
-
-        script.onerror = () => setError("Không thể tải Socket.IO")
-        document.head.appendChild(script)
+        client.activate()
+        socketRef.current = client
 
         return () => {
-            isSubscribed = false
-            if (socketRef.current) {
-                socketRef.current.disconnect()
-                socketRef.current = null
+            isMounted = false
+            if (client) {
+                client.deactivate()
             }
-            if (script.parentNode) {
-                script.parentNode.removeChild(script)
-            }
+            socketRef.current = null
         }
     }, [onMessageReceived])
 

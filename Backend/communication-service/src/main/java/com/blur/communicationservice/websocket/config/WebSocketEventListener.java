@@ -10,9 +10,7 @@ import com.blur.communicationservice.service.RedisCacheService;
 import com.blur.communicationservice.websocket.service.WebSocketSessionManager;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
@@ -29,7 +27,6 @@ public class WebSocketEventListener {
         if (userId != null) {
             sessionManager.registerSession(userId, sessionId);
             redisCacheService.setUserOnlineStatus(userId, true);
-            log.info("User {} connected (session: {})", userId, sessionId);
         }
     }
 
@@ -45,7 +42,6 @@ public class WebSocketEventListener {
             if (!sessionManager.hasActiveSessions(userId)) {
                 redisCacheService.setUserOnlineStatus(userId, false);
             }
-            log.info("User {} disconnected (session: {})", userId, sessionId);
         }
     }
 }

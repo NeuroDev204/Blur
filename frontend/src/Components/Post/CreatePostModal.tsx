@@ -136,7 +136,6 @@ const CreatePostModal = ({
 
       resetAndClose();
     } catch (error) {
-      console.error("Error creating post:", error);
       toast({
         title: "Failed to create post.",
         description: (error as any)?.response?.data?.message || (error as Error).message,

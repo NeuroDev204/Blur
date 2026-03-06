@@ -3,9 +3,8 @@ import { useNotification } from "../../contexts/NotificationContext";
 import { Bell } from "lucide-react";
 import Header from "../../Components/Notification/Header";
 import NotificationItem from "../../Components/Notification/NotificationItem";
-import { getToken } from "../../service/LocalStorageService";
+import { fetchUserInfo } from "../../api/userApi";
 import { fetchPostById } from "../../api/postApi";
-import { jwtDecode } from "jwt-decode";
 import {
     getAllNotifications,
     markAllNotificationsAsRead,
@@ -26,14 +25,11 @@ interface Notification {
     type?: string;
     postId?: string;
     post_id?: string;
+    conversationId?: string;
     entityId?: string;
     senderId?: string;
     seen?: boolean;
-}
-
-interface DecodedToken {
-    sub: string;
-    [key: string]: unknown;
+    read?: boolean;
 }
 
 interface RealtimeNotification {
@@ -47,84 +43,89 @@ interface RealtimeNotification {
     createdDate?: string;
     type?: string;
     postId?: string;
+    conversationId?: string;
     senderId?: string;
     seen?: boolean;
+    read?: boolean;
 }
 
 const NotificationsPage: React.FC = () => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [userId, setUserId] = useState("");
 
     const toast = useToast();
     const navigate = useNavigate();
-    const token = getToken();
 
     // ✅ Lấy realtime noti từ Context
     const { notifications: realtimeNotifications, notificationCounter } =
         useNotification();
 
-    // ✅ Giải mã token để lấy userId
-    const userId = useMemo(() => {
-        if (!token) return "";
-        try {
-            const decoded = jwtDecode<DecodedToken>(token);
-            return decoded.sub;
-        } catch {
-            return "";
-        }
-    }, [token]);
+    // ✅ Lấy userId từ API thay vì decode JWT
+    useEffect(() => {
+        const fetchUserId = async () => {
+            try {
+                const userInfo = await fetchUserInfo();
+                if (userInfo?.userId) {
+                    setUserId(userInfo.userId);
+                }
+            } catch (error) {
+            }
+        };
+        fetchUserId();
+    }, []);
 
     // ✅ Lấy danh sách ban đầu từ API
     useEffect(() => {
         const getNotifications = async () => {
             try {
                 setIsLoading(true);
-                const result = await getAllNotifications(token || "", userId);
-                setNotifications(result || []);
+                const result = await getAllNotifications(userId);
+                setNotifications(
+                    (result || []).map((notification) => ({
+                        ...notification,
+                        seen: Boolean(notification.seen ?? notification.read ?? false),
+                    }))
+                );
             } catch (error) {
-                console.error("Error fetching notifications:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-        if (token && userId) getNotifications();
-    }, [token, userId]);
+        if (userId) getNotifications();
+    }, [userId]);
 
     // ✅ Realtime notification handler
     useEffect(() => {
-        console.log("🔄 Notification counter changed:", notificationCounter);
 
         if (!realtimeNotifications || realtimeNotifications.length === 0) {
-            console.log("⚠️ No realtime notifications");
             return;
         }
 
         const latest = realtimeNotifications[0] as RealtimeNotification;
-        console.log("📥 Processing latest notification:", latest);
 
         const newNotification: Notification = {
             id: latest.id,
-            senderName: latest.senderName, // ✅ Dùng lại tên đã chuẩn trong Provider
+            senderName: latest.senderName,
             senderImageUrl: latest.senderImageUrl || latest.avatar,
             content: latest.content || latest.message,
             timestamp:
                 latest.timestamp || latest.createdDate || new Date().toISOString(),
             type: latest.type || "general",
             postId: latest.postId,
+            conversationId: latest.conversationId,
             senderId: latest.senderId,
-            seen: latest.seen ?? false,
+            seen: latest.seen ?? latest.read ?? false,
         };
 
         setNotifications((prev) => {
             const exists = prev.some((n) => n.id === newNotification.id);
 
             if (exists) {
-                console.log("⚠️ Notification already in list:", newNotification.id);
                 return prev;
             }
 
-            console.log("✅ Adding notification to page list");
             return [newNotification, ...prev];
         });
     }, [notificationCounter, realtimeNotifications]);
@@ -132,19 +133,18 @@ const NotificationsPage: React.FC = () => {
     // ✅ Mark 1 thông báo là đã đọc
     const handleMarkRead = async (id: string) => {
         try {
-            await markNotificationAsRead(token || "", id);
+            await markNotificationAsRead(id);
             setNotifications((prev) =>
                 prev.map((n) => (n.id === id ? { ...n, seen: true } : n))
             );
         } catch (error) {
-            console.error("Error marking notification as read:", error);
         }
     };
 
     // ✅ Mark tất cả đã đọc
     const handleMarkAllRead = async () => {
         try {
-            await markAllNotificationsAsRead(token || "");
+            await markAllNotificationsAsRead();
             toast({
                 title: "All marked as read",
                 status: "success",
@@ -154,7 +154,6 @@ const NotificationsPage: React.FC = () => {
             });
             setNotifications((prev) => prev.map((n) => ({ ...n, seen: true })));
         } catch (error) {
-            console.error("Error marking all as read:", error);
             toast({
                 title: "Failed to mark all as read",
                 status: "error",
@@ -167,11 +166,42 @@ const NotificationsPage: React.FC = () => {
 
     // ✅ Khi click vào notification → navigate tới post page
     const handleNotificationClick = async (notification: Notification) => {
+        if (notification.type === "Message" || notification.conversationId) {
+            try {
+                if (!(notification.seen ?? notification.read)) {
+                    await markNotificationAsRead(notification.id);
+                    setNotifications((prev) =>
+                        prev.map((n) => (n.id === notification.id ? { ...n, seen: true, read: true } : n))
+                    );
+                }
+
+                if (!notification.conversationId) {
+                    toast({
+                        title: "Notification không có cuộc trò chuyện liên kết",
+                        status: "info",
+                        duration: 2000,
+                        isClosable: true,
+                        position: "top-right",
+                    });
+                    return;
+                }
+
+                navigate(`/message?conversationId=${notification.conversationId}`);
+            } catch (error) {
+                toast({
+                    title: "Không thể mở cuộc trò chuyện",
+                    status: "error",
+                    duration: 2000,
+                    isClosable: true,
+                    position: "top-right",
+                });
+            }
+            return;
+        }
+
         const postId =
             notification.postId || notification.post_id || notification.entityId;
 
-        console.log("🔍 Notification object:", notification);
-        console.log("🔍 Extracted Post ID:", postId);
 
         if (!postId) {
             toast({
@@ -187,15 +217,14 @@ const NotificationsPage: React.FC = () => {
         try {
             // Mark as read
             if (!notification.seen) {
-                await markNotificationAsRead(token || "", notification.id);
+                await markNotificationAsRead(notification.id);
                 setNotifications((prev) =>
                     prev.map((n) => (n.id === notification.id ? { ...n, seen: true } : n))
                 );
             }
 
             // Fetch post
-            const post = await fetchPostById(postId, token || "");
-            console.log("✅ Post fetched successfully:", post);
+            const post = await fetchPostById(postId);
 
             if (!post) {
                 toast({
@@ -212,7 +241,6 @@ const NotificationsPage: React.FC = () => {
             // ✅ Navigate với post data
             navigate(`/post/${postId}`, { state: { post } });
         } catch (error) {
-            console.error("❌ Error opening post:", error);
 
             const err = error as { response?: { data?: { message?: string }; status?: number } };
             const errorMessage =
