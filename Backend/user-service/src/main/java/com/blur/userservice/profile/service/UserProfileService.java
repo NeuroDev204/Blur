@@ -48,7 +48,6 @@ public class UserProfileService {
 
     @Caching(
             evict = {
-                    @CacheEvict(value = "profiles", allEntries = true),
                     @CacheEvict(value = "profileByUserId", key = "#request.userId")
             }
     )
@@ -66,7 +65,6 @@ public class UserProfileService {
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
 
-    @Cacheable(value = "profiles", key = "#id", unless = "#result == null ")
     public UserProfile getUserProfile(String id) {
         return userProfileRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
@@ -114,21 +112,20 @@ public class UserProfileService {
     }
 
     @Caching(
-            put = @CachePut(value = "profiles", key = "#userProfileId"),
             evict = {
                     @CacheEvict(value = "profileByUserId", key = "#root.target.getUserIdByProfileId(#userProfileId)"),
                     @CacheEvict(value = "myProfile", key = "#root.target.getUserIdByProfileId(#userProfileId)"),
                     @CacheEvict(value = "searchResults", allEntries = true)
             }
     )
-    public UserProfile updateUserProfile(String userProfileId, UserProfileUpdateRequest request) {
+    public UserProfileResponse updateUserProfile(String userProfileId, UserProfileUpdateRequest request) {
         UserProfile userProfile = getUserProfile(userProfileId);
         userProfileMapper.updateUserProfile(userProfile, request);
-        return userProfileRepository.save(userProfile);
+        UserProfile saved = userProfileRepository.save(userProfile);
+        return userProfileMapper.toUserProfileResponse(saved);
     }
 
     @Caching(evict = {
-            @CacheEvict(value = "profiles", key = "#userProfileId"),
             @CacheEvict(value = "profileByUserId", key = "#root.target.getUserIdByProfileId(#userProfileId)"),
             @CacheEvict(value = "myProfile", key = "#root.target.getUserIdByProfileId(#userProfileId)"),
             @CacheEvict(value = "followers", allEntries = true),

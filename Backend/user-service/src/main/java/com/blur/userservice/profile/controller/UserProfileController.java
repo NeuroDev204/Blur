@@ -43,7 +43,7 @@ public class UserProfileController {
         var profileUpdated = userProfileService.updateUserProfile(userProfileId, request);
         return ApiResponse.<UserProfileResponse>builder()
                 .code(1000)
-                .result(userProfileMapper.toUserProfileResponse(profileUpdated))
+                .result(profileUpdated)
                 .build();
     }
 

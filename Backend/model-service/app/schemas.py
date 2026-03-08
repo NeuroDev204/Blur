@@ -2,46 +2,43 @@ from pydantic import BaseModel, Field
 from typing import List,Dict,Any
 from enum import Enum
 
-class ToxicLevel(str, Enum):
+class ToxicLevel(str,Enum):
   LOW = "low"
-  MEDIUM = "medium"
-  HIGH = "high"
-
+  MEDIUM ="medium"
+  HIGHT = "high"
 class CommentRequest(BaseModel):
-  """request body cho single comment prediction"""
-  texts: List[str] = Field(..., min_items=1, max_items=100)
-
-class BatchCommentRequest (BaseModel):
-  """request body cho bath prediction"""
-  texts = List[str] = Field(...,min_items=1, max_items=100)
-
+  text: str = Field(..., min_length=1, max_length=5000, description="Nội dung comment cần phân tích")
+class BatchCommentRequest(BaseModel):
+  texts: List[str] = Field(
+    ...,
+    min_length=1,
+    max_length=100,
+    description="Danh sách comments cần phân tích"
+  )
 class CommentAnalysis(BaseModel):
-  """ket qua phan tich 1 comment"""
   text: str
   is_toxic: bool
-  toxic_score: float = Field(..., ge=0,le=1)
-  toxic_level = ToxicLevel
-  confidence: float = Field(...,ge=0,le=1)
-  probabilities: Dict[str, float]
+  toxic_score: float = Field(..., ge=0,le=1,description="Điểm toxic (0.0 = sạch, 1.0 = rất toxic)")
+  toxic_level: ToxicLevel = Field(..., description="Mức độ: low/medium/high")
+  confidence: float = Field(...,ge=0,le=1, description="Độ tin cậy của model")
+  probabilities: Dict[str,float]= Field(..., description="Xác xuất từng class: {clean, toxic}")
 
-class PredictionResponse(BaseModel):
-  """response cho sigle prediction"""
+class PredictResponse(BaseModel):
   success: bool = True
   data: CommentAnalysis
   timestamp: str
-
 class BatchPredictionResponse(BaseModel):
-  """response cho batch prediction"""
   success: bool = True
-  data: Dict[str, Any]
+  data: Dict[str,Any]
   timestamp: str
-
 class HealthResponse(BaseModel):
-  """health check response"""
-  status: str
-  model_loaded: bool
-  device: str
+  status: str = Field(..., description="Healthy/ unhealthy, degraded")
+  model_loaded: bool = Field(..., description="Model loaded flag")
+  device: str = Field(..., description="Cpu hoặc cuda")
   version: str
   uptime_seconds: float
   timestamp: str
+  
+# Backwards compatibility: older code imports `PredictionResponse`
+PredictionResponse = PredictResponse
 

@@ -1,5 +1,6 @@
 package com.blur.userservice.profile.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.neo4j.core.schema.*;
@@ -42,9 +43,11 @@ public class UserProfile {
     Integer postCount;
     Boolean verified;
 
+    @JsonIgnore
     @Relationship(type = "follows", direction = Relationship.Direction.OUTGOING)
     Set<UserProfile> following = new HashSet<>();
 
+    @JsonIgnore
     @Relationship(type = "follows", direction = Relationship.Direction.INCOMING)
     Set<UserProfile> followers = new HashSet<>();
 }

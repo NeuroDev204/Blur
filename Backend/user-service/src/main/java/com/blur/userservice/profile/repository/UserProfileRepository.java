@@ -11,9 +11,16 @@ import java.util.Optional;
 
 @Repository
 public interface UserProfileRepository extends Neo4jRepository<UserProfile, String> {
+
+    // Override default methods to prevent infinite recursion on self-referencing @Relationship
+    @Query("MATCH (u:user_profile {user_id: $userId}) RETURN u")
     Optional<UserProfile> findUserProfileByUserId(String userId);
 
+    @Query("MATCH (u:user_profile) WHERE u.id = $id RETURN u")
     Optional<UserProfile> findUserProfileById(String id);
+
+    @Query("MATCH (u:user_profile {user_id: $userId}) RETURN u")
+    Optional<UserProfile> findByUserId(String userId);
 
     @Query("MATCH (u:user_profile)-[:follows]->(f:user_profile) WHERE u.id = $id RETURN f")
     List<UserProfile> findAllFollowingById(String id);
@@ -21,8 +28,8 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
     @Query("MATCH (f:user_profile)-[:follows]->(u:user_profile) WHERE u.id = $id RETURN f")
     List<UserProfile> findAllFollowersById(@Param("id") String id);
 
-    Optional<UserProfile> findByUserId(String userId);
 
+    @Query("MATCH (u:user_profile) WHERE toLower(u.firstName) CONTAINS toLower($firstName) RETURN u")
     List<UserProfile> findAllByFirstNameContainingIgnoreCase(String firstName);
 
     @Query("""
@@ -38,6 +45,7 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
             """)
     void unfollow(@Param("fromId") String fromId, @Param("toId") String toId);
 
+    @Query("MATCH (u:user_profile) WHERE u.username CONTAINS $username RETURN u")
     List<UserProfile> findAllByUsernameLike(String username);
 
     // follower chung (ban cua ban be)

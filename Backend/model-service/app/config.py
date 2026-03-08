@@ -1,14 +1,14 @@
-from pydantic_core import BaseSettings
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
   #kafka
-  KAFKA_BOOTSTRAP_SERVER: str = "localhost:9092"
+  KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
   KAFKA_CONSUMER_GROUP: str = "model-service"
   KAFKA_REQUEST_TOPIC: str = "comment-moderation-request"
   KAFKA_RESULT_TOPIC: str = "comment-moderation-results"
 
   #phobert model
-  MODEL_PATH: str = "model/phobert_toxic_FINAL_2025111_232134"
+  MODEL_PATH: str = "models/phobert_toxic_FINAL_20251111_232134"
   MODEL_VERSION: str = "phobert_toxic_FINAL"
   MAX_TOKEN_LENGTH: int = 256
   TOXIC_THRESHOLD: float = 0.5

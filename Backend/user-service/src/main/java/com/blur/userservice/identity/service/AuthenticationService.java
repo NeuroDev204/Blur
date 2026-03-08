@@ -26,6 +26,7 @@ import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.text.ParseException;
@@ -69,6 +70,7 @@ public class AuthenticationService {
     @Value("${outbound.identity.grant-type}")
     protected String GRANT_TYPE;
 
+    @Transactional(readOnly = true)
     public AuthResponse authenticate(AuthRequest authRequest) {
         var user = userRepository
                 .findByUsername(authRequest.getUsername())
@@ -131,6 +133,7 @@ public class AuthenticationService {
         }
     }
 
+    @Transactional
     public AuthResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
         var signJWT = verifyToken(request.getToken(), true);
         var jit = signJWT.getJWTClaimsSet().getJWTID();
@@ -186,6 +189,7 @@ public class AuthenticationService {
     }
 
     // login with google
+    @Transactional
     public AuthResponse outboundAuthenticationService(String code) {
         var response = outboundIdentityClient.exchangeToken(ExchangeTokenRequest.builder()
                 .code(code)

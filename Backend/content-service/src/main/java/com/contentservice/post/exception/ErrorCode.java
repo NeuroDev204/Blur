@@ -13,7 +13,6 @@ public enum ErrorCode {
     UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
 
-
     USER_EXISTED(1019, "User already exists", HttpStatus.BAD_REQUEST),
     USER_NOT_FOUND(1021, "User not found", HttpStatus.NOT_FOUND),
 
@@ -28,8 +27,7 @@ public enum ErrorCode {
     STORY_LIKE_NOT_FOUND(1023, "Story like not found", HttpStatus.NOT_FOUND),
     COMMENT_NOT_FOUND(1030, "Comment not found", HttpStatus.NOT_FOUND),
     COMMENT_REPLY_NOT_FOUND(1031, "Comment reply not found", HttpStatus.NOT_FOUND),
-
-    ;
+    COMMENT_PROCESS_MODERATION_FAILED(1032, "Failed to process moderation", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
