@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 /tmp/append_content.py)",
+      "Bash(find /home/neuro/Documents/Blur/frontend/src/hooks -type f -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.jsx\" 2>/dev/null | sort)",
+      "Bash(find /home/neuro/Documents/Blur/frontend/src -name \"*axios*\" -o -name \"*client*\" -o -name \"*http*\" 2>/dev/null | head -20)",
+      "Bash(cat >> /home/neuro/Documents/Blur/blur-comprehensive-upgrade-guide.md << 'ENDOFPART2'\n\n## 5. GIAI DOAN 3: SAGA CHOREOGRAPHY\nENDOFPART2\necho \"test append: $?\")",
+      "Bash(/bin/cat /home/neuro/Documents/Blur/blur-comprehensive-upgrade-guide.md /home/neuro/Documents/Blur/blur-upgrade-part2.md /home/neuro/Documents/Blur/blur-upgrade-part3.md > /home/neuro/Documents/Blur/blur-comprehensive-upgrade-guide-full.md && mv /home/neuro/Documents/Blur/blur-comprehensive-upgrade-guide-full.md /home/neuro/Documents/Blur/blur-comprehensive-upgrade-guide.md && wc -l /home/neuro/Documents/Blur/blur-comprehensive-upgrade-guide.md)",
+      "Bash(python3 -c \":*)",
+      "Bash(chmod +x /home/neuro/Documents/Blur/Backend/scripts/build-and-package.sh)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(ls -d /home/neuro/Documents/Blur/Backend/*/)",
+      "Bash(grep -r \"spring.data\" /home/neuro/Documents/Blur/Backend/*/src/main/resources/application.yaml)",
+      "Bash(grep -l \"SendMessage\\\\|kafkaTemplate\\\\|send\\(\" /home/neuro/Documents/Blur/Backend/*/src/main/java/com/*/*/*Service.java)",
+      "Bash(grep -A 2 \"spring-cloud-starter-openfeign\\\\|spring-kafka\\\\|mongodb\\\\|neo4j\" /home/neuro/Documents/Blur/Backend/*/pom.xml)",
+      "Bash(python3:*)",
+      "Bash(./mvnw compile)",
+      "Bash(mvn dependency:tree -Dincludes=com.nimbusds)",
+      "Bash(sort -k1,1)",
+      "Bash(while read f)",
+      "Bash(do sed -i '/@Slf4j/d' \"$f\")",
+      "Bash(sed -i '/import lombok\\\\.extern\\\\.slf4j\\\\.Slf4j;/d' \"$f\")",
+      "Bash(done)"
+    ]
+  }
+}

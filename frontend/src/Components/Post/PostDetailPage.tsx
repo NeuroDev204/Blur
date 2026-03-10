@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import {
   fetchPostById,
@@ -11,6 +11,7 @@ import {
 } from "../../api/postApi";
 import { fetchUserByUserId } from "../../api/userApi";
 import { useToast } from "@chakra-ui/react";
+import { useModerationListener } from "../../hooks/useModerationListener";
 import { ArrowLeft, Share2 } from "lucide-react";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FaRegComment } from "react-icons/fa";
@@ -111,6 +112,26 @@ const PostDetailPage = () => {
     } catch (error) {
     }
   }, [token]);
+
+  // ================== MODERATION LISTENER - REAL-TIME COMMENT HIDING ==================
+  const handleModerationUpdate = useCallback((update) => {
+    if (update.status === "REJECTED") {
+      // Remove rejected comment from UI immediately
+      setComments((prev) =>
+        prev.filter((comment) => comment.id !== update.commentId)
+      );
+
+      toast({
+        title: "Bình luận bị ẩn",
+        description: "Bình luận của bạn đã bị ẩn vì vi phạm tiêu chuẩn cộng đồng",
+        status: "warning",
+        duration: 2000,
+        position: "top-right",
+      });
+    }
+  }, [toast]);
+
+  useModerationListener(handleModerationUpdate);
 
   // ================== MEDIA ==================
   const handleImageLoad = (index, e) => {
@@ -277,25 +298,47 @@ const PostDetailPage = () => {
       if (parentCommentId) {
         // REPLY
         const newReply = await replyToComment(parentCommentId, commentContent);
-        setComments((prev) => [...prev, newReply]);
 
-        toast({
-          title: "Đã trả lời",
-          status: "success",
-          duration: 2000,
-          position: "top-right",
-        });
+        // Kiểm tra nếu bình luận bị từ chối
+        if (newReply?.moderationStatus === "REJECTED") {
+          toast({
+            title: "Bình luận bị từ chối",
+            description: "Bình luận của bạn không được phép đăng vì vi phạm tiêu chuẩn cộng đồng",
+            status: "warning",
+            duration: 3000,
+            position: "top-right",
+          });
+        } else {
+          setComments((prev) => [...prev, newReply]);
+          toast({
+            title: "Đã trả lời",
+            status: "success",
+            duration: 2000,
+            position: "top-right",
+          });
+        }
       } else {
         // COMMENT GỐC
         const createdComment = await createComment(postId, commentContent);
-        setComments((prev) => [...prev, createdComment]);
 
-        toast({
-          title: "Đã bình luận",
-          status: "success",
-          duration: 2000,
-          position: "top-right",
-        });
+        // Kiểm tra nếu bình luận bị từ chối
+        if (createdComment?.moderationStatus === "REJECTED") {
+          toast({
+            title: "Bình luận bị từ chối",
+            description: "Bình luận của bạn không được phép đăng vì vi phạm tiêu chuẩn cộng đồng",
+            status: "warning",
+            duration: 3000,
+            position: "top-right",
+          });
+        } else {
+          setComments((prev) => [...prev, createdComment]);
+          toast({
+            title: "Đã bình luận",
+            status: "success",
+            duration: 2000,
+            position: "top-right",
+          });
+        }
       }
 
       setCommentText("");

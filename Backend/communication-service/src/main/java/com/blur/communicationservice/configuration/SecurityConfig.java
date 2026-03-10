@@ -31,6 +31,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/ws/websocket/**", "/chat/ws/**", "*")
                         .permitAll()
+                        .requestMatchers("/notification/moderation-update")
+                        .permitAll()
                         .requestMatchers("/actuator/**")
                         .permitAll()
                         .anyRequest()

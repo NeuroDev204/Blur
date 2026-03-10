@@ -3,6 +3,7 @@ package com.blur.userservice.identity.entity;
 import java.util.Set;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToMany;
 
@@ -22,6 +23,6 @@ public class Role {
 
     String description;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     Set<Permission> permissions;
 }

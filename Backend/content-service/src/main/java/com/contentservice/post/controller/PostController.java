@@ -2,7 +2,9 @@ package com.contentservice.post.controller;
 
 import com.contentservice.post.dto.request.PostRequest;
 import com.contentservice.post.dto.response.PostResponse;
+import com.contentservice.post.entity.PostFeedItem;
 import com.contentservice.post.entity.PostLike;
+import com.contentservice.post.service.FeedService;
 import com.contentservice.post.service.PostSaveService;
 import com.contentservice.post.service.PostService;
 import com.contentservice.story.dto.response.ApiResponse;
@@ -21,121 +23,141 @@ import java.util.Map;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostController {
-    PostService postService;
-    PostSaveService postSaveService;
+  PostService postService;
+  PostSaveService postSaveService;
+  FeedService feedService;
 
-    @PostMapping("/create")
-    public ApiResponse<PostResponse> createPost(@RequestBody PostRequest post) {
-        return ApiResponse.<PostResponse>builder()
-                .result(postService.createPost(post))
-                .build();
-    }
+  @PostMapping("/create")
+  public ApiResponse<PostResponse> createPost(@RequestBody PostRequest post) {
+    return ApiResponse.<PostResponse>builder()
+        .result(postService.createPost(post))
+        .build();
+  }
 
-    @GetMapping("/my-posts")
-    public ApiResponse<List<PostResponse>> getMyPosts() {
-        return ApiResponse.<List<PostResponse>>builder()
-                .result(postService.getMyPosts())
-                .build();
-    }
+  @GetMapping("/my-posts")
+  public ApiResponse<List<PostResponse>> getMyPosts() {
+    return ApiResponse.<List<PostResponse>>builder()
+        .result(postService.getMyPosts())
+        .build();
+  }
 
-    @PutMapping("/{postId}/like")
-    public ApiResponse<String> likePost(@PathVariable String postId) {
-        return ApiResponse.<String>builder()
-                .result(postService.likePost(postId))
-                .build();
-    }
 
-    @PutMapping("/{postId}/unlike")
-    public ApiResponse<String> unlikePost(@PathVariable String postId) {
-        return ApiResponse.<String>builder()
-                .result(postService.unlikePost(postId))
-                .build();
-    }
+  @PutMapping("/{postId}/like")
+  public ApiResponse<String> likePost(@PathVariable String postId) {
+    return ApiResponse.<String>builder()
+        .result(postService.likePost(postId))
+        .build();
+  }
 
-    @PutMapping("/{postId}/update")
-    public ApiResponse<PostResponse> updatePost(@PathVariable String postId,
-                                                @RequestBody PostRequest post) {
-        return ApiResponse.<PostResponse>builder()
-                .result(postService.updatePost(postId, post))
-                .build();
-    }
+  @PutMapping("/{postId}/unlike")
+  public ApiResponse<String> unlikePost(@PathVariable String postId) {
+    return ApiResponse.<String>builder()
+        .result(postService.unlikePost(postId))
+        .build();
+  }
 
-    @DeleteMapping("/{postId}/delete")
-    public ApiResponse<String> deletePost(@PathVariable String postId) {
-        return ApiResponse.<String>builder()
-                .result(postService.deletePost(postId))
-                .build();
-    }
-    /*
-    @GetMapping("/all")
-    public ApiResponse<List<PostResponse>> getAllPosts() {
-        return ApiResponse.<List<PostResponse>>builder()
-                .result(postService.getAllPosts())
-                .build();
-    }
+  @PutMapping("/{postId}/update")
+  public ApiResponse<PostResponse> updatePost(@PathVariable String postId,
+                                              @RequestBody PostRequest post) {
+    return ApiResponse.<PostResponse>builder()
+        .result(postService.updatePost(postId, post))
+        .build();
+  }
 
-     */
+  @DeleteMapping("/{postId}/delete")
+  public ApiResponse<String> deletePost(@PathVariable String postId) {
+    return ApiResponse.<String>builder()
+        .result(postService.deletePost(postId))
+        .build();
+  }
 
-    @GetMapping("/all")
-    public ApiResponse<Map<String, Object>> getAllPosts(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "5") int limit) {
+  /*
+  @GetMapping("/all")
+  public ApiResponse<List<PostResponse>> getAllPosts() {
+      return ApiResponse.<List<PostResponse>>builder()
+              .result(postService.getAllPosts())
+              .build();
+  }
 
-        Page<PostResponse> postPage = postService.getAllPots(page, limit);
+   */
+  @GetMapping("/my-feed")
+  public ApiResponse<Map<String, Object>> getMyFeed(
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "5") int limit
+  ) {
+    Page<PostFeedItem> feedItems = feedService.getMyFeed(page, limit);
+    Map<String, Object> result = new HashMap<>();
+    result.put("feeds", feedItems.getContent());
+    result.put("currentPage", feedItems.getNumber() + 1);
+    result.put("totalPages", feedItems.getTotalPages());
+    result.put("hasNextPage", feedItems.hasNext());
+    return ApiResponse.<Map<String, Object>>builder()
+        .result(result)
+        .code(1000)
+        .message("OK")
+        .build();
+  }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("posts", postPage.getContent());
-        result.put("currentPage", postPage.getNumber() + 1);
-        result.put("totalPages", postPage.getTotalPages());
-        result.put("hasNextPage", postPage.hasNext());
+  @GetMapping("/all")
+  public ApiResponse<Map<String, Object>> getAllPosts(
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "5") int limit) {
 
-        return ApiResponse.<Map<String, Object>>builder()
-                .code(1000)
-                .message("OK")
-                .result(result)
-                .build();
-    }
+    Page<PostResponse> postPage = postService.getAllPots(page, limit);
 
-    @GetMapping("/{postId}/likes")
-    public ApiResponse<List<PostLike>> getPostLikes(@PathVariable String postId) {
-        return ApiResponse.<List<PostLike>>builder()
-                .result(postService.getPostLikesByPostId(postId))
-                .build();
-    }
+    Map<String, Object> result = new HashMap<>();
+    result.put("posts", postPage.getContent());
+    result.put("currentPage", postPage.getNumber() + 1);
+    result.put("totalPages", postPage.getTotalPages());
+    result.put("hasNextPage", postPage.hasNext());
 
-    @GetMapping("/users/posts/{userId}")
-    public ApiResponse<List<PostResponse>> getUserPosts(@PathVariable String userId) {
-        var result = postService.getPostsByUserId(userId);
-        return ApiResponse.<List<PostResponse>>builder()
-                .result(result)
-                .build();
-    }
+    return ApiResponse.<Map<String, Object>>builder()
+        .code(1000)
+        .message("OK")
+        .result(result)
+        .build();
+  }
 
-    @PostMapping("/save/{postId}")
-    public ApiResponse<String> savePost(@PathVariable String postId) {
-        return ApiResponse.<String>builder()
-                .result(postSaveService.savePost(postId))
-                .build();
-    }
+  @GetMapping("/{postId}/likes")
+  public ApiResponse<List<PostLike>> getPostLikes(@PathVariable String postId) {
+    return ApiResponse.<List<PostLike>>builder()
+        .result(postService.getPostLikesByPostId(postId))
+        .build();
+  }
 
-    @PostMapping("/unsave/{postId}")
-    public ApiResponse<String> unsavePost(@PathVariable String postId) {
-        return ApiResponse.<String>builder()
-                .result(postSaveService.unsavePost(postId))
-                .build();
-    }
+  @GetMapping("/users/posts/{userId}")
+  public ApiResponse<List<PostResponse>> getUserPosts(@PathVariable String userId) {
+    var result = postService.getPostsByUserId(userId);
+    return ApiResponse.<List<PostResponse>>builder()
+        .result(result)
+        .build();
+  }
 
-    @GetMapping("/all-saved")
-    public ApiResponse<List<PostResponse>> getAllSavedPosts() {
-        return ApiResponse.<List<PostResponse>>builder()
-                .result(postSaveService.getAllSavedPost())
-                .build();
-    }
+  @PostMapping("/save/{postId}")
+  public ApiResponse<String> savePost(@PathVariable String postId) {
+    return ApiResponse.<String>builder()
+        .result(postSaveService.savePost(postId))
+        .build();
+  }
 
-    @GetMapping("/{id}")
-    public ApiResponse<PostResponse> getPostById(@PathVariable String id) {
-        return ApiResponse.<PostResponse>builder()
-                .result(postService.getPostById(id))
-                .build();
-    }
+  @PostMapping("/unsave/{postId}")
+  public ApiResponse<String> unsavePost(@PathVariable String postId) {
+    return ApiResponse.<String>builder()
+        .result(postSaveService.unsavePost(postId))
+        .build();
+  }
+
+  @GetMapping("/all-saved")
+  public ApiResponse<List<PostResponse>> getAllSavedPosts() {
+    return ApiResponse.<List<PostResponse>>builder()
+        .result(postSaveService.getAllSavedPost())
+        .build();
+  }
+
+  @GetMapping("/{id}")
+  public ApiResponse<PostResponse> getPostById(@PathVariable String id) {
+    return ApiResponse.<PostResponse>builder()
+        .result(postService.getPostById(id))
+        .build();
+  }
 }

@@ -60,4 +60,12 @@ public class WebSocketNotificationService {
     public void sendWebRTCSignal(String userId, Object signalData) {
         messagingTemplate.convertAndSendToUser(userId, "/queue/webrtc", signalData);
     }
+
+    /**
+     * Push moderation update realtime den user qua STOMP
+     * Client subscribe: /user/queue/moderation
+     */
+    public void sendModerationUpdate(String userId, Object moderationData) {
+        messagingTemplate.convertAndSendToUser(userId, "/queue/moderation", moderationData);
+    }
 }

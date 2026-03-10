@@ -18,6 +18,7 @@ public class CommentResponse {
     String firstName;
     String lastName;
     String postId;
+    String moderationStatus;
     Instant createdAt;
     Instant updatedAt;
 }

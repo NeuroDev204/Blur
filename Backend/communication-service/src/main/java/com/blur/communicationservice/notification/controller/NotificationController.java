@@ -1,6 +1,7 @@
 package com.blur.communicationservice.notification.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +10,7 @@ import com.blur.communicationservice.dto.ApiResponse;
 import com.blur.communicationservice.dto.event.Event;
 import com.blur.communicationservice.notification.entity.Notification;
 import com.blur.communicationservice.notification.service.NotificationService;
+import com.blur.communicationservice.websocket.service.WebSocketNotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.AccessLevel;
@@ -23,6 +25,7 @@ public class NotificationController {
     KafkaTemplate<String, String> kafkaTemplate;
     ObjectMapper objectMapper;
     NotificationService notificationService;
+    WebSocketNotificationService webSocketNotificationService;
 
     @PostMapping("/follow")
     public ApiResponse<?> sendFollowNotification(@RequestBody Event event) throws Exception {
@@ -78,5 +81,22 @@ public class NotificationController {
         return ApiResponse.<String>builder()
                 .result(notificationService.markAllAsRead())
                 .build();
+    }
+
+    @PostMapping("/moderation-update")
+    public ApiResponse<String> sendModerationUpdate(@RequestBody Map<String, String> request) {
+        String userId = request.get("userId");
+        String commentId = request.get("commentId");
+        String postId = request.get("postId");
+        String status = request.get("status");
+
+        var moderationData = Map.of(
+                "commentId", commentId,
+                "postId", postId,
+                "status", status,
+                "timestamp", System.currentTimeMillis());
+
+        webSocketNotificationService.sendModerationUpdate(userId, moderationData);
+        return ApiResponse.<String>builder().result("Moderation update sent").build();
     }
 }

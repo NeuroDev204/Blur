@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   BsBookmark,
   BsBookmarkFill,
@@ -27,8 +27,10 @@ import {
   replyToComment,
   savePost,
 } from "../../api/postApi";
+import { useModerationListener } from "../../hooks/useModerationListener";
 import { IoSend } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
+import ModerationWarningModal from "../Moderation/ModerationWarningModal";
 
 interface Like {
   userId: string;
@@ -53,6 +55,11 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   // Token is now handled automatically by axiosClient interceptors
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isModerationModalOpen,
+    onOpen: onModerationModalOpen,
+    onClose: onModerationModalClose,
+  } = useDisclosure();
   const [comment, setComment] = useState("");
   const navigate = useNavigate();
 
@@ -98,6 +105,28 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
     fetchData();
   }, [post?.id, user?.id, user?.userId]);
+
+  // ================== MODERATION LISTENER - REAL-TIME COMMENT HIDING ==================
+  const handleModerationUpdate = useCallback((update) => {
+    // Only handle updates for this post's comments
+    if (update.postId !== post?.id) return;
+
+    if (update.status === "REJECTED") {
+      // Replace comment content with hidden message
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === update.commentId
+            ? { ...c, content: "[Bình luận đã được ẩn bởi hệ thống kiểm duyệt]", moderationStatus: "REJECTED" }
+            : c
+        )
+      );
+
+      // Show modal warning
+      onModerationModalOpen();
+    }
+  }, [onModerationModalOpen, post?.id]);
+
+  useModerationListener(handleModerationUpdate);
 
   // 🖼️ Load image dimensions
   const handleImageLoad = (index, e) => {
@@ -222,25 +251,47 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       if (parentCommentId) {
         // Reply to existing comment
         const newReply = await replyToComment(parentCommentId, content);
-        setComments((prev) => [...prev, newReply]);
 
-        toast({
-          title: "Reply created successfully.",
-          status: "success",
-          duration: 2000,
-          position: "top-right",
-        });
+        // Kiểm tra nếu reply bị từ chối
+        if (newReply?.moderationStatus === "REJECTED") {
+          toast({
+            title: "Bình luận bị từ chối",
+            description: "Bình luận của bạn không được phép đăng vì vi phạm tiêu chuẩn cộng đồng",
+            status: "warning",
+            duration: 3000,
+            position: "top-right",
+          });
+        } else {
+          setComments((prev) => [...prev, newReply]);
+          toast({
+            title: "Reply created successfully.",
+            status: "success",
+            duration: 2000,
+            position: "top-right",
+          });
+        }
       } else {
         // Create root comment
         const createdComment = await createComment(post.id, content);
-        setComments((prev) => [...prev, createdComment]);
 
-        toast({
-          title: "Comment created successfully.",
-          status: "success",
-          duration: 2000,
-          position: "top-right",
-        });
+        // Kiểm tra nếu comment bị từ chối
+        if (createdComment?.moderationStatus === "REJECTED") {
+          toast({
+            title: "Bình luận bị từ chối",
+            description: "Bình luận của bạn không được phép đăng vì vi phạm tiêu chuẩn cộng đồng",
+            status: "warning",
+            duration: 3000,
+            position: "top-right",
+          });
+        } else {
+          setComments((prev) => [...prev, createdComment]);
+          toast({
+            title: "Comment created successfully.",
+            status: "success",
+            duration: 2000,
+            position: "top-right",
+          });
+        }
       }
 
       setComment("");
@@ -639,6 +690,11 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
         handlePostLike={handlePostLike}
         handleSavePost={handleSavePost}
         handleCreateComment={handleCreateComment}
+      />
+
+      <ModerationWarningModal
+        isOpen={isModerationModalOpen}
+        onClose={onModerationModalClose}
       />
     </div>
   );

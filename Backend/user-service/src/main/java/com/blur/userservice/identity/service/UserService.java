@@ -46,11 +46,10 @@ public class UserService {
     RoleRepository roleRepository;
     RedisTemplate<String, Object> redisTemplate;
 
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "users", allEntries = true),
-                    @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
-            })
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
+    })
     @Transactional // Dam bao MySQL + Neo4j cung trong 1 transaction
     public UserResponse createUser(UserCreationRequest request) {
         User user = userMapper.toUser(request);
@@ -96,11 +95,13 @@ public class UserService {
 
     @PreAuthorize("hasRole('ADMIN')")
     @Cacheable(value = "users", unless = "#result == null || #result.isEmpty()")
+    @Transactional(readOnly = true)
     public List<UserResponse> getUsers() {
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 
     @Cacheable(value = "userById", key = "#userId", unless = "#result == null")
+    @Transactional(readOnly = true)
     public User getUserById(String userId) {
         return userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
     }
@@ -111,17 +112,17 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "users", allEntries = true),
-                    @CacheEvict(value = "userById", key = "#userId"),
-                    @CacheEvict(value = "myInfo", key = "#root.target.getUsernameById(#userId)")
-            })
+    @Caching(evict = {
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "userById", key = "#userId"),
+            @CacheEvict(value = "myInfo", key = "#root.target.getUsernameById(#userId)")
+    })
     public void deleteUser(String userId) {
         userRepository.deleteById(userId);
     }
 
     @Cacheable(value = "myInfo", key = "#root.target.getCurrentUsername()", unless = "#result == null ")
+    @Transactional(readOnly = true)
     public UserResponse getMyInfo() {
         var context = SecurityContextHolder.getContext();
         String userId = context.getAuthentication().getName();

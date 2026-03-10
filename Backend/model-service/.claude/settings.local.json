@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/neuro/Documents/Blur/Backend -maxdepth 2 -name \".env*\" 2>/dev/null | sort)"
+    ]
+  }
+}
