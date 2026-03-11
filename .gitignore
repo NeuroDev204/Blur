@@ -7,10 +7,10 @@
 /Backend/profile-service/.env
 /Backend/story-service/.env
 
-/FULL_JAVA_IMPLEMENTATION.md
-/neo4j-follow-recommendation.md
-/blur-architecture-upgrade.md
-/blur-comprehensive-upgrade-guide.md
+/Backend/docs/FULL_JAVA_IMPLEMENTATION.md
+/Backend/docs/neo4j-follow-recommendation.md
+/Backend/docs/blur-architecture-upgrade.md
+/Backend/docs/blur-comprehensive-upgrade-guide.md
 # Large ML model artifacts
 *.safetensors
 /Backend/model-service/models/
@@ -33,5 +33,5 @@ __pycache__/
 /Backend/model-service/legacy/debug_*.html
 
 /Backend/model-service/.venv
-/Backend/blur-consolidation-and-upgrade-guide.md
+/Backend/docs/blur-consolidation-and-upgrade-guide.md
 /frontend/frontend-migration-guide.md
