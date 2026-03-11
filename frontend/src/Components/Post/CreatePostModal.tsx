@@ -28,6 +28,7 @@ import { createPost } from "../../api/postApi";
 import { BsEmojiSmile, BsImage, BsCameraVideo } from "react-icons/bs";
 import { MdClose } from "react-icons/md";
 import EmojiPicker from "emoji-picker-react";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const CreatePostModal = ({
   isOpen,
@@ -44,6 +45,7 @@ const CreatePostModal = ({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+  const { isDark } = useTheme();
 
   useOutsideClick({
     ref: emojiRef,
@@ -161,20 +163,19 @@ const CreatePostModal = ({
     <>
       <Modal isOpen={isOpen} onClose={handleCloseAttempt} size="4xl" isCentered>
         <ModalOverlay backdropFilter="blur(4px)" bg="blackAlpha.400" />
-        <ModalContent borderRadius="2xl" overflow="hidden" shadow="2xl">
-          {/* Header with gradient */}
+        <ModalContent borderRadius="2xl" overflow="hidden" shadow="2xl" bg={isDark ? "#1e293b" : "white"}>
+          {/* Header */}
           <ModalHeader
             textAlign="center"
             py={4}
-            bgGradient="linear(to-r, sky.50, blue.50)"
+            bg={isDark ? "#1e293b" : "sky.50"}
             borderBottom="1px"
-            borderColor="gray.100"
+            borderColor={isDark ? "#334155" : "gray.100"}
           >
             <Text
               fontSize="lg"
               fontWeight="bold"
-              bgGradient="linear(to-r, sky.600, blue.600)"
-              bgClip="text"
+              color={isDark ? "#e2e8f0" : "sky.600"}
             >
               Create New Post
             </Text>
@@ -185,7 +186,8 @@ const CreatePostModal = ({
             top={3}
             right={3}
             rounded="full"
-            _hover={{ bg: "gray.100" }}
+            color={isDark ? "#94a3b8" : "gray.500"}
+            _hover={{ bg: isDark ? "#334155" : "gray.100" }}
           />
 
           <ModalBody px={0} py={0}>
@@ -198,7 +200,7 @@ const CreatePostModal = ({
               {/* Left side - Media Preview */}
               <Box
                 flex="1.5"
-                bgGradient="linear(to-br, sky.50, blue.50, sky.100)"
+                bg={isDark ? "#0f172a" : "sky.50"}
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
@@ -300,14 +302,14 @@ const CreatePostModal = ({
                     )}
                   </Box>
                 ) : (
-                  <Box textAlign="center" color="gray.400">
+                  <Box textAlign="center" color={isDark ? "#64748b" : "gray.400"}>
                     <Box
                       w="24"
                       h="24"
                       mx="auto"
                       mb={4}
                       rounded="full"
-                      bgGradient="linear(to-br, sky.400, blue.500)"
+                      bg="sky.500"
                       display="flex"
                       alignItems="center"
                       justifyContent="center"
@@ -315,10 +317,10 @@ const CreatePostModal = ({
                     >
                       <BsImage size={48} color="white" />
                     </Box>
-                    <Text fontSize="sm" fontWeight="medium">
+                    <Text fontSize="sm" fontWeight="medium" color={isDark ? "#94a3b8" : "gray.500"}>
                       No media selected
                     </Text>
-                    <Text fontSize="xs" mt={1}>
+                    <Text fontSize="xs" mt={1} color={isDark ? "#64748b" : "gray.400"}>
                       Upload photos or videos to get started
                     </Text>
                   </Box>
@@ -332,7 +334,7 @@ const CreatePostModal = ({
                 display="flex"
                 flexDir="column"
                 gap={4}
-                bg="white"
+                bg={isDark ? "#1e293b" : "white"}
                 overflowY="auto"
                 maxH="600px"
               >
@@ -346,8 +348,11 @@ const CreatePostModal = ({
                     maxH="120px"
                     resize="none"
                     pr="40px"
-                    borderColor="gray.200"
-                    _hover={{ borderColor: "sky.300" }}
+                    bg={isDark ? "#0f172a" : "white"}
+                    color={isDark ? "#e2e8f0" : "gray.800"}
+                    borderColor={isDark ? "#334155" : "gray.200"}
+                    _placeholder={{ color: isDark ? "#64748b" : "gray.400" }}
+                    _hover={{ borderColor: isDark ? "#475569" : "sky.300" }}
                     _focus={{
                       borderColor: "sky.400",
                       boxShadow: "0 0 0 1px var(--chakra-colors-sky-400)",
@@ -395,14 +400,15 @@ const CreatePostModal = ({
                     <Box
                       cursor="pointer"
                       border="2px dashed"
-                      borderColor="sky.200"
+                      borderColor={isDark ? "#334155" : "sky.200"}
                       borderRadius="xl"
                       p={4}
                       textAlign="center"
                       transition="all 0.3s"
+                      bg={isDark ? "#0f172a" : "transparent"}
                       _hover={{
-                        bg: "sky.50",
-                        borderColor: "sky.400",
+                        bg: isDark ? "#1e293b" : "sky.50",
+                        borderColor: isDark ? "#475569" : "sky.400",
                         transform: "translateY(-2px)",
                       }}
                     >
@@ -412,7 +418,7 @@ const CreatePostModal = ({
                         mx="auto"
                         mb={2}
                         rounded="full"
-                        bgGradient="linear(to-br, sky.400, blue.500)"
+                        bg="sky.500"
                         display="flex"
                         alignItems="center"
                         justifyContent="center"
@@ -421,14 +427,14 @@ const CreatePostModal = ({
                       </Box>
                       <Text
                         fontWeight="semibold"
-                        color="gray.700"
+                        color={isDark ? "#cbd5e1" : "gray.700"}
                         fontSize="sm"
                       >
                         {mediaFiles.length > 0
                           ? `${mediaFiles.length} file(s) selected`
                           : "Select photos or videos"}
                       </Text>
-                      <Text fontSize="xs" color="gray.500" mt={1}>
+                      <Text fontSize="xs" color={isDark ? "#64748b" : "gray.500"} mt={1}>
                         Click to browse
                       </Text>
                       <Input
@@ -451,22 +457,22 @@ const CreatePostModal = ({
             px={6}
             py={4}
             borderTop="1px"
-            borderColor="gray.100"
-            bg="gray.50"
+            borderColor={isDark ? "#334155" : "gray.100"}
+            bg={isDark ? "#1e293b" : "gray.50"}
           >
             <Button
               onClick={handleCloseAttempt}
               variant="ghost"
               rounded="full"
               fontWeight="semibold"
-              color="gray.600"
-              _hover={{ bg: "gray.200", color: "gray.800" }}
+              color={isDark ? "#94a3b8" : "gray.600"}
+              _hover={{ bg: isDark ? "#334155" : "gray.200", color: isDark ? "#e2e8f0" : "gray.800" }}
             >
               Cancel
             </Button>
             <Button
-              bg="white"
-              color="sky.600"
+              bg={isDark ? "#1e293b" : "white"}
+              color="sky.400"
               onClick={handleSubmit}
               isLoading={isLoading}
               isDisabled={!content.trim() && mediaFiles.length === 0}
@@ -509,11 +515,11 @@ const CreatePostModal = ({
         isCentered
       >
         <AlertDialogOverlay backdropFilter="blur(4px)" />
-        <AlertDialogContent borderRadius="2xl" shadow="2xl">
-          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+        <AlertDialogContent borderRadius="2xl" shadow="2xl" bg={isDark ? "#1e293b" : "white"}>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold" color={isDark ? "#e2e8f0" : "gray.800"}>
             Discard post?
           </AlertDialogHeader>
-          <AlertDialogBody color="gray.600">
+          <AlertDialogBody color={isDark ? "#94a3b8" : "gray.600"}>
             Are you sure you want to discard this post? Your content will be
             lost.
           </AlertDialogBody>

@@ -8,6 +8,7 @@ import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 
@@ -24,6 +25,7 @@ public class UserProfile {
     @Property("user_id") // tuong nhu nhu column ben dbms khac
     String userId;
     String username;
+    String passwordHash;
     String firstName;
     String lastName;
     String bio;
@@ -42,6 +44,8 @@ public class UserProfile {
     Integer followingCount;
     Integer postCount;
     Boolean verified;
+    Boolean emailVerified;
+    List<String> roles;
 
     @JsonIgnore
     @Relationship(type = "follows", direction = Relationship.Direction.OUTGOING)

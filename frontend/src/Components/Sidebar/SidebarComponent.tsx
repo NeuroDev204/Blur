@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { IoReorderThreeOutline } from "react-icons/io5";
-import { MdLogout } from "react-icons/md";
+import { MdLogout, MdDarkMode, MdLightMode } from "react-icons/md";
 import { menuItems } from "./SidebarConfig";
 import { useNavigate } from "react-router-dom";
 import { useDisclosure, useToast } from "@chakra-ui/react";
@@ -10,6 +10,7 @@ import CreatePostModal from "../Post/CreatePostModal";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { fetchUserInfo } from "../../api/userApi";
 import { logoutUser } from "../../api/authAPI";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface User {
   id?: string;
@@ -32,6 +33,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
   const [activeTab, setActiveTab] = useState<string | undefined>();
   const [showDropdown, setShowDropdown] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const { isDark, toggleDark } = useTheme();
 
   const navigate = useNavigate();
   const toast = useToast();
@@ -114,7 +116,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
   return (
     <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 fixed top-0 left-0 h-screen transition-all duration-300 flex flex-col justify-between px-4 py-6 bg-white border-r border-gray-200 shadow-sm z-50">
+      <div className="w-64 fixed top-0 left-0 h-screen transition-all duration-300 flex flex-col justify-between px-4 py-6 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-sm z-50">
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <div className="relative group">
@@ -135,8 +137,8 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
               key={item.title}
               onClick={() => handleTabClick(item.title)}
               className={`group relative flex items-center gap-4 py-3 px-4 rounded-xl cursor-pointer transition-all duration-200 ${activeTab === item.title
-                ? "bg-gradient-to-r from-sky-50 to-blue-50 text-sky-600"
-                : "hover:bg-gray-50 text-gray-700"
+                ? "bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/30 text-sky-600"
+                : "hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                 }`}
             >
               {item.title === "Profile" && user ? (
@@ -188,7 +190,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
         {/* More Options */}
         <div className="relative mt-4">
           <div
-            className="flex items-center gap-4 py-3 px-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-all duration-200 text-gray-700 group"
+            className="flex items-center gap-4 py-3 px-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-all duration-200 text-gray-700 dark:text-gray-300 group"
             onClick={handleClick}
           >
             <IoReorderThreeOutline className="text-2xl group-hover:scale-105 transition-transform" />
@@ -196,13 +198,38 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
           </div>
 
           {showDropdown && (
-            <div className="absolute bottom-16 left-0 right-0 mx-2 bg-white shadow-xl border border-gray-100 rounded-xl overflow-hidden animate-slideUp">
+            <div className="absolute bottom-16 left-0 right-0 mx-2 bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 rounded-xl overflow-hidden animate-slideUp">
+              {/* Dark mode toggle */}
+              <button
+                onClick={toggleDark}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
+              >
+                <div className="relative w-5 h-5 flex items-center justify-center">
+                  {isDark ? (
+                    <MdLightMode className="text-lg text-yellow-400 group-hover:text-yellow-500 transition-colors" />
+                  ) : (
+                    <MdDarkMode className="text-lg text-gray-600 group-hover:text-indigo-500 transition-colors" />
+                  )}
+                </div>
+                <span className="font-medium text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white">
+                  {isDark ? "Light Mode" : "Dark Mode"}
+                </span>
+                {/* Toggle pill */}
+                <div className="ml-auto">
+                  <div className={`w-10 h-5 rounded-full transition-colors duration-300 flex items-center px-0.5 ${isDark ? "bg-indigo-500" : "bg-gray-300"}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform duration-300 ${isDark ? "translate-x-5" : "translate-x-0"}`} />
+                  </div>
+                </div>
+              </button>
+
+              <div className="h-px bg-gray-100 dark:bg-gray-700" />
+
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-red-50 transition-colors group"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group"
               >
-                <MdLogout className="text-lg text-gray-600 group-hover:text-red-500 transition-colors" />
-                <span className="font-medium text-gray-700 group-hover:text-red-600">
+                <MdLogout className="text-lg text-gray-600 dark:text-gray-400 group-hover:text-red-500 transition-colors" />
+                <span className="font-medium text-gray-700 dark:text-gray-200 group-hover:text-red-600">
                   Log Out
                 </span>
               </button>
@@ -212,7 +239,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 overflow-y-auto bg-gradient-to-b from-gray-50 to-white">
+      <div className="flex-1 ml-64 overflow-y-auto bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-900">
         {/* Content will be rendered here */}
       </div>
 

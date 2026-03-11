@@ -311,6 +311,8 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
   // Toggle like/unlike with optimistic update
   const handlePostLike = async () => {
+    if (post?.userId === (user?.userId || user?.id)) return;
+
     const previousLiked = isPostLiked;
     const previousLikes = [...likes];
 
@@ -426,8 +428,11 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   };
 
   const mediaUrls = Array.isArray(post?.mediaUrls) ? post.mediaUrls : [];
-  const handleClickUserName = () =>
-    navigate(`/profile/user/?profileId=${post?.profileId}`);
+  const handleClickUserName = () => {
+    if (post?.profileId && post.profileId !== "null") {
+      navigate(`/profile/user/?profileId=${post.profileId}`);
+    }
+  };
   const isCurrentUserPostOwner = post?.userId === (user?.userId || user?.id);
 
   // 🎥 Video controls
@@ -495,7 +500,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   return (
     <div className="bg-white shadow-lg hover:shadow-2xl rounded-3xl overflow-hidden mb-8 border-2 border-sky-100 hover:border-sky-300 transition-all duration-300 transform hover:-translate-y-1">
       {/* Header */}
-      <div className="flex justify-between items-center py-5 px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50">
+      <div className="flex justify-between items-center py-5 px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50 dark:bg-none dark:bg-[#1e293b]">
         <div className="flex items-center gap-4">
           <div
             className="relative group cursor-pointer"
@@ -561,7 +566,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
       {/* Media */}
       {mediaUrls.length > 0 && (
-        <div className="relative w-full bg-gradient-to-br from-sky-50 to-gray-50">
+        <div className="relative w-full bg-gradient-to-br from-sky-50 to-gray-50 dark:bg-none dark:bg-[#1e293b]">
           <Swiper
             spaceBetween={0}
             slidesPerView={1}
@@ -608,11 +613,12 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       )}
 
       {/* Actions */}
-      <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-white to-sky-50/30">
+      <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-white to-sky-50/30 dark:bg-none dark:bg-[#1e293b]">
         <div className="flex items-center gap-5">
           <button
             onClick={handlePostLike}
-            className="group transition-transform hover:scale-110 active:scale-95 duration-200"
+            disabled={post?.userId === (user?.userId || user?.id)}
+            className="group transition-transform hover:scale-110 active:scale-95 duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isPostLiked ? (
               <AiFillHeart className="text-2xl text-red-500 animate-pulse" />
@@ -655,7 +661,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       </div>
 
       {/* Add Comment */}
-      <div className="border-t border-sky-100 px-6 py-4 flex items-center gap-3 bg-gradient-to-r from-sky-50/50 to-white">
+      <div className="border-t border-sky-100 px-6 py-4 flex items-center gap-3 bg-gradient-to-r from-sky-50/50 to-white dark:bg-none dark:bg-[#1e293b]">
         <BsEmojiSmile className="text-xl text-gray-400" />
         <input
           className="flex-1 outline-none text-sm placeholder-gray-400 bg-transparent py-2 px-1"

@@ -6,7 +6,7 @@ import { OAuthConfig } from "../../Config/configuration"
 import axios from "axios"
 
 const STORAGE_KEY = "rememberedCredentials"
-const API_LOGIN_URL = "http://localhost:8888/api/identity/auth/token"
+const API_LOGIN_URL = "http://localhost:8888/api/auth/token"
 
 interface FormData {
     username: string

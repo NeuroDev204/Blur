@@ -2,7 +2,7 @@ import axiosClient from './axiosClient'
 import { ApiResponse, RegistrationData } from '../types/api.types'
 
 export const registerUser = async <T = unknown>(data: RegistrationData): Promise<T> => {
-    const response = await axiosClient.post<ApiResponse<T>>('/identity/users/registration', data)
+    const response = await axiosClient.post<ApiResponse<T>>('/users/registration', data)
     if (response.data?.code !== 1000) {
         throw new Error(response.data?.message || 'Registration failed')
     }
@@ -10,7 +10,7 @@ export const registerUser = async <T = unknown>(data: RegistrationData): Promise
 }
 
 export const loginUser = async (username: string, password: string): Promise<boolean> => {
-    const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/identity/auth/token', {
+    const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/auth/token', {
         username,
         password,
     })
@@ -24,13 +24,13 @@ export const loginUser = async (username: string, password: string): Promise<boo
 
 export const logoutUser = async (): Promise<void> => {
     // Server sẽ đọc token từ cookie và xóa cookie
-    await axiosClient.post('/identity/auth/logout')
+    await axiosClient.post('/auth/logout')
 }
 
 export const introspectToken = async (): Promise<boolean> => {
     try {
         // Server sẽ đọc token từ cookie
-        const response = await axiosClient.post<ApiResponse<{ valid: boolean }>>('/identity/auth/introspect')
+        const response = await axiosClient.post<ApiResponse<{ valid: boolean }>>('/auth/introspect')
         return response.data?.result?.valid ?? false
     } catch {
         // Nếu có lỗi (401, network error, etc.), return false
@@ -39,6 +39,6 @@ export const introspectToken = async (): Promise<boolean> => {
 }
 
 export const refreshToken = async (): Promise<boolean> => {
-    const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/identity/auth/refresh')
+    const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/auth/refresh')
     return response.data?.result?.authenticated ?? false
 }

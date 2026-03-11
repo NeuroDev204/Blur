@@ -1,6 +1,6 @@
 package com.blur.apigateway.configuration;
 
-import com.blur.apigateway.repository.IdentityClient;
+import com.blur.apigateway.repository.ProfileAuthClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
@@ -21,7 +21,7 @@ import java.util.List;
 public class WebClientConfiguration {
 
     @Value("${app.services.user}")
-    private String identityServiceUrl;
+    private String userServiceUrl;
 
     @Value("${app.services.communication}")
     private String chatServiceUrl;
@@ -44,16 +44,16 @@ public class WebClientConfiguration {
     @Bean
     public WebClient webClient() {
         return WebClient.builder()
-                .baseUrl(identityServiceUrl)
+                .baseUrl(userServiceUrl)
                 .build();
     }
 
     @Bean
-    IdentityClient identityClient(WebClient webClient) {
+    ProfileAuthClient profileAuthClient(WebClient webClient) {
         HttpServiceProxyFactory httpServiceProxyFactory = HttpServiceProxyFactory
                 .builderFor(WebClientAdapter.create(webClient))
                 .build();
-        return httpServiceProxyFactory.createClient(IdentityClient.class);
+        return httpServiceProxyFactory.createClient(ProfileAuthClient.class);
     }
 
     @Bean

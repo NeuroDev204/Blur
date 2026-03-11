@@ -1,7 +1,7 @@
 package com.blur.apigateway.configuration;
 
 import com.blur.apigateway.dto.response.ApiResponse;
-import com.blur.apigateway.service.IdentityService;
+import com.blur.apigateway.service.AuthService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
@@ -30,16 +30,17 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationFilter implements GlobalFilter, Ordered {
   private static final String ACCESS_TOKEN_COOKIE_NAME = "access_token";
-  IdentityService identityService;
+  AuthService authService;
   ObjectMapper objectMapper;
   @NonFinal
   final
   String[] publicEndpoints = {
-      "/identity/auth/.*",
-      "/identity/users/registration.*",
+      "/auth/.*",
+      "/users/registration.*",
+      "/users/registrations.*",
       "/notification/email/send.*",
       "/actuator/.*",
-      "/identity/test-data/.*",
+      "/test-data/.*",
       "/profile/internal/generate-follows",
       "/profile/internal/generate-cities"
   };
@@ -81,7 +82,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     final String finalToken = token;
 
     // Verify token
-    return identityService.introspect(token)
+    return authService.introspect(token)
         .flatMap(introspectResponse -> {
           if (introspectResponse.getResult() != null && introspectResponse.getResult().isValid()) {
 

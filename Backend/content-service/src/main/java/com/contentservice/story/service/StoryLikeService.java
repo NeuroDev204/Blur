@@ -3,7 +3,7 @@ package com.contentservice.story.service;
 import com.contentservice.post.dto.event.Event;
 import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
-import com.contentservice.post.repository.httpclient.IdentityClient;
+import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.story.entity.StoryLike;
 import com.contentservice.story.repository.StoryLikeRepository;
@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 public class StoryLikeService {
     StoryLikeRepository storyLikeRepository;
     StoryRepository storyRepository;
-    IdentityClient identityClient;
+    ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
 
     @CacheEvict(value = "storyLikes", key = "#storyId")
@@ -40,13 +40,13 @@ public class StoryLikeService {
                 .updatedAt(story.getUpdatedAt())
                 .build();
         storyLikeRepository.save(storyLike);
-        var user = identityClient.getUser(story.getAuthorId());
+        var receiverProfile = profileClient.getProfile(story.getAuthorId()).getResult();
         Event event = Event.builder()
                 .senderName(story.getFirstName() + " " + story.getLastName())
                 .senderId(userId)
-                .receiverEmail(user.getResult().getEmail())
-                .receiverId(user.getResult().getId())
-                .receiverName(user.getResult().getUsername())
+                .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
+                .receiverId(story.getAuthorId())
+                .receiverName(receiverProfile != null ? receiverProfile.getUsername() : "Unknown")
                 .timestamp(LocalDateTime.now())
                 .build();
         notificationEventPublisher.publishLikeStoryEvent(event);

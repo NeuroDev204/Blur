@@ -10,7 +10,7 @@ import com.blur.communicationservice.dto.response.UserProfileResponse;
 
 @FeignClient(
         name = "profile-service",
-        url = "${app.services.user-service-base:http://localhost:8081}",
+        url = "${app.services.profile.url:http://localhost:8081}",
         configuration = {AuthenticationRequestInterceptor.class})
 public interface ProfileClient {
 

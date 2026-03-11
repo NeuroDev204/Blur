@@ -3,6 +3,117 @@
 @tailwind utilities;
 
 /* ===================================
+   DARK MODE — GLOBAL OVERRIDES
+   Applies when <html class="dark">
+   =================================== */
+
+/* Smooth transitions for dark mode toggle */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+/* Don't slow down real animations */
+.animate-ping, .animate-pulse, .animate-bounce, .animate-spin,
+[class*="animate-"] {
+  transition: none;
+}
+
+/* ── Base ── */
+.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* ── Backgrounds ── */
+.dark .bg-white             { background-color: #1e293b !important; }
+.dark .bg-gray-50           { background-color: #0f172a !important; }
+.dark .bg-gray-100          { background-color: #1e293b !important; }
+.dark .bg-gray-200          { background-color: #334155 !important; }
+.dark .bg-sky-50            { background-color: #0f172a !important; }
+.dark .bg-sky-100           { background-color: #1e293b !important; }
+
+/* ── Neutralise pale gradient stops (card headers, page backgrounds) ── */
+/* These make from-sky-50/from-white/etc. render as dark solid instead of pale fade */
+.dark .from-sky-50    { --tw-gradient-from: #1e293b !important; }
+.dark .from-sky-50\/50{ --tw-gradient-from: #1e293b !important; }
+.dark .via-white      { --tw-gradient-via:  #1e293b !important; }
+.dark .to-sky-50      { --tw-gradient-to:   #1e293b !important; }
+.dark .to-sky-50\/30  { --tw-gradient-to:   #1e293b !important; }
+.dark .from-white     { --tw-gradient-from: #1e293b !important; }
+.dark .to-white       { --tw-gradient-to:   #1e293b !important; }
+.dark .from-gray-50   { --tw-gradient-from: #0f172a !important; }
+.dark .to-gray-50     { --tw-gradient-to:   #0f172a !important; }
+.dark .via-sky-50     { --tw-gradient-via:  #1e293b !important; }
+.dark .to-blue-50     { --tw-gradient-to:   #1e293b !important; }
+.dark .from-blue-50   { --tw-gradient-from: #1e293b !important; }
+.dark .via-sky-50\/30 { --tw-gradient-via:  transparent !important; }
+
+/* For gradient elements whose ALL stops are pale, flatten to solid bg */
+.dark .bg-gradient-to-r,
+.dark .bg-gradient-to-b,
+.dark .bg-gradient-to-br,
+.dark .bg-gradient-to-tr {
+  /* Override only if the element also has a pale from- class.
+     We do this by resetting the gradient image for elements
+     that contain only light-palette stops. The gradient-from
+     override above changes the CSS variable, so the rendered
+     gradient becomes from-#1e293b to-#1e293b = flat. */
+}
+
+/* ── Text ── */
+.dark .text-gray-900        { color: #f1f5f9 !important; }
+.dark .text-gray-800        { color: #e2e8f0 !important; }
+.dark .text-gray-700        { color: #cbd5e1 !important; }
+.dark .text-gray-600        { color: #94a3b8 !important; }
+.dark .text-gray-500        { color: #64748b !important; }
+.dark .text-black           { color: #f1f5f9 !important; }
+
+/* ── Borders ── */
+.dark .border-gray-100      { border-color: #334155 !important; }
+.dark .border-gray-200      { border-color: #334155 !important; }
+.dark .border-sky-100       { border-color: #1e3a5f !important; }
+.dark .border-sky-200       { border-color: #1e3a5f !important; }
+.dark .divide-gray-100 > * + * { border-color: #334155 !important; }
+
+/* ── Shadows ── */
+.dark .shadow-sm            { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+.dark .shadow               { box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important; }
+.dark .shadow-md            { box-shadow: 0 4px 8px rgba(0,0,0,0.4) !important; }
+.dark .shadow-lg            { box-shadow: 0 8px 16px rgba(0,0,0,0.5) !important; }
+.dark .shadow-xl            { box-shadow: 0 12px 24px rgba(0,0,0,0.5) !important; }
+
+/* ── Hover backgrounds ── */
+.dark .hover\:bg-gray-50:hover  { background-color: #1e293b !important; }
+.dark .hover\:bg-gray-100:hover { background-color: #334155 !important; }
+.dark .hover\:bg-sky-50:hover   { background-color: #1e293b !important; }
+.dark .hover\:bg-red-50:hover   { background-color: rgba(127,29,29,0.2) !important; }
+
+/* ── Sidebar ── */
+.dark .border-r             { border-right-color: #334155 !important; }
+
+/* ── Cards / Modals ── */
+.dark .rounded-3xl.bg-white,
+.dark .rounded-2xl.bg-white,
+.dark .rounded-xl.bg-white  { background-color: #1e293b !important; }
+
+/* ── Inputs ── */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder { color: #64748b !important; }
+
+/* ── Scrollbar ── */
+.dark ::-webkit-scrollbar-track { background: #0f172a; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ===================================
    NOTIFICATION ANIMATIONS & UTILITIES
    Không cần thay đổi tailwind.config.js
    =================================== */

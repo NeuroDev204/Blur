@@ -62,7 +62,7 @@ const ProfileUserDetails = () => {
       }
     };
 
-    if (profileId) {
+    if (profileId && profileId !== "null") {
       fetchData();
     }
   }, [profileId]);

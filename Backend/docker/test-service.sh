@@ -19,12 +19,10 @@ test_endpoint() {
 }
 
 echo "Backend Services:"
-test_endpoint "Identity Service" "http://localhost:8080/identity/actuator/health"
-test_endpoint "Profile Service" "http://localhost:8081/profile/actuator/health"
+test_endpoint "Profile Service" "http://localhost:8081/actuator/health"
+test_endpoint "Content Service" "http://localhost:8082/actuator/health"
 test_endpoint "Notification Service" "http://localhost:8082/notification/actuator/health"
 test_endpoint "Chat Service" "http://localhost:8083/chat/actuator/health"
-test_endpoint "Post Service" "http://localhost:8084/post/actuator/health"
-test_endpoint "Story Service" "http://localhost:8086/stories/actuator/health"
 test_endpoint "API Gateway" "http://localhost:8888/actuator/health"
 
 echo ""

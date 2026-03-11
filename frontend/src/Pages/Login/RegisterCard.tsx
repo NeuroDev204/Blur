@@ -26,7 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { OAuthConfig } from "../../Config/configuration";
 import axios, { AxiosError } from "axios";
 
-const API_REGISTER_URL = "http://localhost:8888/api/identity/users/registration";
+const API_REGISTER_URL = "http://localhost:8888/api/users/registration";
 
 interface FormData {
     username: string;

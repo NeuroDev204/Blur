@@ -8,10 +8,13 @@ spring:
   application:
     name: ${SPRING_APPLICATION_NAME:content-service}
 
-  data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://root:root@localhost:27017/content-service?authSource=admin}
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: neo4j
+      password: ${NEO4J_PASSWORD:12345678}
 
+  data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -34,8 +37,6 @@ spring:
 
 app:
   service:
-    identity:
-      url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
     profile:
       url: ${PROFILE_SERVICE_URL:http://localhost:8081}
 

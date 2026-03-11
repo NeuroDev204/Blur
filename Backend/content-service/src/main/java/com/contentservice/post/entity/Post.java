@@ -1,21 +1,28 @@
 package com.contentservice.post.entity;
 
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.MongoId;
+import org.springframework.data.neo4j.core.schema.GeneratedValue;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import java.time.Instant;
 import java.util.List;
 
 @Data
 @Builder
-@Document(value = "post")
+@NoArgsConstructor
+@AllArgsConstructor
+@Node("post")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Post {
-    @MongoId
+    @Id
+    @GeneratedValue(generatorClass = UUIDStringGenerator.class)
     String id;
     String userId;
     String profileId;

@@ -9,8 +9,6 @@ import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.CommentMapper;
 import com.contentservice.post.repository.CommentReplyRepository;
 import com.contentservice.post.repository.CommentRepository;
-import com.contentservice.post.repository.PostRepository;
-import com.contentservice.post.repository.httpclient.IdentityClient;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
 import lombok.AccessLevel;
@@ -38,9 +36,7 @@ public class CommentReplyService {
     CommentRepository commentRepository;
     CommentMapper commentMapper;
     ProfileClient profileClient;
-    IdentityClient identityClient;
     NotificationEventPublisher notificationEventPublisher;
-    PostRepository postRepository;
 
     @Caching(evict = {
             @CacheEvict(value = "commentReplies", key = "#commentId"),
@@ -78,8 +74,7 @@ public class CommentReplyService {
         String senderImageUrl = senderProfile.getImageUrl();
 
         if (senderFullName.isEmpty()) {
-            var senderIdentity = identityClient.getUser(currentUserId);
-            senderFullName = senderIdentity.getResult().getUsername();
+            senderFullName = senderProfile.getUsername();
         }
 
         // 4. Tạo CommentReply
@@ -110,38 +105,35 @@ public class CommentReplyService {
 
 
         try {
-            // Lấy thông tin sender từ Identity
-            var senderIdentity = identityClient.getUser(currentUserId);
-
-            // Lấy thông tin receiver
-            var receiverIdentity = identityClient.getUser(receiverUserId);
             var receiverProfileRes = profileClient.getProfile(receiverUserId);
             var receiverProfile = receiverProfileRes.getResult();
 
-            String receiverFirstName = receiverProfile.getFirstName() != null ? receiverProfile.getFirstName() : "";
-            String receiverLastName = receiverProfile.getLastName() != null ? receiverProfile.getLastName() : "";
+            String receiverFirstName = receiverProfile != null && receiverProfile.getFirstName() != null
+                    ? receiverProfile.getFirstName()
+                    : "";
+            String receiverLastName = receiverProfile != null && receiverProfile.getLastName() != null
+                    ? receiverProfile.getLastName()
+                    : "";
             String receiverFullName = (receiverFirstName + " " + receiverLastName).trim();
 
             if (receiverFullName.isEmpty()) {
-                receiverFullName = receiverIdentity.getResult().getUsername();
+                receiverFullName = receiverProfile != null ? receiverProfile.getUsername() : "Unknown";
             }
 
-            // Tạo Event
             Event event = Event.builder()
                     .postId(comment.getPostId())
-                    .senderId(senderIdentity.getResult().getId())
+                    .senderId(currentUserId)
                     .senderName(senderFullName)
                     .senderFirstName(senderFirstName)
                     .senderLastName(senderLastName)
                     .senderImageUrl(senderImageUrl)
-                    .receiverId(receiverIdentity.getResult().getId())
+                    .receiverId(receiverUserId)
                     .receiverName(receiverFullName)
-                    .receiverEmail(receiverIdentity.getResult().getEmail())
+                    .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
                     .timestamp(LocalDateTime.now())
                     .build();
 
 
-            // GỬI NOTIFICATION QUA FEIGN CLIENT
             notificationEventPublisher.publishReplyCommentEvent(event);
 
 

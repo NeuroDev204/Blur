@@ -1,13 +1,13 @@
 package com.contentservice.post.repository;
 
 import com.contentservice.post.entity.PostLike;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface PostLikeRepository extends MongoRepository<PostLike, String> {
+public interface PostLikeRepository extends Neo4jRepository<PostLike, String> {
     // ✅ Kiểm tra người dùng đã like bài viết chưa
     boolean existsByUserIdAndPostId(String userId, String postId);
 
