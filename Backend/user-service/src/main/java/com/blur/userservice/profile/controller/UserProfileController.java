@@ -1,6 +1,6 @@
 package com.blur.userservice.profile.controller;
 
-import com.blur.userservice.identity.dto.request.ApiResponse;
+import com.blur.userservice.profile.dto.ApiResponse;
 import com.blur.userservice.profile.dto.request.UserProfileUpdateRequest;
 import com.blur.userservice.profile.dto.response.UserProfileResponse;
 import com.blur.userservice.profile.mapper.UserProfileMapper;

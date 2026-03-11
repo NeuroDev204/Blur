@@ -33,7 +33,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
   stories = [],
   isAddNew = false,
   onStoryCreated,
-  user
+  user,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -47,7 +47,7 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
   };
 
   const handleStoryCreated = (newStory: Story) => {
-    if (onStoryCreated && typeof onStoryCreated === 'function') {
+    if (onStoryCreated && typeof onStoryCreated === "function") {
       onStoryCreated(newStory);
     }
     setShowCreateModal(false);
@@ -56,108 +56,91 @@ const StoryCircle: React.FC<StoryCircleProps> = ({
   const userStories = stories.length > 0 ? stories : story ? [story] : [];
 
   const getDisplayName = () => {
-    if (isAddNew) return "Tạo tin";
-    if (!story) return "Người dùng";
-    if (story.firstName) return `${story.firstName} ${story.lastName || ""}`.trim();
-    return story.username || "Người dùng";
+    if (isAddNew) return "Add Story";
+    if (!story) return "User";
+    if (story.firstName)
+      return `${story.firstName} ${story.lastName || ""}`.trim();
+    return story.username || "User";
   };
 
+  const getMediaPreview = () => story?.thumbnailUrl || story?.mediaUrl;
   const isVideo = story?.mediaType === "video";
-
-  const getMediaPreview = () => {
-    if (isVideo && story?.thumbnailUrl) {
-      return story.thumbnailUrl;
-    }
-    return story?.thumbnailUrl;
-  };
+  const avatarSrc =
+    user?.imageUrl ||
+    "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png";
 
   const renderAddStory = () => (
     <div
       onClick={handleOpenStory}
-      className="cursor-pointer w-28 h-48 rounded-2xl overflow-hidden bg-gradient-to-br from-sky-50 to-blue-50 relative group shadow-md hover:shadow-xl transition-all duration-300 border border-sky-100"
+      className="flex flex-col items-center gap-2 cursor-pointer group"
     >
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-sky-100/30 to-transparent group-hover:from-sky-200/40 transition-all duration-300" />
-
-      {/* Plus icon with animated ring */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative">
-          {/* Animated ring */}
-          <div className="absolute inset-0 w-16 h-16 rounded-full bg-sky-400/20 animate-ping" />
-          {/* Main button */}
-          <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-white text-3xl font-light shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300">
-            <span className="transform group-hover:rotate-90 transition-transform duration-300">+</span>
+      {/* Circle with gradient ring */}
+      <div className="relative">
+        {/* Outer gradient ring (dashed/dotted for "add" style) */}
+        <div className="w-[68px] h-[68px] rounded-full p-[2px] bg-gradient-to-br from-gray-300 to-gray-400 group-hover:from-sky-400 group-hover:to-blue-500 transition-all duration-300 shadow-md">
+          <div className="w-full h-full rounded-full overflow-hidden border-2 border-white">
+            <img
+              src={avatarSrc}
+              alt="You"
+              className="w-full h-full object-cover"
+            />
           </div>
         </div>
+        {/* Plus badge */}
+        <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 border-2 border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
+          <span className="text-white text-sm font-bold leading-none">+</span>
+        </div>
       </div>
-
-      {/* Label with gradient text */}
-      <div className="absolute bottom-3 left-0 right-0 text-center">
-        <span className="text-sm font-semibold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent drop-shadow">
-          Tạo tin
-        </span>
-      </div>
+      {/* Label */}
+      <p className="text-xs font-medium text-gray-600 group-hover:text-sky-600 transition-colors duration-200 text-center w-16 truncate">
+        {getDisplayName()}
+      </p>
     </div>
   );
 
   const renderStoryItem = () => (
     <div
       onClick={handleOpenStory}
-      className="cursor-pointer w-28 h-48 rounded-2xl overflow-hidden relative group shadow-md hover:shadow-xl transition-all duration-300"
+      className="flex flex-col items-center gap-2 cursor-pointer group"
     >
-      {/* Media content */}
-      {isVideo ? (
-        <video
-          src={story?.mediaUrl}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          muted
-          loop
-          autoPlay
-          playsInline
-        />
-      ) : (
-        <img
-          src={getMediaPreview()}
-          alt="story"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-      )}
-
-      {/* Gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-      <div className="absolute inset-0 bg-sky-500/0 group-hover:bg-sky-500/10 transition-colors duration-300" />
-
-      {/* Avatar with sky blue ring */}
-      <div className="absolute top-3 left-3 w-11 h-11 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 p-0.5 shadow-lg">
-        <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5">
-          <img
-            src={user?.imageUrl || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"}
-            alt="avatar"
-            className="w-full h-full object-cover rounded-full"
-          />
+      {/* Circle with colorful gradient ring */}
+      <div className="relative">
+        {/* Gradient ring */}
+        <div className="w-[68px] h-[68px] rounded-full p-[2.5px] bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 group-hover:from-pink-500 group-hover:via-orange-400 group-hover:to-yellow-400 transition-all duration-300 shadow-lg group-hover:shadow-pink-200">
+          <div className="w-full h-full rounded-full overflow-hidden border-2 border-white">
+            {isVideo ? (
+              <video
+                src={story?.mediaUrl}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={getMediaPreview()}
+                alt="story"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              />
+            )}
+          </div>
         </div>
+        {/* Video badge */}
+        {isVideo && (
+          <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 border-2 border-white flex items-center justify-center shadow">
+            <svg
+              className="w-2.5 h-2.5 text-white"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
       </div>
-
-      {/* Username with better readability */}
-      <div className="absolute bottom-3 left-3 right-3">
-        <p className="text-sm font-semibold text-white line-clamp-1 drop-shadow-lg">
-          {getDisplayName()}
-        </p>
-      </div>
-
-      {/* Video indicator */}
-      {isVideo && (
-        <div className="absolute top-3 right-3 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full p-1.5 shadow-lg">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 text-white"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
-      )}
+      {/* Username */}
+      <p className="text-xs font-medium text-gray-700 group-hover:text-pink-600 transition-colors duration-200 text-center w-16 truncate">
+        {getDisplayName()}
+      </p>
     </div>
   );
 

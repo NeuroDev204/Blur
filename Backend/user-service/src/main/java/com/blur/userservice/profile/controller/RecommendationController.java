@@ -1,6 +1,6 @@
 package com.blur.userservice.profile.controller;
 
-import com.blur.userservice.identity.dto.request.ApiResponse;
+import com.blur.userservice.profile.dto.ApiResponse;
 import com.blur.userservice.profile.dto.response.RecommendationPageResponse;
 import com.blur.userservice.profile.service.UserProfileService;
 import lombok.AccessLevel;

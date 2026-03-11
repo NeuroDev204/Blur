@@ -11,7 +11,6 @@ import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.PostMapper;
 import com.contentservice.post.repository.PostLikeRepository;
 import com.contentservice.post.repository.PostRepository;
-import com.contentservice.post.repository.httpclient.IdentityClient;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.story.dto.response.ApiResponse;
@@ -38,19 +37,20 @@ public class PostService {
     ProfileClient profileClient;
     PostLikeRepository postLikeRepository;
     NotificationEventPublisher notificationEventPublisher;
-    IdentityClient identityClient;
 
     @Transactional
     public PostResponse createPost(PostRequest postRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
         var profile = profileClient.getProfile(userId);
+        var profileResult = profile.getResult();
         Post post = Post.builder()
                 .content(postRequest.getContent())
                 .mediaUrls(postRequest.getMediaUrls())
                 .userId(userId)
-                .firstName(profile.getResult().getFirstName())
-                .lastName(profile.getResult().getLastName())
+                .profileId(profileResult != null ? profileResult.getId() : null)
+                .firstName(profileResult != null ? profileResult.getFirstName() : null)
+                .lastName(profileResult != null ? profileResult.getLastName() : null)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -89,7 +89,7 @@ public class PostService {
 
     public Page<PostResponse> getAllPots(int page, int limit) {
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by("createdAt").descending());
-        Page<Post> postPage = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+        Page<Post> postPage = postRepository.findAll(pageable);
 
         List<PostResponse> responses = postPage.getContent().stream().map(post -> {
             String userName = "Unknown";
@@ -128,11 +128,6 @@ public class PostService {
     public List<PostResponse> getMyPosts() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
-        UserProfileResponse userProfile = null;
-        try {
-            userProfile = profileClient.getProfile(userId).getResult();
-        } catch (Exception e) {
-        }
         return postRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream().map(postMapper::toPostResponse)
                 .collect(Collectors.toList());
@@ -170,16 +165,20 @@ public class PostService {
 
             // ✅ GỬI THÔNG BÁO ĐẾN CHỦ BÀI VIẾT (CHỈ KHI LIKE)
             try {
-                var sender = identityClient.getUser(userId);
-                var receiver = identityClient.getUser(post.getUserId());
+                var senderProfile = profileClient.getProfile(userId).getResult();
+                var receiverProfile = profileClient.getProfile(post.getUserId()).getResult();
 
                 Event event = Event.builder()
                         .postId(postId)
-                        .senderId(sender.getResult().getId())
-                        .senderName(sender.getResult().getUsername())
-                        .receiverId(receiver.getResult().getId())
-                        .receiverEmail(receiver.getResult().getEmail())
-                        .receiverName(receiver.getResult().getUsername())
+                        .senderId(userId)
+                        .senderName(senderProfile != null
+                                ? senderProfile.getFirstName() + " " + senderProfile.getLastName()
+                                : "Unknown")
+                        .receiverId(post.getUserId())
+                        .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
+                        .receiverName(receiverProfile != null
+                                ? receiverProfile.getUsername()
+                                : "Unknown")
                         .timestamp(LocalDateTime.now())
                         .build();
 

@@ -66,8 +66,6 @@ app:
   services:
     profile:
       url: ${PROFILE_SERVICE_URL:http://localhost:8081}
-    identity:
-      url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   call:
     ring-timeout: 60
     max-duration: 3600

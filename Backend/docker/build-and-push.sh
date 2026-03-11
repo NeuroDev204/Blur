@@ -30,8 +30,7 @@ build_and_push() {
 }
 
 build_and_push "api-gateway" "../api-gateway"
-build_and_push "identity-service" "../IdentityService"
-build_and_push "profile-service" "../profile-service"
+build_and_push "profile-service" "../user-service"
 build_and_push "notification-service" "../notification-service"
 build_and_push "chat-service" "../chat-service"
 build_and_push "post-service" "../post-service"

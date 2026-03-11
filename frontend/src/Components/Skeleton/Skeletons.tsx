@@ -37,7 +37,8 @@ export const PostSkeleton: React.FC = () => (
  * Mimics the layout of StoryCircle with animated placeholder.
  */
 export const StorySkeleton: React.FC = () => (
-    <div className="flex flex-col items-center flex-shrink-0">
-        <div className="w-20 h-28 rounded-2xl bg-gradient-to-br from-sky-100 to-blue-100 animate-pulse"></div>
+    <div className="flex flex-col items-center gap-2 flex-shrink-0">
+        <div className="w-[68px] h-[68px] rounded-full bg-gray-200 animate-pulse" />
+        <div className="w-12 h-2.5 rounded-full bg-gray-200 animate-pulse" />
     </div>
 );

@@ -2,6 +2,7 @@ package com.contentservice.post.exception;
 
 import com.contentservice.story.dto.response.ApiResponse;
 import jakarta.validation.ConstraintViolation;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 import java.util.Objects;
 
+@Slf4j
 @RestControllerAdvice
 
 @SuppressWarnings("rawtypes")
@@ -19,6 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = RuntimeException.class)
     ResponseEntity<ApiResponse> handleRuntimeException(final Exception e) {
+        log.error("Unhandled RuntimeException: {}", e.getMessage(), e);
         ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
 
         return ResponseEntity.badRequest()

@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.blur.communicationservice.dto.ApiResponse;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestControllerAdvice
 @SuppressWarnings("rawtypes")
 public class GlobalExceptionHandler {
@@ -14,6 +17,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = RuntimeException.class)
     ResponseEntity<ApiResponse> handleRuntimeException(final Exception e) {
+        log.error("Unhandled RuntimeException: {}", e.getMessage(), e);
         ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
 
         return ResponseEntity.badRequest()

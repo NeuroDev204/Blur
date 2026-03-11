@@ -39,7 +39,7 @@ const Authenticate: React.FC = () => {
         if (isMatch) {
             const authCode = isMatch[1];
             fetch(
-                `/api/identity/auth/outbound/authentication?code=${authCode}`,
+                `http://localhost:8888/api/auth/outbound/authentication?code=${authCode}`,
                 {
                     method: "POST",
                     credentials: "include", // ⭐ QUAN TRỌNG: Cho phép nhận cookie
@@ -62,7 +62,7 @@ const Authenticate: React.FC = () => {
     const getUserDetails = async () => {
         try {
             const response = await fetch(
-                "http://localhost:8888/api/identity/users/",
+                "http://localhost:8888/api/users/me",
                 {
                     method: "GET",
                     credentials: "include", // ⭐ Gửi cookie tự động
@@ -82,7 +82,7 @@ const Authenticate: React.FC = () => {
         const checkAuth = async () => {
             try {
                 const response = await fetch(
-                    "http://localhost:8888/api/identity/auth/introspect",
+                    "http://localhost:8888/api/auth/introspect",
                     {
                         method: "POST",
                         credentials: "include", // ⭐ Gửi cookie tự động
@@ -102,7 +102,7 @@ const Authenticate: React.FC = () => {
     // Lắng nghe sự thay đổi của userDetails
     useEffect(() => {
         if (userDetails.noPassword === true && !isLoggedIn) {
-            navigate("http://localhost:8888/api/identity/create-password");
+            navigate("/create-password");
         } else if (userDetails.noPassword === false && isLoggedIn) {
             navigate("/");
         }

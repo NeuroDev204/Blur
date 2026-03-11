@@ -16,13 +16,29 @@ spring:
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_FIRST
       routes:
-        # User Service - Identity endpoints
-        - id: user_identity
+        # User Service - Auth endpoints
+        - id: user_auth
           uri: ${app.services.user}
           predicates:
-            - Path=${app.api-prefix}/identity/**
+            - Path=${app.api-prefix}/auth/**
           filters:
-            - RewritePath=/api/identity/(?<segment>.*), /${segment}
+            - RewritePath=/api/auth/(?<segment>.*), /auth/${segment}
+
+        # User Service - Account endpoints
+        - id: user_users
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /users/${segment}
+
+        # User Service - Test data endpoints
+        - id: user_test_data
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/test-data/**
+          filters:
+            - RewritePath=/api/test-data/(?<segment>.*), /test-data/${segment}
 
         # User Service - Profile endpoints
         - id: user_profile_internal

@@ -1,7 +1,5 @@
 package com.blur.userservice.profile.service;
 
-import com.blur.userservice.identity.entity.User;
-import com.blur.userservice.identity.repository.UserRepository;
 import com.blur.userservice.profile.dto.event.Event;
 import com.blur.userservice.profile.dto.request.ProfileCreationRequest;
 import com.blur.userservice.profile.dto.request.UserProfileUpdateRequest;
@@ -18,7 +16,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -43,7 +40,6 @@ import java.util.stream.Collectors;
 public class UserProfileService {
     UserProfileRepository userProfileRepository;
     UserProfileMapper userProfileMapper;
-    UserRepository userRepository;
 
 
     @Caching(
@@ -432,28 +428,7 @@ public class UserProfileService {
 
     private UserProfile getOrCreateProfileByUserId(String userId) {
         return userProfileRepository.findByUserId(userId)
-                .orElseGet(() -> bootstrapProfile(userId));
-    }
-
-    private UserProfile bootstrapProfile(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
-
-
-        UserProfile userProfile = new UserProfile();
-        userProfile.setUserId(user.getId());
-        userProfile.setUsername(user.getUsername());
-        userProfile.setFirstName(user.getFirstName());
-        userProfile.setLastName(user.getLastName());
-        userProfile.setEmail(user.getEmail());
-        userProfile.setCreatedAt(LocalDate.now());
-
-        try {
-            return userProfileRepository.save(userProfile);
-        } catch (DataIntegrityViolationException ex) {
-            return userProfileRepository.findByUserId(userId)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
-        }
+                .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
     }
 
     /**

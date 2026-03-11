@@ -1,9 +1,9 @@
 package com.blur.userservice.profile.repository;
 
 import com.blur.userservice.profile.entity.UserProfile;
-import feign.Param;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -21,6 +21,12 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
 
     @Query("MATCH (u:user_profile {user_id: $userId}) RETURN u")
     Optional<UserProfile> findByUserId(String userId);
+
+    @Query("MATCH (u:user_profile) WHERE toLower(u.username) = toLower($username) RETURN u")
+    Optional<UserProfile> findByUsername(String username);
+
+    @Query("MATCH (u:user_profile) WHERE toLower(u.email) = toLower($email) RETURN u")
+    Optional<UserProfile> findByEmail(String email);
 
     @Query("MATCH (u:user_profile)-[:follows]->(f:user_profile) WHERE u.id = $id RETURN f")
     List<UserProfile> findAllFollowingById(String id);

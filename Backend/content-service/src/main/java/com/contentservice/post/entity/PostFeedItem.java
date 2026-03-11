@@ -2,9 +2,10 @@ package com.contentservice.post.entity;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.neo4j.core.schema.GeneratedValue;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,11 +15,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document("post_feed")
-@CompoundIndex(name = "idx_feed_user_time", def = "{'targetUserId' : 1 , 'createdDate':-1}")
-
+@Node("post_feed")
 public class PostFeedItem {
   @Id
+  @GeneratedValue(generatorClass = UUIDStringGenerator.class)
   String id;
 
   // post data

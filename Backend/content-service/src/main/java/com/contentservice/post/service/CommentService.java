@@ -4,13 +4,11 @@ import com.contentservice.post.dto.event.Event;
 import com.contentservice.post.dto.request.CreateCommentRequest;
 import com.contentservice.post.dto.response.CommentResponse;
 import com.contentservice.post.entity.Comment;
-import com.contentservice.post.enums.ModerationStatus;
 import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.CommentMapper;
 import com.contentservice.post.repository.CommentRepository;
 import com.contentservice.post.repository.PostRepository;
-import com.contentservice.post.repository.httpclient.IdentityClient;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.ModerationProducer;
 import com.contentservice.kafka.NotificationEventPublisher;
@@ -39,7 +37,6 @@ public class CommentService {
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
     PostRepository postRepository;
-    IdentityClient identityClient;
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, String postId) {
         // Lấy user hiện tại
@@ -69,10 +66,7 @@ public class CommentService {
         // }
 
         // // Lấy info chủ bài viết (receiver) từ Identity
-        var receiverRes = identityClient.getUser(post.getUserId());
-        var receiverProfile =
-        profileClient.getProfile(receiverRes.getResult().getId());
-        var receiver = receiverRes.getResult();
+        var receiverProfile = profileClient.getProfile(post.getUserId()).getResult();
 
         // // Build Event giống kiểu like
         // Event event = Event.builder()
@@ -102,14 +96,18 @@ public class CommentService {
         // gui di moderation async qua kafka
         moderationProducer.submit(comment.getId(), postId, userId, request.getContent());
         // Build Event giống kiểu like
+        String receiverName = receiverProfile != null
+                ? receiverProfile.getFirstName() + " " + receiverProfile.getLastName()
+                : "Unknown";
+        String receiverEmail = receiverProfile != null ? receiverProfile.getEmail() : null;
+
         Event event = Event.builder()
         .postId(postId)
         .senderId(userId)
         .senderName(profile.getFirstName() + " " + profile.getLastName())
-        .receiverId(receiver.getId())
-        .receiverName(receiverProfile.getResult().getFirstName() + " " +
-        receiverProfile.getResult().getLastName())
-        .receiverEmail(receiver.getEmail())
+        .receiverId(post.getUserId())
+        .receiverName(receiverName)
+        .receiverEmail(receiverEmail)
         .timestamp(LocalDateTime.now())
         .build();
 

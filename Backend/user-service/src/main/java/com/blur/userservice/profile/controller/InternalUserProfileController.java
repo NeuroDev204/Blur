@@ -1,6 +1,6 @@
 package com.blur.userservice.profile.controller;
 
-import com.blur.userservice.identity.dto.request.ApiResponse;
+import com.blur.userservice.profile.dto.ApiResponse;
 import com.blur.userservice.profile.dto.request.ProfileCreationRequest;
 import com.blur.userservice.profile.dto.response.UserProfileResponse;
 import com.blur.userservice.profile.entity.UserProfile;
@@ -25,7 +25,7 @@ public class InternalUserProfileController {
     UserProfileRepository userProfileRepository;
     UserProfileMapper userProfileMapper;
 
-    @PostMapping("/internal/users")
+    @PostMapping({"/internal/users", "/profile/internal/users"})
     public ApiResponse<UserProfileResponse> createProfile(@RequestBody ProfileCreationRequest request) {
         var result = userProfileService.createProfile(request);
         result.setCreatedAt(LocalDate.now());
@@ -35,7 +35,7 @@ public class InternalUserProfileController {
                 .build();
     }
 
-    @GetMapping("/internal/users/{userId}")
+    @GetMapping({"/internal/users/{userId}", "/profile/internal/users/{userId}"})
     public ApiResponse<UserProfileResponse> getProfile(@PathVariable String userId) {
         return ApiResponse.<UserProfileResponse>builder()
                 .result(userProfileService.getByUserId(userId))
