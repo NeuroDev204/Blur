@@ -20,7 +20,6 @@ public class Comment {
     @Id
     @GeneratedValue(generatorClass = UUIDStringGenerator.class)
     String id;
-    String postId;
     String userId;
     String firstName;
     String lastName;

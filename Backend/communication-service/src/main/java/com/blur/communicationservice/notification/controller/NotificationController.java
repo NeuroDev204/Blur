@@ -90,11 +90,11 @@ public class NotificationController {
         String postId = request.get("postId");
         String status = request.get("status");
 
-        var moderationData = Map.of(
-                "commentId", commentId,
-                "postId", postId,
-                "status", status,
-                "timestamp", System.currentTimeMillis());
+        Map<String, Object> moderationData = new java.util.HashMap<>();
+        moderationData.put("commentId", commentId);
+        moderationData.put("postId", postId);
+        moderationData.put("status", status);
+        moderationData.put("timestamp", System.currentTimeMillis());
 
         webSocketNotificationService.sendModerationUpdate(userId, moderationData);
         return ApiResponse.<String>builder().result("Moderation update sent").build();

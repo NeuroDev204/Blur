@@ -2,12 +2,10 @@ package com.contentservice.post.service;
 
 import com.contentservice.post.dto.response.PostResponse;
 import com.contentservice.post.entity.Post;
-import com.contentservice.post.entity.PostSave;
 import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.PostMapper;
 import com.contentservice.post.repository.PostRepository;
-import com.contentservice.post.repository.PostSaveRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,20 +16,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
 public class PostSaveService {
 
-
     PostRepository postRepository;
-    PostSaveRepository postSaveRepository;
     PostMapper postMapper;
-
 
     @CacheEvict(value = "savedPosts", key = "#root.target.getCurrentUserId()")
     public String savePost(String postId) {
@@ -42,21 +36,18 @@ public class PostSaveService {
         if (userId.equals(post.getUserId())) {
             throw new AppException(ErrorCode.CANNOT_SAVE_YOUR_POST);
         }
-        PostSave postSave = PostSave.builder()
-                .postId(postId)
-                .userId(userId)
-                .savedAt(Instant.now())
-                .build();
-        postSaveRepository.save(postSave);
+        // Graph: (user_profile)-[:SAVED_POST {savedAt}]->(Post)
+        postRepository.savePost(userId, postId, Instant.now());
         return "Post saved";
     }
 
     @CacheEvict(value = "savedPosts", key = "#root.target.getCurrentUserId()")
     public String unsavePost(String postId) {
-        PostSave postSave = postSaveRepository.findByPostId(postId);
-        postSaveRepository.delete(postSave);
-        return "Post saved";
-
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = authentication.getName();
+        // Remove the (user_profile)-[:SAVED_POST]->(Post) edge
+        postRepository.unsavePost(userId, postId);
+        return "Post unsaved";
     }
 
     @Cacheable(
@@ -67,21 +58,11 @@ public class PostSaveService {
     public List<PostResponse> getAllSavedPost() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
-        var listSavedPost = postSaveRepository.findAll()
-                .stream()
-                .filter(postSave -> postSave.getUserId().equals(userId))
-                .toList();
-        List<PostResponse> postResponses = new ArrayList<>();
-        for (PostSave postSave : listSavedPost) {
-            Optional<Post> post = postRepository.findById(postSave.getPostId());
-
-            if (post.isPresent()) {
-                PostResponse postResponse = postMapper.toPostResponse(post.get());
-                postResponses.add(postResponse);
-            }
-
-        }
-        return postResponses;
+        // Single graph query: traverse (user_profile)-[:SAVED_POST]->(Post) — no N+1
+        List<Post> savedPosts = postRepository.findSavedPostsByUserId(userId);
+        return savedPosts.stream()
+                .map(postMapper::toPostResponse)
+                .collect(Collectors.toList());
     }
 
     public String getCurrentUserId() {

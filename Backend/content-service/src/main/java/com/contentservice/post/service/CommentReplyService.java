@@ -12,7 +12,6 @@ import com.contentservice.post.repository.CommentRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.cache.annotation.CacheEvict;
@@ -27,7 +26,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Builder
 @RequiredArgsConstructor
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -50,78 +48,64 @@ public class CommentReplyService {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String currentUserId = auth.getName();
 
-
-        // 1. Tìm comment gốc
+        // Validate that the parent comment exists
         var comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
 
-
-        // 2. Nếu reply vào 1 reply khác
+        // Validate parent reply if provided
         CommentReply parentReply = null;
         if (parentReplyId != null) {
             parentReply = commentReplyRepository.findById(parentReplyId)
                     .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
-        } else {
         }
 
-        // 3. Lấy profile người đang reply (sender)
-        var senderProfileRes = profileClient.getProfile(currentUserId);
-        var senderProfile = senderProfileRes.getResult();
-
+        var senderProfile = profileClient.getProfile(currentUserId).getResult();
         String senderFirstName = senderProfile.getFirstName() != null ? senderProfile.getFirstName() : "";
         String senderLastName = senderProfile.getLastName() != null ? senderProfile.getLastName() : "";
         String senderFullName = (senderFirstName + " " + senderLastName).trim();
         String senderImageUrl = senderProfile.getImageUrl();
+        if (senderFullName.isEmpty()) senderFullName = senderProfile.getUsername();
 
-        if (senderFullName.isEmpty()) {
-            senderFullName = senderProfile.getUsername();
-        }
-
-        // 4. Tạo CommentReply
         CommentReply commentReply = CommentReply.builder()
                 .userId(currentUserId)
                 .userName(senderFullName)
                 .content(commentRequest.getContent())
-                .commentId(comment.getId())
-                .parentReplyId(parentReplyId)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
-
         commentReply = commentReplyRepository.save(commentReply);
 
-        // 5. Xác định người nhận thông báo
-        String receiverUserId;
-        if (parentReply != null) {
-            receiverUserId = parentReply.getUserId();
-        } else {
-            receiverUserId = comment.getUserId();
+        // Graph: (comment_reply)-[:REPLIES_TO]->(comment)
+        commentReplyRepository.linkReplyToComment(commentReply.getId(), commentId);
+        // Graph: (user_profile)-[:REPLIED {createdAt}]->(comment_reply)
+        commentReplyRepository.linkReplyToUser(currentUserId, commentReply.getId(), commentReply.getCreatedAt());
+
+        if (parentReplyId != null) {
+            // Graph: (comment_reply)-[:NESTED_REPLY_OF]->(parent comment_reply)
+            commentReplyRepository.linkReplyToParentReply(commentReply.getId(), parentReplyId);
         }
 
-        // 6. Kiểm tra xem có phải tự reply không
+        // Determine notification receiver
+        String receiverUserId = (parentReply != null) ? parentReply.getUserId() : comment.getUserId();
         if (receiverUserId.equals(currentUserId)) {
             return commentMapper.toCommentResponse(commentReply);
         }
 
-
         try {
-            var receiverProfileRes = profileClient.getProfile(receiverUserId);
-            var receiverProfile = receiverProfileRes.getResult();
-
+            var receiverProfile = profileClient.getProfile(receiverUserId).getResult();
             String receiverFirstName = receiverProfile != null && receiverProfile.getFirstName() != null
-                    ? receiverProfile.getFirstName()
-                    : "";
+                    ? receiverProfile.getFirstName() : "";
             String receiverLastName = receiverProfile != null && receiverProfile.getLastName() != null
-                    ? receiverProfile.getLastName()
-                    : "";
+                    ? receiverProfile.getLastName() : "";
             String receiverFullName = (receiverFirstName + " " + receiverLastName).trim();
-
-            if (receiverFullName.isEmpty()) {
+            if (receiverFullName.isEmpty())
                 receiverFullName = receiverProfile != null ? receiverProfile.getUsername() : "Unknown";
-            }
+
+            // Traverse graph to get the post id for the notification event
+            String postId = commentRepository.findPostIdByCommentId(commentId);
 
             Event event = Event.builder()
-                    .postId(comment.getPostId())
+                    .postId(postId)
                     .senderId(currentUserId)
                     .senderName(senderFullName)
                     .senderFirstName(senderFirstName)
@@ -132,13 +116,8 @@ public class CommentReplyService {
                     .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
                     .timestamp(LocalDateTime.now())
                     .build();
-
-
             notificationEventPublisher.publishReplyCommentEvent(event);
-
-
-        } catch (Exception e) {
-            // Không throw exception để không làm fail toàn bộ reply action
+        } catch (Exception ignored) {
         }
 
         return commentMapper.toCommentResponse(commentReply);
@@ -149,79 +128,63 @@ public class CommentReplyService {
             @CacheEvict(value = "nestedReplies", key = "#root.target.getParentReplyId(#commentReplyId)"),
             @CacheEvict(value = "commentReplyById", key = "#commentReplyId")
     })
-    public CommentResponse updateCommentReply(String commentReplyId, CreateCommentRequest commentReply) {
+    public CommentResponse updateCommentReply(String commentReplyId, CreateCommentRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        var userId = auth.getName();
-        var comment = commentReplyRepository.findById(commentReplyId)
+        var reply = commentReplyRepository.findById(commentReplyId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
-        if (!comment.getUserId().equals(userId)) {
+        if (!reply.getUserId().equals(auth.getName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-        comment.setUpdatedAt(Instant.now());
-        comment.setContent(commentReply.getContent());
-        return commentMapper.toCommentResponse(commentReplyRepository.save(comment));
+        reply.setUpdatedAt(Instant.now());
+        reply.setContent(request.getContent());
+        return commentMapper.toCommentResponse(commentReplyRepository.save(reply));
     }
 
     @Caching(evict = {
-            @CacheEvict(value = "commentReplies", key = "#root.target.getCommentIdByReplyId(#commentId)"),
-            @CacheEvict(value = "nestedReplies", key = "#root.target.getParentReplyId(#commentId)"),
-            @CacheEvict(value = "commentReplyById", key = "#commentId")
+            @CacheEvict(value = "commentReplies", key = "#root.target.getCommentIdByReplyId(#commentReplyId)"),
+            @CacheEvict(value = "nestedReplies", key = "#root.target.getParentReplyId(#commentReplyId)"),
+            @CacheEvict(value = "commentReplyById", key = "#commentReplyId")
     })
-    public String deleteCommentReply(String commentId) {
+    public String deleteCommentReply(String commentReplyId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        var userId = auth.getName();
-        var comment = commentReplyRepository.findById(commentId)
+        var reply = commentReplyRepository.findById(commentReplyId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
-        if (!comment.getUserId().equals(userId)) {
+        if (!reply.getUserId().equals(auth.getName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-        commentReplyRepository.deleteById(comment.getId());
+        commentReplyRepository.deleteById(reply.getId());
         return "Comment deleted";
     }
 
-    @Cacheable(
-            value = "commentReplies",
-            key = "#commentId",
-            unless = "#result == null || #result.isEmpty()"
-    )
+    @Cacheable(value = "commentReplies", key = "#commentId", unless = "#result == null || #result.isEmpty()")
     public List<CommentResponse> getAllCommentReplyByCommentId(String commentId) {
-        var commentResponses = commentReplyRepository.findAllByCommentId(commentId);
-        return commentResponses.stream().map(commentMapper::toCommentResponse)
+        // Traverses (comment_reply)-[:REPLIES_TO]->(comment) graph edge
+        return commentReplyRepository.findAllByCommentId(commentId)
+                .stream().map(commentMapper::toCommentResponse)
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(
-            value = "commentReplyById",
-            key = "#commentReplyId",
-            unless = "#result == null"
-    )
+    @Cacheable(value = "commentReplyById", key = "#commentReplyId", unless = "#result == null")
     public CommentResponse getCommentReplyByCommentReplyId(String commentReplyId) {
-        var commentReply = commentReplyRepository.findById(commentReplyId)
-                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
-        return commentMapper.toCommentResponse(commentReply);
+        return commentMapper.toCommentResponse(commentReplyRepository.findById(commentReplyId)
+                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND)));
     }
 
-    @Cacheable(
-            value = "nestedReplies",
-            key = "#parentReplyId",
-            unless = "#result == null || #result.isEmpty()"
-    )
+    @Cacheable(value = "nestedReplies", key = "#parentReplyId", unless = "#result == null || #result.isEmpty()")
     public List<CommentResponse> getRepliesByParentReplyId(String parentReplyId) {
+        // Traverses (comment_reply)-[:NESTED_REPLY_OF]->(parent) graph edge
         return commentReplyRepository.findAllByParentReplyId(parentReplyId)
-                .stream()
-                .map(commentMapper::toCommentResponse)
+                .stream().map(commentMapper::toCommentResponse)
                 .collect(Collectors.toList());
     }
 
+    /** Traverses (comment_reply)-[:REPLIES_TO]->(comment) — cache-key helper. */
     public String getCommentIdByReplyId(String replyId) {
-        return commentReplyRepository.findById(replyId)
-                .map(CommentReply::getCommentId)
-                .orElse(null);
+        return commentReplyRepository.findCommentIdByReplyId(replyId);
     }
 
+    /** Traverses (comment_reply)-[:NESTED_REPLY_OF]->(parent) — cache-key helper. */
     public String getParentReplyId(String replyId) {
-        return commentReplyRepository.findById(replyId)
-                .map(CommentReply::getParentReplyId)
-                .orElse(null);
+        return commentReplyRepository.findParentReplyIdByReplyId(replyId);
     }
 }

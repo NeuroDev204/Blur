@@ -9,7 +9,6 @@ import com.contentservice.post.entity.PostLike;
 import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.PostMapper;
-import com.contentservice.post.repository.PostLikeRepository;
 import com.contentservice.post.repository.PostRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
@@ -35,15 +34,14 @@ public class PostService {
     PostRepository postRepository;
     PostMapper postMapper;
     ProfileClient profileClient;
-    PostLikeRepository postLikeRepository;
     NotificationEventPublisher notificationEventPublisher;
 
     @Transactional
     public PostResponse createPost(PostRequest postRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
-        var profile = profileClient.getProfile(userId);
-        var profileResult = profile.getResult();
+        var profileResult = profileClient.getProfile(userId).getResult();
+
         Post post = Post.builder()
                 .content(postRequest.getContent())
                 .mediaUrls(postRequest.getMediaUrls())
@@ -55,6 +53,10 @@ public class PostService {
                 .updatedAt(Instant.now())
                 .build();
         post = postRepository.save(post);
+
+        // Graph: (user_profile)-[:POSTED {profileId, createdAt}]->(Post)
+        postRepository.linkPostToAuthor(userId, post.getId(), post.getProfileId(), post.getCreatedAt());
+
         return postMapper.toPostResponse(post);
     }
 
@@ -70,8 +72,7 @@ public class PostService {
         post.setContent(postRequest.getContent());
         post.setMediaUrls(postRequest.getMediaUrls());
         post.setUpdatedAt(Instant.now());
-        post = postRepository.save(post);
-        return postMapper.toPostResponse(post);
+        return postMapper.toPostResponse(postRepository.save(post));
     }
 
     @Transactional
@@ -92,20 +93,19 @@ public class PostService {
         Page<Post> postPage = postRepository.findAll(pageable);
 
         List<PostResponse> responses = postPage.getContent().stream().map(post -> {
-            String userName = "Unknown";
+            String userName = post.getFirstName() + " " + post.getLastName();
             String userImageUrl = null;
-            String profileId = null;
+            String profileId = post.getProfileId();
 
             try {
                 ApiResponse<UserProfileResponse> response = profileClient.getProfile(post.getUserId());
-                UserProfileResponse userProfileResponse = response.getResult();
-
-                if (userProfileResponse != null) {
-                    userName = userProfileResponse.getFirstName() + " " + userProfileResponse.getLastName();
-                    userImageUrl = userProfileResponse.getImageUrl();
-                    profileId = userProfileResponse.getId();
+                UserProfileResponse up = response.getResult();
+                if (up != null) {
+                    userName = up.getFirstName() + " " + up.getLastName();
+                    userImageUrl = up.getImageUrl();
+                    profileId = up.getId();
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
 
             return PostResponse.builder()
@@ -113,8 +113,8 @@ public class PostService {
                     .userId(post.getUserId())
                     .profileId(profileId)
                     .userName(userName)
-                    .lastName(post.getLastName())
                     .firstName(post.getFirstName())
+                    .lastName(post.getLastName())
                     .userImageUrl(userImageUrl)
                     .content(post.getContent())
                     .mediaUrls(post.getMediaUrls())
@@ -128,12 +128,12 @@ public class PostService {
     public List<PostResponse> getMyPosts() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
+        // Traverses (user_profile)-[:POSTED]->(Post) graph edge
         return postRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream().map(postMapper::toPostResponse)
                 .collect(Collectors.toList());
     }
 
-    // ==================== TOGGLE LIKE/UNLIKE - HOÀN CHỈNH ====================
     @Transactional
     public String likePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -142,85 +142,63 @@ public class PostService {
         var post = postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
 
-        // Không cho tự like bài viết của mình
         if (userId.equals(post.getUserId())) {
             throw new AppException(ErrorCode.CANNOT_LIKE_YOUR_POST);
         }
 
-        PostLike existingLike = postLikeRepository.findByUserIdAndPostId(userId, postId);
-
-        if (existingLike != null) {
-
-            postLikeRepository.delete(existingLike);
+        boolean alreadyLiked = postRepository.hasUserLikedPost(userId, postId);
+        if (alreadyLiked) {
+            // Toggle: remove the (user_profile)-[:LIKED_POST]->(Post) edge
+            postRepository.unlikePost(userId, postId);
             return "Post unliked successfully";
-        } else {
-
-            PostLike like = PostLike.builder()
-                    .userId(userId)
-                    .postId(postId)
-                    .createdAt(Instant.now())
-                    .build();
-            postLikeRepository.save(like);
-
-
-            // ✅ GỬI THÔNG BÁO ĐẾN CHỦ BÀI VIẾT (CHỈ KHI LIKE)
-            try {
-                var senderProfile = profileClient.getProfile(userId).getResult();
-                var receiverProfile = profileClient.getProfile(post.getUserId()).getResult();
-
-                Event event = Event.builder()
-                        .postId(postId)
-                        .senderId(userId)
-                        .senderName(senderProfile != null
-                                ? senderProfile.getFirstName() + " " + senderProfile.getLastName()
-                                : "Unknown")
-                        .receiverId(post.getUserId())
-                        .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
-                        .receiverName(receiverProfile != null
-                                ? receiverProfile.getUsername()
-                                : "Unknown")
-                        .timestamp(LocalDateTime.now())
-                        .build();
-
-                notificationEventPublisher.publishLikeEvent(event);
-            } catch (Exception e) {
-                // Không throw exception, vẫn trả về like thành công
-            }
-
-            return "Post liked successfully";
         }
+
+        // Graph: (user_profile)-[:LIKED_POST {createdAt}]->(Post)
+        postRepository.likePost(userId, postId, Instant.now());
+
+        try {
+            var senderProfile = profileClient.getProfile(userId).getResult();
+            var receiverProfile = profileClient.getProfile(post.getUserId()).getResult();
+
+            Event event = Event.builder()
+                    .postId(postId)
+                    .senderId(userId)
+                    .senderName(senderProfile != null
+                            ? senderProfile.getFirstName() + " " + senderProfile.getLastName() : "Unknown")
+                    .receiverId(post.getUserId())
+                    .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
+                    .receiverName(receiverProfile != null ? receiverProfile.getUsername() : "Unknown")
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            notificationEventPublisher.publishLikeEvent(event);
+        } catch (Exception ignored) {
+        }
+
+        return "Post liked successfully";
     }
 
-    // ==================== UNLIKE POST (GIỮ LẠI ĐỂ TƯƠNG THÍCH) ====================
     @Transactional
     public String unlikePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
-
-
-        PostLike postLike = postLikeRepository.findByUserIdAndPostId(userId, postId);
-
-        if (postLike != null) {
-            postLikeRepository.delete(postLike);
-        } else {
-        }
-
+        // Remove the (user_profile)-[:LIKED_POST]->(Post) edge; no-op if absent
+        postRepository.unlikePost(userId, postId);
         return "Post unliked successfully";
     }
 
+    /** Traverses (user_profile)-[:LIKED_POST]->(Post) edges to list who liked a post. */
     public List<PostLike> getPostLikesByPostId(String postId) {
-        List<PostLike> likes = postLikeRepository.findAllByPostId(postId);
-        return likes;
+        return postRepository.findLikesByPostId(postId);
     }
 
     public List<PostResponse> getPostsByUserId(String userId) {
         return postRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(postMapper::toPostResponse)
+                .stream().map(postMapper::toPostResponse)
                 .collect(Collectors.toList());
     }
 
     public PostResponse getPostById(String postId) {
-        return postMapper.toPostResponse(postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND)));
+        return postMapper.toPostResponse(postRepository.findById(postId)
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND)));
     }
 }

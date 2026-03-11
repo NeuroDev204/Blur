@@ -37,20 +37,24 @@ public class StoryService {
     public Story createStory(CreateStoryRequest createStoryRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
-        var profile = profileClient.getProfile(userId);
+        var profileResult = profileClient.getProfile(userId).getResult();
+
         Story story = Story.builder()
                 .content(createStoryRequest.getContent())
                 .mediaUrl(createStoryRequest.getMediaUrl())
                 .timestamp(createStoryRequest.getTimestamp())
                 .authorId(userId)
-                .firstName(profile.getResult().getFirstName())
-                .lastName(profile.getResult().getLastName())
+                .firstName(profileResult.getFirstName())
+                .lastName(profileResult.getLastName())
                 .thumbnailUrl(createStoryRequest.getThumbnailUrl())
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
+        story = storyRepository.save(story);
 
-        storyRepository.save(story);
+        // Graph: (user_profile)-[:CREATED_STORY {createdAt}]->(story)
+        storyRepository.linkStoryToAuthor(userId, story.getId(), story.getCreatedAt());
+
         return story;
     }
 
@@ -68,23 +72,16 @@ public class StoryService {
     public List<Story> getAllMyStories() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
+        // Traverses (user_profile)-[:CREATED_STORY]->(story) graph edge
         return storyRepository.findAllByAuthorId(userId);
     }
 
-    @Cacheable(
-            value = "stories",
-            key = "'all'",
-            unless = "#result == null || #result.isEmpty()"
-    )
+    @Cacheable(value = "stories", key = "'all'", unless = "#result == null || #result.isEmpty()")
     public List<Story> getAllStories() {
         return storyRepository.findAll();
     }
 
-    @Cacheable(
-            value = "storiesByUser",
-            key = "#userId",
-            unless = "#result == null || #result.isEmpty()"
-    )
+    @Cacheable(value = "storiesByUser", key = "#userId", unless = "#result == null || #result.isEmpty()")
     public List<Story> getAllStoriesByUserId(String userId) {
         return storyRepository.findAllByAuthorId(userId);
     }
@@ -128,7 +125,7 @@ public class StoryService {
         return storyRepository.save(story);
     }
 
-    @Scheduled(fixedRate = 3600000) // Run every hour (3600000 ms)
+    @Scheduled(fixedRate = 3600000)
     @Caching(evict = {
             @CacheEvict(value = "stories", allEntries = true),
             @CacheEvict(value = "storyById", allEntries = true),
@@ -138,7 +135,6 @@ public class StoryService {
     })
     public void deleteOldStories() {
         Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
-
         List<Story> oldStories = storyRepository.findAllByCreatedAtBefore(twentyFourHoursAgo);
         if (!oldStories.isEmpty()) {
             storyRepository.deleteAll(oldStories);
@@ -148,7 +144,6 @@ public class StoryService {
     public String getCurrentUserId() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }
-
 
     public String getAuthorIdByStoryId(String storyId) {
         return storyRepository.findById(storyId)

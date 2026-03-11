@@ -46,23 +46,24 @@ public class ModerationResultConsumer {
         }
         commentRepository.save(comment);
 
+        // Traverse (comment)-[:COMMENTS_ON]->(Post) to get the postId for cache eviction
+        String postId = commentRepository.findPostIdByCommentId(commentId);
+
         // Invalidate comments cache for this post
         org.springframework.cache.Cache cache = cacheManager.getCache("comments");
         if (cache != null) {
-          cache.evict(comment.getPostId());
+          cache.evict(postId);
         }
 
-        // Send real-time moderation update to user via WebSocket (through
-        // communication-service)
+        // Send real-time moderation update to user via WebSocket (through communication-service)
         try {
           Map<String, String> notificationRequest = new HashMap<>();
           notificationRequest.put("userId", comment.getUserId());
           notificationRequest.put("commentId", commentId);
-          notificationRequest.put("postId", comment.getPostId());
+          notificationRequest.put("postId", postId);
           notificationRequest.put("status", status);
           communicationServiceClient.sendModerationUpdate(notificationRequest);
         } catch (Exception e) {
-          // Log but don't fail if WebSocket notification fails
           System.err.println("Failed to send moderation update via WebSocket: " + e.getMessage());
         }
       });

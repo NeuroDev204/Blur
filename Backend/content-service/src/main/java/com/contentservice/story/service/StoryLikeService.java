@@ -5,8 +5,6 @@ import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
-import com.contentservice.story.entity.StoryLike;
-import com.contentservice.story.repository.StoryLikeRepository;
 import com.contentservice.story.repository.StoryRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -16,13 +14,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class StoryLikeService {
-    StoryLikeRepository storyLikeRepository;
     StoryRepository storyRepository;
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
@@ -33,13 +31,10 @@ public class StoryLikeService {
         var userId = authentication.getName();
         var story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new AppException(ErrorCode.STORY_NOT_FOUND));
-        StoryLike storyLike = StoryLike.builder()
-                .storyId(storyId)
-                .userId(userId)
-                .createdAt(story.getCreatedAt())
-                .updatedAt(story.getUpdatedAt())
-                .build();
-        storyLikeRepository.save(storyLike);
+
+        // Graph: (user_profile)-[:LIKED_STORY {createdAt}]->(story)
+        storyRepository.likeStory(userId, storyId, Instant.now());
+
         var receiverProfile = profileClient.getProfile(story.getAuthorId()).getResult();
         Event event = Event.builder()
                 .senderName(story.getFirstName() + " " + story.getLastName())
@@ -57,7 +52,8 @@ public class StoryLikeService {
     public String unlikeStory(String storyId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
-        storyLikeRepository.deleteByStoryIdAndUserId(storyId, userId);
+        // Remove the (user_profile)-[:LIKED_STORY]->(story) edge
+        storyRepository.unlikeStory(userId, storyId);
         return "Unlike story successfully";
     }
 }

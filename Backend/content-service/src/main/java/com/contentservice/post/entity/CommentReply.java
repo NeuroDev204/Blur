@@ -24,11 +24,8 @@ public class CommentReply {
     @GeneratedValue(generatorClass = UUIDStringGenerator.class)
     String id;
     String userId;
-    String postId;
     String userName;
     String content;
-    String commentId;
-    String parentReplyId;
     Instant createdAt;
     Instant updatedAt;
 }

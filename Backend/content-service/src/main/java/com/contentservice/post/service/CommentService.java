@@ -37,54 +37,18 @@ public class CommentService {
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
     PostRepository postRepository;
+
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, String postId) {
-        // Lấy user hiện tại
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
-        // Lấy profile của người comment (dùng cho comment + senderName)
-        var profileRes = profileClient.getProfile(userId);
-        var profile = profileRes.getResult();
+
+        var profile = profileClient.getProfile(userId).getResult();
         var post = postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
-        // // Tạo comment
-        // Comment comment = Comment.builder()
-        // .content(request.getContent())
-        // .userId(userId)
-        // .firstName(profile.getFirstName())
-        // .lastName(profile.getLastName())
-        // .postId(postId)
-        // .moderationStatus(ModerationStatus.PENDING_MODERATION)
-        // .createdAt(Instant.now())
-        // .updatedAt(Instant.now())
-        // .build();
-
-        // comment = commentRepository.save(comment);
-
-        // if (post.getUserId().equals(userId)) {
-        // return commentMapper.toCommentResponse(comment);
-        // }
-
-        // // Lấy info chủ bài viết (receiver) từ Identity
         var receiverProfile = profileClient.getProfile(post.getUserId()).getResult();
 
-        // // Build Event giống kiểu like
-        // Event event = Event.builder()
-        // .postId(post.getId())
-        // .senderId(userId)
-        // .senderName(profile.getFirstName() + " " + profile.getLastName())
-        // .receiverId(receiver.getId())
-        // .receiverName(receiverProfile.getResult().getFirstName() + " " +
-        // receiverProfile.getResult().getLastName())
-        // .receiverEmail(receiver.getEmail())
-        // .timestamp(LocalDateTime.now())
-        // .build();
-
-        // notificationEventPublisher.publishCommentEvent(event);
-
-        // return commentMapper.toCommentResponse(comment);
         Comment comment = Comment.builder()
-                .postId(postId)
                 .userId(userId)
                 .firstName(profile.getFirstName())
                 .lastName(profile.getLastName())
@@ -93,31 +57,38 @@ public class CommentService {
                 .moderationStatus("PENDING_MODERATION")
                 .build();
         comment = commentRepository.save(comment);
-        // gui di moderation async qua kafka
+
+        // Graph: (comment)-[:COMMENTS_ON]->(Post)
+        commentRepository.linkCommentToPost(comment.getId(), postId);
+        // Graph: (user_profile)-[:COMMENTED {createdAt}]->(comment)
+        commentRepository.linkCommentToUser(userId, comment.getId(), comment.getCreatedAt());
+
+        // Send to async moderation via Kafka
         moderationProducer.submit(comment.getId(), postId, userId, request.getContent());
-        // Build Event giống kiểu like
+
         String receiverName = receiverProfile != null
-                ? receiverProfile.getFirstName() + " " + receiverProfile.getLastName()
-                : "Unknown";
+                ? receiverProfile.getFirstName() + " " + receiverProfile.getLastName() : "Unknown";
         String receiverEmail = receiverProfile != null ? receiverProfile.getEmail() : null;
 
         Event event = Event.builder()
-        .postId(postId)
-        .senderId(userId)
-        .senderName(profile.getFirstName() + " " + profile.getLastName())
-        .receiverId(post.getUserId())
-        .receiverName(receiverName)
-        .receiverEmail(receiverEmail)
-        .timestamp(LocalDateTime.now())
-        .build();
-
+                .postId(postId)
+                .senderId(userId)
+                .senderName(profile.getFirstName() + " " + profile.getLastName())
+                .receiverId(post.getUserId())
+                .receiverName(receiverName)
+                .receiverEmail(receiverEmail)
+                .timestamp(LocalDateTime.now())
+                .build();
         notificationEventPublisher.publishCommentEvent(event);
+
         return commentMapper.toCommentResponse(comment);
     }
 
     @Cacheable(value = "comments", key = "#postId", unless = "#result == null || #result.isEmpty()")
     public List<CommentResponse> getAllCommentByPostId(String postId) {
-        return commentRepository.findAllByPostId(postId).stream().map(commentMapper::toCommentResponse)
+        // Traverses (comment)-[:COMMENTS_ON]->(Post) graph edge
+        return commentRepository.findAllByPostId(postId).stream()
+                .map(commentMapper::toCommentResponse)
                 .collect(Collectors.toList());
     }
 
@@ -128,13 +99,11 @@ public class CommentService {
 
     @CacheEvict(value = "comments", key = "#root.target.getPostIdByCommentId(#commentId)")
     public CommentResponse updateComment(String commentId, CreateCommentRequest request) {
-
         var comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        var userId = authentication.getName();
-        if (!comment.getUserId().equals(userId)) {
+        if (!comment.getUserId().equals(authentication.getName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -150,8 +119,7 @@ public class CommentService {
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        var userId = authentication.getName();
-        if (!comment.getUserId().equals(userId)) {
+        if (!comment.getUserId().equals(authentication.getName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -159,9 +127,11 @@ public class CommentService {
         return "Comment deleted";
     }
 
+    /**
+     * Traverses (comment)-[:COMMENTS_ON]->(Post) to find the parent post ID.
+     * Used as a cache-key helper — no stored postId property needed.
+     */
     public String getPostIdByCommentId(String commentId) {
-        return commentRepository.findById(commentId)
-                .map(Comment::getPostId)
-                .orElse(null);
+        return commentRepository.findPostIdByCommentId(commentId);
     }
 }

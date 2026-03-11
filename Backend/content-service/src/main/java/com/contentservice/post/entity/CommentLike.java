@@ -2,24 +2,20 @@ package com.contentservice.post.entity;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.neo4j.core.schema.GeneratedValue;
-import org.springframework.data.neo4j.core.schema.Id;
-import org.springframework.data.neo4j.core.schema.Node;
-import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import java.time.Instant;
 
-@Node("comment_like")
-@Builder
+/**
+ * Plain DTO — NOT a Neo4j node.
+ * Holds properties projected from the graph relationship:
+ *   (user_profile)-[:LIKED_COMMENT {userId, createdAt}]->(comment)
+ */
 @Data
-@FieldDefaults(level = AccessLevel.PRIVATE)
-@AllArgsConstructor
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class CommentLike {
-    @Id
-    @GeneratedValue(generatorClass = UUIDStringGenerator.class)
-    String id;
-    String commentId;
     String userId;
     Instant createdAt;
 }

@@ -2,24 +2,20 @@ package com.contentservice.post.entity;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.neo4j.core.schema.GeneratedValue;
-import org.springframework.data.neo4j.core.schema.Id;
-import org.springframework.data.neo4j.core.schema.Node;
-import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
 import java.time.Instant;
 
-@Node("post_saved")
+/**
+ * Plain DTO — NOT a Neo4j node.
+ * Holds properties projected from the graph relationship:
+ *   (user_profile)-[:SAVED_POST {userId, savedAt}]->(Post)
+ */
 @Data
-@AllArgsConstructor
 @Builder
 @NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PostSave {
-    @Id
-    @GeneratedValue(generatorClass = UUIDStringGenerator.class)
-    String id;
     String userId;
-    String postId;
     Instant savedAt;
 }
