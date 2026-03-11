@@ -1,0 +1,114 @@
+﻿# Code full: communication-service
+
+## `Backend/communication-service/src/main/java/com/blur/communicationservice/repository/httpclient/ProfileClient.java`
+```java
+package com.blur.communicationservice.repository.httpclient;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import com.blur.communicationservice.configuration.AuthenticationRequestInterceptor;
+import com.blur.communicationservice.dto.ApiResponse;
+import com.blur.communicationservice.dto.response.UserProfileResponse;
+
+@FeignClient(
+        name = "profile-service",
+        url = "${app.services.profile.url:http://localhost:8081}",
+        configuration = {AuthenticationRequestInterceptor.class})
+public interface ProfileClient {
+
+    @GetMapping("/internal/users/{userId}")
+    ApiResponse<UserProfileResponse> getProfile(@PathVariable("userId") String userId);
+
+    // Public endpoint: UserProfileController has @RequestMapping("/profile")
+    @GetMapping("/profile/users/{profileId}")
+    ApiResponse<UserProfileResponse> getProfileById(@PathVariable("profileId") String profileId);
+}
+```
+
+## `Backend/communication-service/src/main/resources/application.yaml`
+```yaml
+server:
+  port: ${SERVER_PORT:8083}
+  address: 0.0.0.0
+  servlet:
+    context-path: /chat
+
+spring:
+  application:
+    name: communication-service
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://root:root@localhost:27017/communication-service?authSource=admin}
+      auto-index-creation: true
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIME_OUT:60000}
+      lettuce:
+        pool:
+          max-active: ${MAX_ACTIVE:8}
+          max-idle: ${MAX_IDLE:8}
+          min-idle: ${MIN_IDLE:0}
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${TIME_TO_LIVE:600000}
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: ${REDIS_KEY_PREFIX:communication-service:}
+      enable-statistics: true
+  websocket:
+    enabled: true
+
+  # Kafka config (MOI - cho notification consumers)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    consumer:
+      group-id: communication-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  # Mail config (MOI - cho email fallback khi user offline)
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  services:
+    profile:
+      url: ${PROFILE_SERVICE_URL:http://localhost:8081}
+  call:
+    ring-timeout: 60
+    max-duration: 3600
+
+# Config Gemini AI (thay cho ai-service rieng)
+ai:
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    option:
+      model: ${GEMINI_MODEL:gemini-2.0-flash}
+    chat:
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash}
+      completions-path: ${GEMINI_COMPLETIONS_PATH::generateContent}
+```
+
