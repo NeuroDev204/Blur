@@ -25,7 +25,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+/.claude
 # Model-service generated files
 /Backend/model-service/data/
 /Backend/model-service/scraper/chrome_profile/
