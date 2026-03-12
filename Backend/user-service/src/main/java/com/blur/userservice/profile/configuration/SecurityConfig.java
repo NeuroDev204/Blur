@@ -7,7 +7,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -71,6 +71,7 @@ public class SecurityConfig {
 
     @Bean
     PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10);
+        // saltLength=16, hashLength=32, parallelism=1, memory=65536, iterations=3
+        return new Argon2PasswordEncoder(16, 32, 1, 65536, 3);
     }
 }

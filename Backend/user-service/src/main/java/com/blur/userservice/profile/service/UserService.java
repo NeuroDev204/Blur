@@ -63,6 +63,16 @@ public class UserService {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
+        // tu dong follow user "blur" khi dang ky
+        final UserProfile savedProfile = userProfile;
+        userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
+            if (!savedProfile.getId().equals(blurUser.getId())) {
+                userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
+                userProfileRepository.updateFollowCounts(savedProfile.getId());
+                userProfileRepository.updateFollowCounts(blurUser.getId());
+            }
+        });
+
         return userMapper.toUserResponse(userProfile);
     }
 

@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -43,15 +44,25 @@ public class FeedProjectionService {
     String postId = (String) event.get("postId");
     String authorId = (String) event.get("authorId");
     String content = (String) event.get("content");
+    List<String> mediaUrls = (List<String>) event.get("mediaUrls");
+    List<String> imageUrls = mediaUrls != null ? mediaUrls : List.of();
     List<String> followerIds = (List<String>) event.get("followerIds");
-    if (followerIds == null || followerIds.isEmpty()) {
-      return;
+
+    // bao gom ca chinh tac gia
+    List<String> targetIds = new java.util.ArrayList<>();
+    targetIds.add(authorId);
+    if (followerIds != null) {
+      followerIds.stream()
+          .filter(id -> !id.equals(authorId))
+          .forEach(targetIds::add);
     }
-    // tao feed item cho moi follower
-    for (String followerId : followerIds) {
+
+    for (String followerId : targetIds) {
       PostFeedItem item = PostFeedItem.builder()
           .postId(postId)
           .content(content)
+          .imageUrls(imageUrls)
+          .videoUrl("")
           .authorId(authorId)
           .authorUsername((String) event.get("authorUsername"))
           .authorFirstName((String) event.get("authorFirstName"))
@@ -61,6 +72,8 @@ public class FeedProjectionService {
           .likeCount(0)
           .commentCount(0)
           .shareCount(0)
+          .createdDate(LocalDateTime.now())
+          .updatedDate(LocalDateTime.now())
           .build();
       postFeedRepository.save(item);
     }

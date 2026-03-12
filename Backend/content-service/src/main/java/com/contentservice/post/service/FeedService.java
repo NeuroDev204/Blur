@@ -5,7 +5,6 @@ import com.contentservice.post.repository.PostFeedRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,11 +16,10 @@ import org.springframework.stereotype.Service;
 public class FeedService {
   PostFeedRepository postFeedRepository;
 
-  @Cacheable(value = "feed", key = "#root.target.getCurrentUserId() + ':'+#page +':' + #size", unless = "#result.isEmpty()")
   public Page<PostFeedItem> getMyFeed(int page, int size) {
     String userId = getCurrentUserId();
     return postFeedRepository
-        .findByTargetUserIdOrderByCreatedDateDesc(userId, PageRequest.of(page, size));
+        .findByTargetUserIdOrderByCreatedDateDesc(userId, PageRequest.of(page - 1, size));
   }
 
   public String getCurrentUserId() {

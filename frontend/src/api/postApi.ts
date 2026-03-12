@@ -56,6 +56,41 @@ export const fetchAllPost = async (page: number = 1, limit: number = 5): Promise
     }
 }
 
+export const fetchMyFeed = async (page: number = 1, limit: number = 5): Promise<PaginatedPostsResponse> => {
+    try {
+        const response = await axiosClient.get('/post/my-feed', {
+            params: { page, limit },
+        })
+        if (response.data?.code !== 1000) {
+            throw new Error(`Fetch feed error: ${response.data?.code}`)
+        }
+        const rawResult = response.data?.result
+        const feedItems: any[] = rawResult?.feeds || []
+        const hasNextPage: boolean = rawResult?.hasNextPage ?? false
+
+        const posts: Post[] = feedItems.map((item: any) => ({
+            id: item.postId,
+            content: item.content,
+            mediaUrls: [
+                ...(Array.isArray(item.imageUrls) ? item.imageUrls : []),
+                ...(item.videoUrl ? [item.videoUrl] : []),
+            ],
+            userId: item.authorId,
+            userName: item.authorUsername || `${item.authorFirstName || ''} ${item.authorLastName || ''}`.trim(),
+            firstName: item.authorFirstName,
+            lastName: item.authorLastName,
+            userImageUrl: item.authorAvatar,
+            likeCount: item.likeCount,
+            commentCount: item.commentCount,
+            createdAt: item.createdDate,
+        }))
+
+        return { posts, hasNextPage }
+    } catch {
+        return { posts: [], hasNextPage: false }
+    }
+}
+
 export const fetchLikePost = async (postId: string): Promise<Like[]> => {
     const response = await axiosClient.get<ApiResponse<Like[]>>(`/post/${postId}/likes`)
     if (response.data?.code !== 1000) {

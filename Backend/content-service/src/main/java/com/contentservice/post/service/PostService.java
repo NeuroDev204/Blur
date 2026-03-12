@@ -15,10 +15,15 @@ import com.contentservice.post.repository.PostRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.story.dto.response.ApiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.*;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,12 +31,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostService {
 
@@ -40,7 +47,8 @@ public class PostService {
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
     OutboxService outboxService;
-    
+    KafkaTemplate<String, String> kafkaTemplate;
+    ObjectMapper objectMapper;
 
     @Transactional
     public PostResponse createPost(PostRequest postRequest) {
@@ -68,6 +76,7 @@ public class PostService {
                 "content", post.getContent(),
                 "mediaUrls", post.getMediaUrls() != null ? post.getMediaUrls() : List.of());
         outboxService.saveEvent("Post", post.getId(), "POST_CREATED", "post-events", eventPayload);
+        publishPostCreatedEvent(post);
         return postMapper.toPostResponse(post);
     }
 
@@ -215,5 +224,50 @@ public class PostService {
     public PostResponse getPostById(String postId) {
         return postMapper.toPostResponse(postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND)));
+    }
+
+    private void publishPostCreatedEvent(Post post) {
+        try {
+            // lay profile info da co tu create post
+            var profileResponse = profileClient.getProfile(post.getUserId());
+            String authorUsername = "";
+            String authorAvatar = "";
+            if (profileResponse != null && profileResponse.getResult() != null) {
+                var profile = profileResponse.getResult();
+                authorAvatar = profile.getImageUrl() != null ? profile.getImageUrl() : "";
+                authorUsername = profile.getUsername() != null ? profile.getUsername() : "";
+            }
+            // lay danh sach follower ids
+            List<String> followerIds = List.of();
+            try {
+                var followerResponse = profileClient.getFollowerIds(post.getUserId());
+                if (followerResponse != null && followerResponse.getResult() != null) {
+                    followerIds = followerResponse.getResult();
+                }
+            } catch (Exception e) {
+                log.warn("Failed to get follower IDs for user {}", post.getUserId(), e);
+            }
+            if (followerIds.isEmpty()) {
+                return;
+            }
+            // build event payload
+            Map<String, Object> event = new HashMap<>();
+            event.put("eventType", "POST_CREATED");
+            event.put("postId", post.getId());
+            event.put("authorId", post.getUserId());
+            event.put("content", post.getContent());
+            event.put("mediaUrls", post.getMediaUrls() != null ? post.getMediaUrls() : List.of());
+            event.put("authorUsername", authorUsername);
+            event.put("authorFirstName", post.getFirstName());
+            event.put("authorLastName", post.getLastName());
+            event.put("authorAvatar", authorAvatar);
+            event.put("followerIds", followerIds);
+
+            // publksh len kafka topic
+            String json = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("post-events", post.getId(), json);
+        } catch (Exception e) {
+            log.error("Failed to publish POST_CREATED event for post {}", post.getId(), e);
+        }
     }
 }
