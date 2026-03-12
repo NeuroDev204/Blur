@@ -6,6 +6,7 @@ import com.blur.userservice.profile.dto.request.UserCreationRequest;
 import com.blur.userservice.profile.dto.request.UserUpdateRequest;
 import com.blur.userservice.profile.dto.response.UserResponse;
 import com.blur.userservice.profile.mapper.UserMapper;
+import com.blur.userservice.profile.service.UserDeleteSagaService;
 import com.blur.userservice.profile.service.UserService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
     UserService userService;
     UserMapper userMapper;
+    UserDeleteSagaService userDeleteSagaService;
 
     @PostMapping("/create-password")
     public ApiResponse<Void> createPassword(@RequestBody @Valid UserCreationPasswordRequest request) {
@@ -85,7 +87,8 @@ public class UserController {
 
     @DeleteMapping("/{userId}")
     public ApiResponse<String> deleteUser(@PathVariable String userId) {
-        userService.deleteUser(userId);
+        // userService.deleteUser(userId);
+        userDeleteSagaService.initiateDeleteUser(userId);
         return ApiResponse.<String>builder().result("User has been deleted").build();
     }
 }

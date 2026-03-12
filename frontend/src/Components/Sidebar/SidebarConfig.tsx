@@ -6,6 +6,7 @@ import {
   Bell,
   PlusCircle,
   User,
+  Users,
 } from "lucide-react";
 
 export interface MenuItem {
@@ -57,6 +58,14 @@ export const menuItems: MenuItem[] = [
     gradient: "from-violet-400 to-violet-600",
     bgColor: "bg-violet-50",
     hoverBg: "hover:bg-violet-50/50",
+  },
+  {
+    title: "Suggestions",
+    icon: <Users className="text-gray-500" strokeWidth={1.5} />,
+    activeIcon: <Users className="text-sky-500" strokeWidth={2} fill="rgba(14, 165, 233, 0.1)" />,
+    gradient: "from-sky-400 to-sky-600",
+    bgColor: "bg-sky-50",
+    hoverBg: "hover:bg-sky-50/50",
   },
   {
     title: "Profile",

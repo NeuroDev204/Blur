@@ -14,6 +14,7 @@ import SearchPage from "../Search/SearchPage"
 import { SidebarComponent } from "../../Components/Sidebar/SidebarComponent"
 import NotificationsPage from "../Notification/NotificationPage"
 import PostDetailPage from "../../Components/Post/PostDetailPage"
+import SuggestionsPage from "../Suggestions/SuggestionsPage"
 import { introspectToken } from "../../api/authAPI"
 
 const Router: React.FC = () => {
@@ -158,7 +159,7 @@ const Router: React.FC = () => {
 
             <div
                 className={`
-                    flex-1 min-h-screen w-full max-w-full overflow-x-hidden
+                    flex-1 min-h-screen w-full max-w-full overflow-x-clip
                     ${isMobile ? 'pt-16 px-4' : 'pl-3'}
                 `}
             >
@@ -172,6 +173,7 @@ const Router: React.FC = () => {
                         <Route path="/search" element={<SearchPage />} />
                         <Route path="/notification" element={<NotificationsPage />} />
                         <Route path="/post/:postId" element={<PostDetailPage />} />
+                        <Route path="/suggestions" element={<SuggestionsPage />} />
                     </Routes>
                 </div>
             </div>

@@ -83,6 +83,9 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
       case "Search":
         navigate("/search");
         break;
+      case "Suggestions":
+        navigate("/suggestions");
+        break;
       default:
     }
   };

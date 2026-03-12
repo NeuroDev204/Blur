@@ -12,6 +12,8 @@ import com.contentservice.post.repository.PostRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
 import com.contentservice.kafka.ModerationProducer;
 import com.contentservice.kafka.NotificationEventPublisher;
+import com.contentservice.outbox.service.OutboxService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +40,7 @@ public class CommentService {
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
     PostRepository postRepository;
+    OutboxService outboxService;
 
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, String postId) {
@@ -64,10 +68,18 @@ public class CommentService {
         commentRepository.linkCommentToUser(userId, comment.getId(), comment.getCreatedAt());
 
         // Send to async moderation via Kafka
-        moderationProducer.submit(comment.getId(), postId, userId, request.getContent());
-
+        // moderationProducer.submit(comment.getId(), postId, userId,
+        // request.getContent());
+        Map<String, String> moderationPayload = Map.of(
+                "commentId", comment.getId(),
+                "postId", postId,
+                "userId", userId,
+                "content", comment.getContent());
+        outboxService.saveEvent("Comment", comment.getId(), "COMMENT_CREATED", "comment-moderation-request",
+                moderationPayload);
         String receiverName = receiverProfile != null
-                ? receiverProfile.getFirstName() + " " + receiverProfile.getLastName() : "Unknown";
+                ? receiverProfile.getFirstName() + " " + receiverProfile.getLastName()
+                : "Unknown";
         String receiverEmail = receiverProfile != null ? receiverProfile.getEmail() : null;
 
         Event event = Event.builder()

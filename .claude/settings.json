@@ -5,7 +5,9 @@
       "Bash(sed -i '/@RequestMapping\\(\"\"\\\\/profile\"\"\\)/d' \"f:/Blur/Backend/user-service/src/main/java/com/blur/userservice/profile/controller/InternalUserProfileController.java\")",
       "Bash(find /f/Blur/frontend/src -type f -name *[Tt]heme* -o -name *[Pp]rovider*)",
       "Bash(find /f/Blur -maxdepth 2 -name *.md -type f)",
-      "Bash(grep -r \"recommend\\\\|suggestion\\\\|friend\\\\|user.*card\" /f/Blur/Frontend/src/Components --include=*.tsx -l)"
+      "Bash(grep -r \"recommend\\\\|suggestion\\\\|friend\\\\|user.*card\" /f/Blur/Frontend/src/Components --include=*.tsx -l)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }

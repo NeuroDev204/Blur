@@ -1,5 +1,7 @@
 package com.contentservice.post.service;
 
+import com.contentservice.outbox.repository.OutboxRepository;
+import com.contentservice.outbox.service.OutboxService;
 import com.contentservice.post.dto.event.Event;
 import com.contentservice.post.dto.request.PostRequest;
 import com.contentservice.post.dto.response.PostResponse;
@@ -25,16 +27,20 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostService {
+
     PostRepository postRepository;
     PostMapper postMapper;
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
+    OutboxService outboxService;
+    
 
     @Transactional
     public PostResponse createPost(PostRequest postRequest) {
@@ -54,9 +60,14 @@ public class PostService {
                 .build();
         post = postRepository.save(post);
 
-        // Graph: (user_profile)-[:POSTED {profileId, createdAt}]->(Post)
         postRepository.linkPostToAuthor(userId, post.getId(), post.getProfileId(), post.getCreatedAt());
-
+        Map<String, Object> eventPayload = Map.of(
+                "eventType", "POST_CREATED",
+                "postId", post.getId(),
+                "authorId", post.getUserId(),
+                "content", post.getContent(),
+                "mediaUrls", post.getMediaUrls() != null ? post.getMediaUrls() : List.of());
+        outboxService.saveEvent("Post", post.getId(), "POST_CREATED", "post-events", eventPayload);
         return postMapper.toPostResponse(post);
     }
 
@@ -164,7 +175,8 @@ public class PostService {
                     .postId(postId)
                     .senderId(userId)
                     .senderName(senderProfile != null
-                            ? senderProfile.getFirstName() + " " + senderProfile.getLastName() : "Unknown")
+                            ? senderProfile.getFirstName() + " " + senderProfile.getLastName()
+                            : "Unknown")
                     .receiverId(post.getUserId())
                     .receiverEmail(receiverProfile != null ? receiverProfile.getEmail() : null)
                     .receiverName(receiverProfile != null ? receiverProfile.getUsername() : "Unknown")
@@ -186,7 +198,10 @@ public class PostService {
         return "Post unliked successfully";
     }
 
-    /** Traverses (user_profile)-[:LIKED_POST]->(Post) edges to list who liked a post. */
+    /**
+     * Traverses (user_profile)-[:LIKED_POST]->(Post) edges to list who liked a
+     * post.
+     */
     public List<PostLike> getPostLikesByPostId(String postId) {
         return postRepository.findLikesByPostId(postId);
     }

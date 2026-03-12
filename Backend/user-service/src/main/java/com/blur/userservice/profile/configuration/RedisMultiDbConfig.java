@@ -12,8 +12,13 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -29,7 +34,32 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
 @EnableCaching
-public class RedisMultiDbConfig {
+public class RedisMultiDbConfig implements CachingConfigurer {
+
+    private static final Logger log = LoggerFactory.getLogger(RedisMultiDbConfig.class);
+
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new CacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(RuntimeException e, Cache cache, Object key) {
+                log.warn("Cache GET error on '{}' key='{}': {} - falling back to DB", cache.getName(), key, e.getMessage());
+                try { cache.evict(key); } catch (Exception ignored) {}
+            }
+            @Override
+            public void handleCachePutError(RuntimeException e, Cache cache, Object key, Object value) {
+                log.warn("Cache PUT error on '{}' key='{}': {}", cache.getName(), key, e.getMessage());
+            }
+            @Override
+            public void handleCacheEvictError(RuntimeException e, Cache cache, Object key) {
+                log.warn("Cache EVICT error on '{}' key='{}': {}", cache.getName(), key, e.getMessage());
+            }
+            @Override
+            public void handleCacheClearError(RuntimeException e, Cache cache) {
+                log.warn("Cache CLEAR error on '{}': {}", cache.getName(), e.getMessage());
+            }
+        };
+    }
 
     private GenericJackson2JsonRedisSerializer jsonSerializer() {
         ObjectMapper mapper = JsonMapper.builder()
@@ -94,8 +124,12 @@ public class RedisMultiDbConfig {
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer()));
-        return RedisCacheManager.builder(factory).cacheDefaults(config).build();
+                        RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer()))
+                .disableCachingNullValues();
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(config)
+                .transactionAware()
+                .build();
     }
 
     @Bean("profileCacheManager")
@@ -106,7 +140,11 @@ public class RedisMultiDbConfig {
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer()));
-        return RedisCacheManager.builder(factory).cacheDefaults(config).build();
+                        RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer()))
+                .disableCachingNullValues();
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(config)
+                .transactionAware()
+                .build();
     }
 }

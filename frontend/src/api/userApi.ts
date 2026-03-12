@@ -114,3 +114,24 @@ export const fetchPopularRecommendations = async (
     )
     return response.data?.result as RecommendationPageResponse
 }
+
+export const fetchMutualRecommendations = async (page = 0, size = 10): Promise<RecommendationPageResponse> => {
+    const response = await axiosClient.get<ApiResponse<RecommendationPageResponse>>(
+        `/recommendations/mutual?page=${page}&size=${size}`
+    )
+    return response.data?.result as RecommendationPageResponse
+}
+
+export const fetchNearbyRecommendations = async (page = 0, size = 10): Promise<RecommendationPageResponse> => {
+    const response = await axiosClient.get<ApiResponse<RecommendationPageResponse>>(
+        `/recommendations/nearby?page=${page}&size=${size}`
+    )
+    return response.data?.result as RecommendationPageResponse
+}
+
+export const fetchSimilarRecommendations = async (page = 0, size = 10): Promise<RecommendationPageResponse> => {
+    const response = await axiosClient.get<ApiResponse<RecommendationPageResponse>>(
+        `/recommendations/similar?page=${page}&size=${size}`
+    )
+    return response.data?.result as RecommendationPageResponse
+}

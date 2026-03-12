@@ -5,7 +5,7 @@ import { fetchPopularRecommendations, followUser, RecommendationUser } from '../
 const PopularSuggestions: React.FC = () => {
     const [users, setUsers] = useState<RecommendationUser[]>([]);
     const [loading, setLoading] = useState(true);
-    const [following, setFollowing] = useState<Set<string>>(new Set());
+    const [followed, setFollowed] = useState<Set<string>>(new Set());
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -16,11 +16,12 @@ const PopularSuggestions: React.FC = () => {
     }, []);
 
     const handleFollow = async (user: RecommendationUser) => {
+        setFollowed(prev => new Set(prev).add(user.id));
         try {
             await followUser(user.userId);
-            setFollowing(prev => new Set(prev).add(user.id));
-        } catch {
-            // silent
+        } catch (err) {
+            console.error('Follow failed:', err);
+            setFollowed(prev => { const next = new Set(prev); next.delete(user.id); return next; });
         }
     };
 
@@ -58,7 +59,6 @@ const PopularSuggestions: React.FC = () => {
 
             <div className="space-y-3">
                 {users.map(user => {
-                    const isFollowed = following.has(user.id);
                     const fullName = `${user.firstName} ${user.lastName}`.trim();
 
                     return (
@@ -82,15 +82,14 @@ const PopularSuggestions: React.FC = () => {
                             </div>
 
                             <button
-                                onClick={() => handleFollow(user)}
-                                disabled={isFollowed}
+                                onClick={() => !followed.has(user.id) && handleFollow(user)}
                                 className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors flex-shrink-0 ${
-                                    isFollowed
+                                    followed.has(user.id)
                                         ? 'bg-gray-100 text-gray-400 cursor-default'
                                         : 'bg-sky-50 text-sky-500 hover:bg-sky-100'
                                 }`}
                             >
-                                {isFollowed ? 'Đã follow' : 'Follow'}
+                                {followed.has(user.id) ? 'Following' : 'Follow'}
                             </button>
                         </div>
                     );

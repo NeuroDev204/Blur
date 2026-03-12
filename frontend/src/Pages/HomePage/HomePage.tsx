@@ -351,10 +351,8 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Right sidebar */}
-                <div className="hidden lg:block w-[280px] flex-shrink-0">
-                    <div className="sticky top-6">
-                        <PopularSuggestions />
-                    </div>
+                <div className="hidden lg:block w-[280px] flex-shrink-0 sticky top-6 self-start">
+                    <PopularSuggestions />
                 </div>
             </div>
 

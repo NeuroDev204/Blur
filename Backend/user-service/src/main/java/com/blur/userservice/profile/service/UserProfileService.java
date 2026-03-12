@@ -133,8 +133,14 @@ public class UserProfileService {
     }
 
     @Caching(evict = {
-            @CacheEvict(value = "followers", key = "#followerId"),
-            @CacheEvict(value = "following", key = "#root.target.getCurrentUserId()")
+            @CacheEvict(value = "followers", allEntries = true),
+            @CacheEvict(value = "following", allEntries = true),
+            @CacheEvict(value = "recommendation:mutual", allEntries = true),
+            @CacheEvict(value = "recommendations:taste", allEntries = true),
+            @CacheEvict(value = "recommnedations:city", allEntries = true),
+            @CacheEvict(value = "recommedations:popular", allEntries = true),
+            @CacheEvict(value = "recommendations:combined", allEntries = true),
+            @CacheEvict(value = "recommendations:quick", allEntries = true)
     })
     public String followUser(String followerId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -147,9 +153,11 @@ public class UserProfileService {
         // Lấy Neo4j UUID từ userId
         var requester = getOrCreateProfileByUserId(reqUserId);
 
-        var followingUser = userProfileRepository.findUserProfileById(followerId)
+        var followingUser = userProfileRepository.findByUserId(followerId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
-        userProfileRepository.follow(requester.getId(), followerId);
+        userProfileRepository.follow(requester.getId(), followingUser.getId());
+        userProfileRepository.updateFollowCounts(requester.getId());
+        userProfileRepository.updateFollowCounts(followingUser.getId());
 
         // gui notification
         Event event = Event.builder()
@@ -166,8 +174,14 @@ public class UserProfileService {
     }
 
     @Caching(evict = {
-            @CacheEvict(value = "followers", key = "#followerId"),
-            @CacheEvict(value = "following", key = "#root.target.getCurrentUserId()")
+            @CacheEvict(value = "followers", allEntries = true),
+            @CacheEvict(value = "following", allEntries = true),
+            @CacheEvict(value = "recommendation:mutual", allEntries = true),
+            @CacheEvict(value = "recommendations:taste", allEntries = true),
+            @CacheEvict(value = "recommnedations:city", allEntries = true),
+            @CacheEvict(value = "recommedations:popular", allEntries = true),
+            @CacheEvict(value = "recommendations:combined", allEntries = true),
+            @CacheEvict(value = "recommendations:quick", allEntries = true)
     })
     public String unfollowUser(String followerId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -175,10 +189,12 @@ public class UserProfileService {
 
         var requester = getOrCreateProfileByUserId(reqUserId);
 
-        var followingUser = userProfileRepository.findUserProfileById(followerId)
+        var followingUser = userProfileRepository.findByUserId(followerId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_PROFILE_NOT_FOUND));
         requester.getFollowers().remove(followingUser);
-        userProfileRepository.unfollow(requester.getId(), followerId);
+        userProfileRepository.unfollow(requester.getId(), followingUser.getId());
+        userProfileRepository.updateFollowCounts(requester.getId());
+        userProfileRepository.updateFollowCounts(followingUser.getId());
 
         return "You unfollowed " + followingUser.getFirstName();
     }
@@ -227,7 +243,7 @@ public class UserProfileService {
     // cache 10 phut
     @Cacheable(
             value = "recommendation:mutual",
-            key = "#root.target.getCurrentProfileId()",
+            key = "#root.target.getCurrentProfileId() + '-' + #page + '-' + #size",
             unless = "#result.content.isEmpty()"
     )
     @Transactional(readOnly = true)

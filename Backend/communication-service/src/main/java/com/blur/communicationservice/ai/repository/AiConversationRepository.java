@@ -10,5 +10,7 @@ import com.blur.communicationservice.ai.entity.AiConversation;
 @Repository
 public interface AiConversationRepository extends MongoRepository<AiConversation, String> {
 
+    void deleteByUserId(String userId);
+
     List<AiConversation> findByUserIdOrderByUpdatedAtDesc(String userId);
 }

@@ -73,12 +73,12 @@ const ProfileUserDetails = () => {
     try {
       setIsActionLoading(true);
       if (isFollowing) {
-        await unfollowUser(user.id);
+        await unfollowUser(user.userId);
         setFollowers((prev) =>
           prev.filter((follower) => follower.id !== currentUser.id)
         );
       } else {
-        await followUser(user.id);
+        await followUser(user.userId);
         setFollowers((prev) => [...prev, currentUser]);
       }
       setIsFollowing(!isFollowing);
