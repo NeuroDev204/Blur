@@ -20,7 +20,10 @@
       "Bash(while read f)",
       "Bash(do sed -i '/@Slf4j/d' \"$f\")",
       "Bash(sed -i '/import lombok\\\\.extern\\\\.slf4j\\\\.Slf4j;/d' \"$f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Read(//f/Blur/**)",
+      "Bash(grep -r \"entryTtl\\\\|time-to-live\" /f/Blur/Backend/*/src/main/java --include=\"*.java\")",
+      "Bash(grep -r \"redisTemplate.keys\\\\|CacheEvict\\\\|@Cacheable\" /f/Blur/Backend/*/src/main/java --include=\"*.java\")"
     ]
   }
 }
