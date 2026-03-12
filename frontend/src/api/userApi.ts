@@ -78,3 +78,39 @@ export const getFollowings = async (profileId: string): Promise<UserProfile[]> =
     const response = await axiosClient.get<ApiResponse<UserProfile[]>>(`/profile/users/following/${profileId}`)
     return response.data?.result || []
 }
+
+export interface RecommendationUser {
+    id: string
+    userId: string
+    username: string
+    firstName: string
+    lastName: string
+    imageUrl?: string
+    bio?: string
+    city?: string
+    followerCount?: number
+    followingCount?: number
+    mutualConnections?: number
+    recommendationType?: string
+}
+
+export interface RecommendationPageResponse {
+    content: RecommendationUser[]
+    page: number
+    size: number
+    totalElements: number
+    totalPages: number
+    hasNext: boolean
+    hasPrevious: boolean
+}
+
+export const fetchPopularRecommendations = async (
+    minFollowers = 100,
+    page = 0,
+    size = 10
+): Promise<RecommendationPageResponse> => {
+    const response = await axiosClient.get<ApiResponse<RecommendationPageResponse>>(
+        `/recommendations/popular?minFollowers=${minFollowers}&page=${page}&size=${size}`
+    )
+    return response.data?.result as RecommendationPageResponse
+}

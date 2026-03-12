@@ -227,7 +227,7 @@ public class UserProfileService {
     // cache 10 phut
     @Cacheable(
             value = "recommendation:mutual",
-            key = "#root.target.getCurrentUserProfileId",
+            key = "#root.target.getCurrentProfileId()",
             unless = "#result.content.isEmpty()"
     )
     @Transactional(readOnly = true)
@@ -245,7 +245,7 @@ public class UserProfileService {
     // lay goi y dua tren so thich tuong tu (follow cung nguoi)
     @Cacheable(
             value = "recommendations:taste",
-            key = "#root.tartget.getCurrentProfileId() +'-'+#page+'-'+#size",
+            key = "#root.target.getCurrentProfileId() + '-' + #page + '-' + #size",
             unless = "#result.content.isEmpty()"
     )
     @Transactional(readOnly = true)

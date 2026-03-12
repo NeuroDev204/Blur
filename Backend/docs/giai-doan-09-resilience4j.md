@@ -1,13 +1,41 @@
-# Giai Đoạn 9: Resilience4j
+# Giai Đoạn 9: Resilience4j (CHƯA TRIỂN KHAI)
 
 ## Mục tiêu
 
-Circuit breaker + retry + rate limiting cho inter-service calls.
+Circuit breaker + retry + timeout cho inter-service calls.
 Bảo vệ hệ thống khi một service bị lỗi hoặc chậm, tránh cascading failure.
+
+## Trạng thái: CHƯA TRIỂN KHAI
+
+## Vấn đề hiện tại
+
+Các services gọi nhau qua Feign client KHÔNG có protection:
+
+```
+Content Service                     User Service
+───────────────                    ─────────────
+PostService.createPost()
+  │
+  └─ profileClient.getProfile()  ────→  User Service (8081)
+                                           │
+                                    Nếu user-service DOWN:
+                                    - Feign timeout (mặc định 60s)
+                                    - Thread bị block 60s
+                                    - Nhiều requests → thread pool exhausted
+                                    - Content service cũng DOWN (cascading failure!)
+```
+
+**Inter-service calls hiện tại (không có protection):**
+
+| Caller | Callee | Feign Client | Method |
+|--------|--------|-------------|--------|
+| content-service | user-service | `ProfileClient` | `getProfile(userId)`, `getProfileByProfileId(profileId)` |
+| content-service | communication-service | `CommunicationServiceClient` | `sendModerationUpdate(result)` |
+| api-gateway | user-service | `ProfileAuthClient` | `introspect(token)` |
 
 ## Bước 1: Thêm dependency vào pom.xml
 
-Thêm vào `pom.xml` của mỗi service cần gọi inter-service (content-service, profile-service, communication-service):
+**File:** `pom.xml` cho content-service và communication-service
 
 ```xml
 <dependency>
@@ -26,18 +54,18 @@ Thêm vào `pom.xml` của mỗi service cần gọi inter-service (content-serv
 
 ## Bước 2: Cấu hình application.yaml
 
-Thêm vào `application.yaml` của mỗi service:
+**File:** `content-service/src/main/resources/application.yaml`
 
 ```yaml
 resilience4j:
   circuitbreaker:
     instances:
       profileService:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
-        permitted-number-of-calls-in-half-open-state: 3
-      identityService:
+        sliding-window-size: 10           # Đếm 10 calls gần nhất
+        failure-rate-threshold: 50        # Mở circuit khi 50% fail
+        wait-duration-in-open-state: 10s  # Đợi 10s trước khi thử lại
+        permitted-number-of-calls-in-half-open-state: 3  # Cho 3 calls thử
+      communicationService:
         sliding-window-size: 10
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
@@ -45,26 +73,26 @@ resilience4j:
   retry:
     instances:
       profileService:
-        max-attempts: 3
-        wait-duration: 500ms
+        max-attempts: 3                   # Retry tối đa 3 lần
+        wait-duration: 500ms              # Đợi 500ms giữa mỗi lần
         retry-exceptions:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
-      identityService:
-        max-attempts: 3
-        wait-duration: 500ms
+          - feign.FeignException.ServiceUnavailable
+      communicationService:
+        max-attempts: 2
+        wait-duration: 1s
         retry-exceptions:
           - java.io.IOException
-          - java.util.concurrent.TimeoutException
 
   timelimiter:
     instances:
       profileService:
-        timeout-duration: 3s
-      identityService:
-        timeout-duration: 3s
+        timeout-duration: 3s              # Timeout sau 3s
+      communicationService:
+        timeout-duration: 5s
 
-# Actuator endpoints để monitor circuit breaker
+# Actuator endpoints để monitor
 management:
   endpoints:
     web:
@@ -78,14 +106,16 @@ management:
       show-details: always
 ```
 
-## Bước 3: Sử dụng trong Content Service
+## Bước 3: Tạo Resilient Service Wrapper cho Content Service
 
-**File:** `content-service/src/main/java/com/contentservice/post/service/ContentService.java`
+**File:** `content-service/src/main/java/com/contentservice/post/service/ResilientProfileService.java`
 
 ```java
 package com.contentservice.post.service;
 
 import com.contentservice.post.dto.response.UserProfileResponse;
+import com.contentservice.post.repository.httpclient.ProfileClient;
+import com.contentservice.story.dto.response.ApiResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.AccessLevel;
@@ -98,35 +128,61 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class ContentService {
-
+public class ResilientProfileService {
     ProfileClient profileClient;
 
     @CircuitBreaker(name = "profileService", fallbackMethod = "getProfileFallback")
     @Retry(name = "profileService")
-    public UserProfileResponse getProfile(String userId) {
-        return profileClient.getProfile(userId).getResult();
+    public ApiResponse<UserProfileResponse> getProfile(String userId) {
+        return profileClient.getProfile(userId);
     }
 
-    public UserProfileResponse getProfileFallback(String userId, Exception e) {
+    /**
+     * Fallback khi user-service down hoặc circuit open.
+     * Trả về profile tối thiểu để post/comment vẫn hoạt động.
+     */
+    public ApiResponse<UserProfileResponse> getProfileFallback(String userId, Exception e) {
         log.warn("Fallback triggered for getProfile({}): {}", userId, e.getMessage());
-        return UserProfileResponse.builder()
+        UserProfileResponse fallback = UserProfileResponse.builder()
                 .userId(userId)
-                .username("user_" + userId.substring(0, 6))
+                .username("user_" + userId.substring(0, Math.min(6, userId.length())))
                 .firstName("Unknown")
                 .lastName("User")
+                .build();
+        return ApiResponse.<UserProfileResponse>builder()
+                .code(1000)
+                .result(fallback)
+                .build();
+    }
+
+    @CircuitBreaker(name = "profileService", fallbackMethod = "getProfileByIdFallback")
+    @Retry(name = "profileService")
+    public ApiResponse<UserProfileResponse> getProfileByProfileId(String profileId) {
+        return profileClient.getProfileByProfileId(profileId);
+    }
+
+    public ApiResponse<UserProfileResponse> getProfileByIdFallback(String profileId, Exception e) {
+        log.warn("Fallback triggered for getProfileByProfileId({}): {}", profileId, e.getMessage());
+        return ApiResponse.<UserProfileResponse>builder()
+                .code(1000)
+                .result(UserProfileResponse.builder()
+                        .id(profileId)
+                        .firstName("Unknown")
+                        .lastName("User")
+                        .build())
                 .build();
     }
 }
 ```
 
-## Bước 4: Sử dụng trong Communication Service
+## Bước 4: Tạo Resilient Moderation Notification
 
-**File:** `communication-service/src/main/java/com/blur/communicationservice/service/CommunicationService.java`
+**File:** `content-service/src/main/java/com/contentservice/post/service/ResilientCommunicationService.java`
 
 ```java
-package com.blur.communicationservice.service;
+package com.contentservice.post.service;
 
+import com.contentservice.client.CommunicationServiceClient;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.AccessLevel;
@@ -135,202 +191,129 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class CommunicationService {
+public class ResilientCommunicationService {
+    CommunicationServiceClient communicationServiceClient;
 
-    IdentityClient identityClient;
-
-    @CircuitBreaker(name = "identityService", fallbackMethod = "validateTokenFallback")
-    @Retry(name = "identityService")
-    public boolean validateToken(String token) {
-        return identityClient.validateToken(token).getResult();
+    @CircuitBreaker(name = "communicationService", fallbackMethod = "sendModerationUpdateFallback")
+    @Retry(name = "communicationService")
+    public void sendModerationUpdate(Map<String, Object> result) {
+        communicationServiceClient.sendModerationUpdate(result);
     }
 
-    public boolean validateTokenFallback(String token, Exception e) {
-        log.warn("Fallback triggered for validateToken: {}", e.getMessage());
-        return false;
+    public void sendModerationUpdateFallback(Map<String, Object> result, Exception e) {
+        log.warn("Fallback: moderation update not sent to communication-service for comment {}: {}",
+                result.get("commentId"), e.getMessage());
+        // Moderation result đã lưu trong DB, user sẽ thấy khi refresh
     }
 }
 ```
 
-## Bước 5: Tạo DTO cho fallback response
+## Bước 5: Sửa PostService và ModerationResultConsumer dùng Resilient services
 
-**File:** `content-service/src/main/java/com/contentservice/post/dto/response/UserProfileResponse.java`
+### PostService
+
+Thay `profileClient.getProfile()` bằng `resilientProfileService.getProfile()`:
 
 ```java
-package com.contentservice.post.dto.response;
+// Trước:
+var profileResult = profileClient.getProfile(userId).getResult();
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+// Sau:
+var profileResult = resilientProfileService.getProfile(userId).getResult();
+```
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserProfileResponse {
-    String userId;
-    String username;
-    String firstName;
-    String lastName;
-    String avatar;
-    String bio;
-}
+### ModerationResultConsumer
+
+Thay `communicationServiceClient.sendModerationUpdate()` bằng `resilientCommunicationService.sendModerationUpdate()`:
+
+```java
+// Trước:
+communicationServiceClient.sendModerationUpdate(result);
+
+// Sau:
+resilientCommunicationService.sendModerationUpdate(result);
 ```
 
 ## Hướng dẫn Test
 
-### Test 1: Circuit breaker hoạt động bình thường (CLOSED state)
-
-**Bước 1:** Đảm bảo tất cả services đang chạy.
+### Test 1: Circuit breaker CLOSED (bình thường)
 
 ```bash
-docker-compose up -d
-```
-
-**Bước 2:** Gọi API bình thường → circuit breaker ở trạng thái CLOSED.
-
-```bash
-curl -X GET http://localhost:8888/api/content/posts \
+# Gọi API bình thường
+curl -X GET http://localhost:8888/api/post/all?page=0&limit=10 \
   -H "Authorization: Bearer <TOKEN>"
+
+# Kiểm tra circuit breaker qua Actuator
+curl -s http://localhost:8082/actuator/health | jq '.components.circuitBreakers'
+# Mong đợi: state = "CLOSED", failedCalls = 0
 ```
 
-**Bước 3:** Kiểm tra trạng thái circuit breaker qua Actuator.
+### Test 2: Circuit breaker OPEN (service down)
 
 ```bash
-curl -s http://localhost:<CONTENT_SERVICE_PORT>/actuator/health | jq '.components.circuitBreakers'
-```
+# Tắt user-service
+docker-compose stop user-service
 
-Response mong đợi:
-```json
-{
-  "status": "UP",
-  "details": {
-    "profileService": {
-      "status": "UP",
-      "details": {
-        "failureRate": "-1.0%",
-        "state": "CLOSED",
-        "bufferedCalls": 1,
-        "failedCalls": 0
-      }
-    }
-  }
-}
-```
-
-### Test 2: Circuit breaker mở khi service bị lỗi (OPEN state)
-
-**Bước 1:** Tắt profile-service.
-
-```bash
-docker-compose stop profile-service
-```
-
-**Bước 2:** Gọi API liên tục 10 lần (vượt sliding-window-size).
-
-```bash
-for i in {1..10}; do
-  echo "Request $i:"
-  curl -s -X GET http://localhost:8888/api/content/posts \
+# Gọi API 10+ lần
+for i in {1..12}; do
+  curl -s http://localhost:8888/api/post/all?page=0&limit=10 \
     -H "Authorization: Bearer <TOKEN>" | jq '.code'
-  echo ""
 done
+
+# Kiểm tra: circuit breaker chuyển sang OPEN
+curl -s http://localhost:8082/actuator/health | jq '.components.circuitBreakers'
+# Mong đợi: state = "OPEN", failureRate = "100.0%"
+
+# API vẫn trả về data (fallback) nhưng author info là "Unknown User"
 ```
 
-**Bước 3:** Kiểm tra circuit breaker đã chuyển sang OPEN.
+### Test 3: Circuit breaker recovery (HALF_OPEN → CLOSED)
 
 ```bash
-curl -s http://localhost:<CONTENT_SERVICE_PORT>/actuator/health | jq '.components.circuitBreakers'
-```
+# Bật lại user-service
+docker-compose start user-service
 
-Response mong đợi:
-```json
-{
-  "details": {
-    "profileService": {
-      "details": {
-        "failureRate": "100.0%",
-        "state": "OPEN",
-        "bufferedCalls": 10,
-        "failedCalls": 10
-      }
-    }
-  }
-}
-```
+# Đợi 10s (wait-duration-in-open-state)
+sleep 10
 
-**Bước 4:** Gọi API tiếp → fallback trả về ngay lập tức (không gọi profile-service).
-
-```bash
-curl -s -X GET http://localhost:8888/api/content/posts \
-  -H "Authorization: Bearer <TOKEN>"
-```
-
-Response vẫn trả về nhưng author info là "Unknown User" (fallback data).
-
-### Test 3: Circuit breaker tự phục hồi (HALF_OPEN → CLOSED)
-
-**Bước 1:** Khởi động lại profile-service.
-
-```bash
-docker-compose start profile-service
-```
-
-**Bước 2:** Đợi 10 giây (wait-duration-in-open-state).
-
-**Bước 3:** Gọi API → circuit breaker chuyển sang HALF_OPEN, cho phép 3 calls thử.
-
-```bash
+# Gọi API 3 lần (permitted-number-of-calls-in-half-open-state)
 for i in {1..3}; do
-  curl -s -X GET http://localhost:8888/api/content/posts \
+  curl -s http://localhost:8888/api/post/all?page=0&limit=10 \
     -H "Authorization: Bearer <TOKEN>" | jq '.code'
 done
+
+# Kiểm tra: circuit breaker về CLOSED
+curl -s http://localhost:8082/actuator/health | jq '.components.circuitBreakers'
+# Mong đợi: state = "CLOSED"
 ```
 
-**Bước 4:** Kiểm tra circuit breaker đã chuyển về CLOSED.
+### Test 4: Xem circuit breaker events
 
 ```bash
-curl -s http://localhost:<CONTENT_SERVICE_PORT>/actuator/health | jq '.components.circuitBreakers'
+curl -s http://localhost:8082/actuator/circuitbreakerevents | jq '.circuitBreakerEvents'
+# Mong đợi: SUCCESS, ERROR, STATE_TRANSITION events
 ```
-
-Response mong đợi: state = "CLOSED".
-
-### Test 4: Retry hoạt động
-
-**Bước 1:** Xem log content-service khi profile-service bị chậm.
-
-```bash
-docker logs -f content-service 2>&1 | grep -i "retry"
-```
-
-Mong đợi: thấy 3 lần retry (max-attempts: 3) với khoảng cách 500ms giữa mỗi lần.
-
-### Test 5: Xem circuit breaker events
-
-```bash
-curl -s http://localhost:<CONTENT_SERVICE_PORT>/actuator/circuitbreakerevents | jq '.circuitBreakerEvents'
-```
-
-Response mong đợi: danh sách events bao gồm SUCCESS, ERROR, STATE_TRANSITION.
 
 ## Checklist
 
 - [ ] Thêm resilience4j-spring-boot3 dependency vào content-service
-- [ ] Thêm resilience4j-spring-boot3 dependency vào communication-service
-- [ ] Thêm spring-boot-starter-aop dependency (bắt buộc cho annotation)
+- [ ] Thêm spring-boot-starter-aop dependency
+- [ ] Thêm spring-boot-starter-actuator dependency
 - [ ] Config circuit breaker cho profileService trong application.yaml
-- [ ] Config circuit breaker cho identityService trong application.yaml
-- [ ] Config retry cho transient failures (IOException, TimeoutException)
-- [ ] Config timelimiter timeout 3 giây
-- [ ] Implement fallback method cho getProfile()
-- [ ] Implement fallback method cho validateToken()
+- [ ] Config circuit breaker cho communicationService trong application.yaml
+- [ ] Config retry cho transient failures
+- [ ] Config timelimiter timeout
+- [ ] Tạo ResilientProfileService với fallback methods
+- [ ] Tạo ResilientCommunicationService với fallback methods
+- [ ] Sửa PostService → dùng ResilientProfileService
+- [ ] Sửa ModerationResultConsumer → dùng ResilientCommunicationService
 - [ ] Bật Actuator endpoints: circuitbreakers, circuitbreakerevents
-- [ ] Test: gọi API bình thường → circuit breaker CLOSED
-- [ ] Test: tắt profile-service → circuit breaker OPEN → fallback trả về
-- [ ] Test: bật lại profile-service → circuit breaker HALF_OPEN → CLOSED
-- [ ] Test: retry 3 lần khi gặp transient error
-- [ ] Test: kiểm tra Actuator endpoint hiển thị đúng trạng thái
+- [ ] Test: CLOSED state khi services healthy
+- [ ] Test: OPEN state + fallback khi service down
+- [ ] Test: HALF_OPEN → CLOSED recovery

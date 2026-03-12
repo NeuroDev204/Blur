@@ -40,6 +40,14 @@ spring:
           filters:
             - RewritePath=/api/test-data/(?<segment>.*), /test-data/${segment}
 
+        # User Service - Recommendation endpoints
+        - id: user_recommendations
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/recommendations/**
+          filters:
+            - RewritePath=/api/recommendations/(?<segment>.*), /recommendations/${segment}
+
         # User Service - Profile endpoints
         - id: user_profile_internal
           uri: ${app.services.user}

@@ -6,6 +6,7 @@ import { fetchUserInfo } from '../../api/userApi';
 import { fetchAllStories } from '../../api/storyApi';
 import CreatePostModal from '../../Components/Post/CreatePostModal';
 import { PostSkeleton, StorySkeleton } from '../../Components/Skeleton/Skeletons';
+import PopularSuggestions from '../../Components/Recommendations/PopularSuggestions';
 
 interface Post {
     id?: string;
@@ -323,27 +324,37 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-            <div className="flex justify-center w-full px-4 xl:px-0 py-6">
-                <div className="w-full max-w-[620px]">
-                    {renderStories()}
+            <div className="flex w-full py-6 px-4 gap-6">
+                {/* Main feed - centered with auto margins */}
+                <div className="flex-1 flex justify-center">
+                    <div className="w-full max-w-[620px]">
+                        {renderStories()}
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
-                        <div className="flex items-center gap-3">
-                            <img
-                                src={user?.imageUrl || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"}
-                                alt="Your avatar"
-                                className="w-12 h-12 rounded-full object-cover border-2 border-sky-200"
-                            />
-                            <button
-                                onClick={() => setIsCreateOpen(true)}
-                                className="flex-1 text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-500 transition-colors duration-200"
-                            >
-                                What's on your mind, {user?.firstName || 'there'}?
-                            </button>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src={user?.imageUrl || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"}
+                                    alt="Your avatar"
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-sky-200"
+                                />
+                                <button
+                                    onClick={() => setIsCreateOpen(true)}
+                                    className="flex-1 text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-500 transition-colors duration-200"
+                                >
+                                    What's on your mind, {user?.firstName || 'there'}?
+                                </button>
+                            </div>
                         </div>
-                    </div>
 
-                    {renderPosts()}
+                        {renderPosts()}
+                    </div>
+                </div>
+
+                {/* Right sidebar */}
+                <div className="hidden lg:block w-[280px] flex-shrink-0">
+                    <div className="sticky top-6">
+                        <PopularSuggestions />
+                    </div>
                 </div>
             </div>
 

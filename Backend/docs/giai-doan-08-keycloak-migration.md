@@ -1,13 +1,46 @@
-# Giai Đoạn 8: Keycloak Migration
+# Giai Đoạn 8: Keycloak Migration (CHƯA TRIỂN KHAI)
 
 ## Mục tiêu
 
-Chuyển từ custom JWT → Keycloak cho SSO, OAuth2, role management.
-Giai đoạn này phức tạp, triển khai CUỐI vì ảnh hưởng tất cả services.
+Chuyển từ custom JWT (HS512 signed, self-managed) → Keycloak cho SSO, OAuth2, role management.
+Giai đoạn này ảnh hưởng TẤT CẢ services nên triển khai cuối.
+
+## Trạng thái: CHƯA TRIỂN KHAI
+
+## Authentication hiện tại
+
+### Cách hoạt động hiện tại
+
+```
+Frontend                  API Gateway (8888)           User Service (8081)
+────────                 ────────────────────         ─────────────────────
+POST /auth/token    →    AuthenticationFilter    →    AuthController.authenticate()
+  {username, password}     │                              │
+                           │ Extract token from:          │ Verify username/password
+                           │  - Cookie (priority)         │ Generate JWT (HS512)
+                           │  - Authorization header      │ Set HttpOnly cookie
+                           │  - Query param               │ Return token
+                           │                              │
+GET /api/post/...   →    AuthenticationFilter            │
+  Cookie: token            │                              │
+                           │ Introspect token ───────→   AuthController.introspect()
+                           │ via Feign ProfileAuthClient   │ Verify JWT signature
+                           │                              │ Check expiration
+                           │ Token valid → forward        │ Return {valid, userId}
+                           │ Token invalid → 401          │
+```
+
+### Vấn đề
+
+1. **JWT self-signed (HS512):** Tất cả services phải share cùng `SIGNER_KEY` → nếu leak, toàn bộ hệ thống compromised
+2. **Không có SSO:** Mỗi service tự validate, không có central identity provider
+3. **Không có RBAC chuẩn:** Roles lưu trong UserProfile Neo4j node, không có fine-grained permissions
+4. **Token revocation thủ công:** Dùng Redis blacklist (`RedisService.invalidateToken()`) - không scale
+5. **Google OAuth tự implement:** `OutboundIdentityClient` gọi trực tiếp Google API
 
 ## Bước 1: Thêm Keycloak vào Docker Compose
 
-Thêm đoạn sau vào file `docker-compose.yml`:
+**File:** `Backend/docker-compose.yml`
 
 ```yaml
 keycloak:
@@ -24,53 +57,45 @@ keycloak:
     - "9090:8080"
   depends_on:
     - mysql
+
+mysql:
+  image: mysql:8.0
+  environment:
+    MYSQL_ROOT_PASSWORD: root
+    MYSQL_DATABASE: keycloak
+  ports:
+    - "3306:3306"
+  volumes:
+    - mysql_data:/var/lib/mysql
 ```
 
 ## Bước 2: Setup Keycloak Realm và Clients
 
 ### 2.1 Tạo Realm "blur"
 
-1. Truy cập Keycloak Admin Console: `http://localhost:9090`
-2. Đăng nhập với `admin` / `admin`
-3. Click "Create Realm"
-4. Nhập Realm name: `blur`
-5. Click "Create"
+1. Truy cập `http://localhost:9090` → đăng nhập `admin/admin`
+2. Create Realm → Name: `blur`
 
 ### 2.2 Tạo Clients
 
-Trong Realm "blur", tạo các clients sau:
+**Client 1: api-gateway** (confidential)
+- Client ID: `api-gateway`
+- Client authentication: ON
+- Authentication flow: Service accounts roles
+- Valid redirect URIs: `http://localhost:8888/*`
 
-**Client 1: api-gateway**
-1. Clients → Create client
-2. Client ID: `api-gateway`
-3. Client authentication: ON
-4. Authorization: OFF
-5. Authentication flow: chỉ bật "Service accounts roles"
-6. Valid redirect URIs: `http://localhost:8888/*`
-7. Web origins: `http://localhost:3000`
-
-**Client 2: blur-frontend**
-1. Clients → Create client
-2. Client ID: `blur-frontend`
-3. Client authentication: OFF (public client)
-4. Authentication flow: bật "Standard flow", "Direct access grants"
-5. Valid redirect URIs: `http://localhost:3000/*`
-6. Web origins: `http://localhost:3000`
+**Client 2: blur-frontend** (public)
+- Client ID: `blur-frontend`
+- Client authentication: OFF
+- Authentication flow: Standard flow + Direct access grants
+- Valid redirect URIs: `http://localhost:3000/*`
+- Web origins: `http://localhost:3000`
 
 ### 2.3 Tạo Roles
 
-1. Realm roles → Create role
-2. Tạo các roles: `ROLE_USER`, `ROLE_ADMIN`, `ROLE_MODERATOR`
-
-### 2.4 Tạo User mẫu
-
-1. Users → Add user
-2. Username: `testuser`
-3. Email: `test@blur.com`
-4. Email verified: ON
-5. Click Create
-6. Tab Credentials → Set password: `password123`, Temporary: OFF
-7. Tab Role mapping → Assign role: `ROLE_USER`
+- `ROLE_USER`
+- `ROLE_ADMIN`
+- `ROLE_MODERATOR`
 
 ## Bước 3: Thêm dependency cho API Gateway
 
@@ -87,7 +112,9 @@ Trong Realm "blur", tạo các clients sau:
 </dependency>
 ```
 
-## Bước 4: Cập nhật API Gateway Security Config
+## Bước 4: Cập nhật API Gateway
+
+### SecurityConfig mới
 
 **File:** `api-gateway/src/main/java/com/blur/apigateway/configuration/SecurityConfig.java`
 
@@ -105,33 +132,30 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/identity/auth/**",
-            "/api/identity/users/registration",
+            "/api/auth/**",
+            "/api/users/registration**",
+            "/api/test-data/**",
+            "/api/profile/internal/**",
             "/actuator/health"
     };
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .anyExchange().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> {})
-                );
-
+            .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            .authorizeExchange(exchanges -> exchanges
+                .pathMatchers(PUBLIC_ENDPOINTS).permitAll()
+                .anyExchange().authenticated()
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> {})
+            );
         return http.build();
     }
 }
 ```
 
-## Bước 5: Cấu hình application.yaml cho Keycloak
-
-**File:** `api-gateway/src/main/resources/application.yaml`
-
-Thêm cấu hình sau:
+### application.yaml - Keycloak JWT config
 
 ```yaml
 spring:
@@ -143,7 +167,7 @@ spring:
           jwk-set-uri: ${KEYCLOAK_JWK_URI:http://localhost:9090/realms/blur/protocol/openid-connect/certs}
 ```
 
-## Bước 6: Tạo JWT Role Converter (ánh xạ Keycloak roles → Spring Security)
+## Bước 5: Tạo KeycloakRoleConverter
 
 **File:** `api-gateway/src/main/java/com/blur/apigateway/configuration/KeycloakRoleConverter.java`
 
@@ -156,8 +180,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import reactor.core.publisher.Flux;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -186,7 +208,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, Flux<GrantedAuthori
 }
 ```
 
-## Bước 7: Script migrate users từ MySQL sang Keycloak
+## Bước 6: Script migrate users từ Neo4j sang Keycloak
 
 **File:** `scripts/migrate-users-to-keycloak.sh`
 
@@ -208,67 +230,53 @@ ADMIN_TOKEN=$(curl -s -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-conne
 
 echo "Admin token obtained"
 
-# Đọc users từ MySQL và tạo trong Keycloak
-# Thay đổi connection string cho phù hợp
-mysql -h localhost -u root -proot blur_identity -N -e "SELECT username, email, first_name, last_name FROM users" | while IFS=$'\t' read -r username email first_name last_name; do
-  echo "Creating user: $username"
+# Export users từ Neo4j (dùng cypher-shell hoặc API)
+# MATCH (u:user_profile) RETURN u.username, u.email, u.firstName, u.lastName
+# Tạo từng user trong Keycloak qua REST API
 
-  curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/users" \
-    -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"username\": \"$username\",
-      \"email\": \"$email\",
-      \"firstName\": \"$first_name\",
-      \"lastName\": \"$last_name\",
-      \"enabled\": true,
-      \"emailVerified\": true
-    }"
-
-  # Lấy user ID vừa tạo
-  USER_ID=$(curl -s -X GET "$KEYCLOAK_URL/admin/realms/$REALM/users?username=$username" \
-    -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
-
-  # Set password (temporary = false)
-  curl -s -X PUT "$KEYCLOAK_URL/admin/realms/$REALM/users/$USER_ID/reset-password" \
-    -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "type": "password",
-      "value": "changeme123",
-      "temporary": false
-    }'
-
-  # Assign ROLE_USER
-  ROLE_ID=$(curl -s -X GET "$KEYCLOAK_URL/admin/realms/$REALM/roles/ROLE_USER" \
-    -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.id')
-
-  curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/users/$USER_ID/role-mappings/realm" \
-    -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "[{\"id\": \"$ROLE_ID\", \"name\": \"ROLE_USER\"}]"
-
-  echo "User $username created and assigned ROLE_USER"
-done
+# Ví dụ tạo 1 user:
+curl -s -X POST "$KEYCLOAK_URL/admin/realms/$REALM/users" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@blur.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "enabled": true,
+    "emailVerified": true
+  }'
 
 echo "Migration completed!"
 ```
 
+## Bước 7: Cập nhật các services validate Keycloak JWT
+
+Tất cả services (user-service, content-service, communication-service) cần:
+
+1. Thêm dependency `spring-boot-starter-oauth2-resource-server`
+2. Xóa `CustomJwtDecoder.java` (không cần nữa, dùng Keycloak JWK)
+3. Cập nhật `SecurityConfig.java` → dùng `oauth2ResourceServer()`
+4. Cập nhật `application.yaml` → thêm Keycloak issuer-uri
+
+### Thay đổi ở mỗi service
+
+**Xóa:**
+- `CustomJwtDecoder.java`
+- `AuthenticationService.java` (phần generate/verify JWT)
+- `RedisService.invalidateToken()` (Keycloak quản lý token lifecycle)
+
+**Sửa:**
+- `SecurityConfig.java` → OAuth2 Resource Server
+- `application.yaml` → Keycloak JWT config
+
+**Giữ nguyên:**
+- `AuthenticationRequestInterceptor.java` (vẫn propagate Bearer token)
+- Tất cả business logic
+
 ## Hướng dẫn Test
 
-### Test 1: Keycloak đang chạy
-
-```bash
-# Khởi động Keycloak
-docker-compose up -d keycloak
-
-# Kiểm tra Keycloak health
-curl -s http://localhost:9090/health
-```
-
-Truy cập `http://localhost:9090` → thấy Keycloak Admin Console.
-
-### Test 2: Lấy token từ Keycloak
+### Test 1: Lấy token từ Keycloak
 
 ```bash
 curl -X POST http://localhost:9090/realms/blur/protocol/openid-connect/token \
@@ -279,24 +287,9 @@ curl -X POST http://localhost:9090/realms/blur/protocol/openid-connect/token \
   -d "password=password123"
 ```
 
-Response mong đợi:
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
-  "expires_in": 300,
-  "refresh_expires_in": 1800,
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
-  "token_type": "Bearer",
-  "not-before-policy": 0,
-  "session_state": "abc-123-def",
-  "scope": "openid email profile"
-}
-```
-
-### Test 3: Dùng Keycloak token gọi API qua Gateway
+### Test 2: Gọi API với Keycloak token
 
 ```bash
-# Lấy token
 TOKEN=$(curl -s -X POST http://localhost:9090/realms/blur/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
@@ -304,35 +297,20 @@ TOKEN=$(curl -s -X POST http://localhost:9090/realms/blur/protocol/openid-connec
   -d "username=testuser" \
   -d "password=password123" | jq -r '.access_token')
 
-# Gọi API với Keycloak token
-curl -X GET http://localhost:8888/api/profile/users/my-profile \
+curl -X GET http://localhost:8888/api/profile/users/myInfo \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Response mong đợi: trả về profile của testuser (code 1000).
-
-### Test 4: Gọi API không có token → bị chặn
+### Test 3: Không có token → 401
 
 ```bash
-curl -X GET http://localhost:8888/api/profile/users/my-profile
+curl -X GET http://localhost:8888/api/profile/users/myInfo
+# Mong đợi: 401 Unauthorized
 ```
 
-Response mong đợi: 401 Unauthorized.
-
-### Test 5: Gọi public endpoint không cần token
+### Test 4: Token refresh
 
 ```bash
-curl -X GET http://localhost:8888/actuator/health
-```
-
-Response mong đợi: 200 OK.
-
-### Test 6: Token refresh
-
-```bash
-# Lấy refresh_token từ Test 2
-REFRESH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI..."
-
 curl -X POST http://localhost:9090/realms/blur/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=refresh_token" \
@@ -340,41 +318,22 @@ curl -X POST http://localhost:9090/realms/blur/protocol/openid-connect/token \
   -d "refresh_token=$REFRESH_TOKEN"
 ```
 
-Response mong đợi: trả về access_token mới.
-
-### Test 7: Decode JWT để xem roles
-
-```bash
-# Decode JWT payload (phần giữa, tách bởi dấu chấm)
-echo $TOKEN | cut -d'.' -f2 | base64 -d 2>/dev/null | jq .
-```
-
-Mong đợi thấy:
-```json
-{
-  "realm_access": {
-    "roles": ["ROLE_USER"]
-  },
-  "preferred_username": "testuser",
-  "email": "test@blur.com"
-}
-```
-
 ## Checklist
 
-- [ ] Setup Keycloak container + tạo database keycloak trong MySQL
-- [ ] Tạo Realm "blur" trong Keycloak Admin Console
-- [ ] Tạo Client "api-gateway" (confidential) và "blur-frontend" (public)
+- [ ] Setup Keycloak container + MySQL database
+- [ ] Tạo Realm "blur"
+- [ ] Tạo Clients: api-gateway (confidential), blur-frontend (public)
 - [ ] Tạo Realm Roles: ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR
 - [ ] Tạo user mẫu và assign role
 - [ ] Thêm OAuth2 Resource Server dependency vào api-gateway
-- [ ] Cập nhật SecurityConfig.java → dùng oauth2ResourceServer
+- [ ] Tạo SecurityConfig mới với oauth2ResourceServer
 - [ ] Thêm Keycloak issuer-uri và jwk-set-uri vào application.yaml
-- [ ] Tạo KeycloakRoleConverter để ánh xạ roles
-- [ ] Chạy script migrate users từ MySQL → Keycloak
-- [ ] Cập nhật tất cả services validate Keycloak JWT thay vì custom JWT
-- [ ] Test: lấy token từ Keycloak thành công
-- [ ] Test: dùng Keycloak token gọi API qua Gateway thành công
-- [ ] Test: gọi API không token → 401 Unauthorized
-- [ ] Test: public endpoints vẫn truy cập được
+- [ ] Tạo KeycloakRoleConverter
+- [ ] Chạy script migrate users từ Neo4j → Keycloak
+- [ ] Cập nhật user-service: xóa CustomJwtDecoder, dùng Keycloak JWT
+- [ ] Cập nhật content-service: xóa CustomJwtDecoder, dùng Keycloak JWT
+- [ ] Cập nhật communication-service: xóa CustomJwtDecoder, dùng Keycloak JWT
+- [ ] Cập nhật frontend: login qua Keycloak endpoint thay vì /auth/token
+- [ ] Test: lấy token từ Keycloak → gọi API → thành công
+- [ ] Test: 401 khi không có token
 - [ ] Test: token refresh hoạt động

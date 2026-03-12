@@ -14,11 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
@@ -37,8 +33,119 @@ public class TestDataController {
             "Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Phan", "Vu", "Vo", "Dang",
             "Bui", "Do", "Ho", "Ngo", "Duong", "Ly", "Truong", "Dinh", "Doan", "Luong"
     };
+    private static final String[] CITIES = {
+            "Hà Nội", "Hồ Chí Minh", "Đà Nẵng", "Hải Phòng", "Cần Thơ",
+            "Biên Hòa", "Nha Trang", "Huế", "Buôn Ma Thuột", "Quy Nhơn",
+            "Vũng Tàu", "Đà Lạt", "Long Xuyên", "Thái Nguyên", "Nam Định",
+            "Vinh", "Thanh Hóa", "Bắc Ninh"
+    };
+
     UserService userService;
     UserProfileRepository userProfileRepository;
+
+    /**
+     * Endpoint gộp: Tạo users với city + random follows trong 1 lần gọi
+     *
+     * POST /test-data/generate-all?userCount=100&minFollows=5&maxFollows=50
+     */
+    @PostMapping("/generate-all")
+    public ApiResponse<Map<String, Object>> generateAll(
+            @RequestParam(defaultValue = "100") int userCount,
+            @RequestParam(defaultValue = "5") int minFollows,
+            @RequestParam(defaultValue = "50") int maxFollows) {
+
+        long startTime = System.currentTimeMillis();
+        Map<String, Object> result = new LinkedHashMap<>();
+        Random random = new Random();
+
+        // ========== BƯỚC 1: Tạo users với city ==========
+        AtomicInteger userSuccess = new AtomicInteger(0);
+        AtomicInteger userFail = new AtomicInteger(0);
+        Set<String> usedUsernames = new HashSet<>();
+
+        for (int i = 0; i < userCount; i++) {
+            try {
+                String firstName = FIRST_NAMES[random.nextInt(FIRST_NAMES.length)];
+                String lastName = LAST_NAMES[random.nextInt(LAST_NAMES.length)];
+                String baseUsername = (firstName + lastName).toLowerCase();
+                String username = generateUniqueUsername(baseUsername, usedUsernames);
+                usedUsernames.add(username);
+
+                UserCreationRequest request = UserCreationRequest.builder()
+                        .username(username)
+                        .email(username + "@testmail.com")
+                        .password("Test@123456")
+                        .firstName(firstName)
+                        .lastName(lastName)
+                        .dob(LocalDate.now().minusYears(20 + random.nextInt(30)))
+                        .city(CITIES[random.nextInt(CITIES.length)])
+                        .build();
+
+                userService.createUser(request);
+                userSuccess.incrementAndGet();
+            } catch (Exception e) {
+                userFail.incrementAndGet();
+            }
+        }
+
+        long userDuration = System.currentTimeMillis() - startTime;
+        result.put("usersCreated", userSuccess.get());
+        result.put("usersFailed", userFail.get());
+        result.put("usersDurationFormatted", formatDuration(userDuration));
+
+        // ========== BƯỚC 2: Random follows ==========
+        long followStart = System.currentTimeMillis();
+        List<String> allProfileIds = userProfileRepository.findAllProfileIds();
+        int profileCount = allProfileIds.size();
+        AtomicInteger totalFollows = new AtomicInteger(0);
+        AtomicInteger failedFollows = new AtomicInteger(0);
+
+        if (profileCount >= 2) {
+            int effectiveMax = Math.min(maxFollows, profileCount - 1);
+            int effectiveMin = Math.min(minFollows, effectiveMax);
+
+            for (int i = 0; i < profileCount; i++) {
+                String fromId = allProfileIds.get(i);
+                int followCount = random.nextInt(effectiveMax - effectiveMin + 1) + effectiveMin;
+
+                Set<Integer> followedIndices = new HashSet<>();
+                while (followedIndices.size() < followCount) {
+                    int targetIndex = random.nextInt(profileCount);
+                    if (targetIndex != i) {
+                        followedIndices.add(targetIndex);
+                    }
+                }
+
+                for (int targetIndex : followedIndices) {
+                    try {
+                        userProfileRepository.follow(fromId, allProfileIds.get(targetIndex));
+                        totalFollows.incrementAndGet();
+                    } catch (Exception e) {
+                        failedFollows.incrementAndGet();
+                    }
+                }
+            }
+
+            // Cập nhật follow counts
+            userProfileRepository.updateAllFollowCounts();
+        }
+
+        long followDuration = System.currentTimeMillis() - followStart;
+        long totalDuration = System.currentTimeMillis() - startTime;
+
+        result.put("totalProfiles", profileCount);
+        result.put("followsCreated", totalFollows.get());
+        result.put("followsFailed", failedFollows.get());
+        result.put("avgFollowsPerUser", profileCount > 0 ? (double) totalFollows.get() / profileCount : 0);
+        result.put("followsDurationFormatted", formatDuration(followDuration));
+        result.put("totalDurationFormatted", formatDuration(totalDuration));
+
+        return ApiResponse.<Map<String, Object>>builder()
+                .code(1000)
+                .message("Generate all completed: " + userSuccess.get() + " users + " + totalFollows.get() + " follows")
+                .result(result)
+                .build();
+    }
 
     @PostMapping("/generate")
     public ApiResponse<Map<String, Object>> generateUsers(@RequestParam(defaultValue = "10000") int userCount) {
@@ -56,7 +163,7 @@ public class TestDataController {
                     String firstName = FIRST_NAMES[random.nextInt(FIRST_NAMES.length)];
                     String lastName = LAST_NAMES[random.nextInt(LAST_NAMES.length)];
                     String baseUsername = (firstName + lastName).toLowerCase();
-                    String username = generateUniqueUsername(baseUsername, usedUsernames, random);
+                    String username = generateUniqueUsername(baseUsername, usedUsernames);
                     usedUsernames.add(username);
 
                     UserCreationRequest request = UserCreationRequest.builder()
@@ -71,9 +178,6 @@ public class TestDataController {
                     userService.createUser(request);
                     successCount.incrementAndGet();
 
-                    if ((i + 1) % 500 == 0) {
-                    }
-
                 } catch (Exception e) {
                     failCount.incrementAndGet();
                 }
@@ -85,12 +189,10 @@ public class TestDataController {
             result.put("usersFailed", failCount.get());
             result.put("durationMs", duration);
             result.put("durationFormatted", formatDuration(duration));
-            result.put("nextStep", "Now call POST /profile/internal/generate-follows to create random follows");
-
 
             return ApiResponse.<Map<String, Object>>builder()
                     .code(1000)
-                    .message("Users generated! Now call profile-service to create follows.")
+                    .message("Users generated!")
                     .result(result)
                     .build();
 
@@ -105,7 +207,6 @@ public class TestDataController {
         }
     }
 
-
     @GetMapping("/stats")
     public ApiResponse<Map<String, Object>> getStats() {
         Map<String, Object> result = new HashMap<>();
@@ -117,7 +218,7 @@ public class TestDataController {
                 .build();
     }
 
-    private String generateUniqueUsername(String base, Set<String> used, Random random) {
+    private String generateUniqueUsername(String base, Set<String> used) {
         String username = base;
         int counter = 0;
         while (used.contains(username)) {

@@ -1,31 +1,40 @@
-# Giai Đoạn 10: Rate Limiting + Frontend Upgrades
+# Giai Đoạn 10: Rate Limiting + Frontend Upgrades (CHƯA TRIỂN KHAI)
 
 ## Mục tiêu
 
-Bảo vệ API khỏi abuse + cập nhật frontend tương thích.
+Bảo vệ API khỏi abuse + cập nhật frontend tương thích với các thay đổi backend.
+
+## Trạng thái: CHƯA TRIỂN KHAI
 
 ## Phần A: Rate Limiting trong API Gateway
 
-### Bước 1: Thêm dependency vào pom.xml
+### API Gateway hiện tại
+
+**File:** `api-gateway/src/main/java/com/blur/apigateway/configuration/AuthenticationFilter.java`
+
+Hiện tại API Gateway chỉ có:
+- Routing theo path prefix (`/api/auth/**`, `/api/post/**`, etc.)
+- Authentication filter (token introspection qua user-service)
+- CORS configuration
+- WebSocket routing (`/ws/**`)
+
+**KHÔNG CÓ** rate limiting → bất kỳ ai cũng có thể spam unlimited requests.
+
+### Bước 1: Thêm dependency
 
 **File:** `api-gateway/pom.xml`
 
 ```xml
-<dependency>
-    <groupId>org.springframework.cloud</groupId>
-    <artifactId>spring-cloud-starter-gateway</artifactId>
-</dependency>
+<!-- Spring Cloud Gateway đã có sẵn -->
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
 </dependency>
 ```
 
-### Bước 2: Cấu hình Rate Limiter trong application.yaml
+### Bước 2: Cấu hình Rate Limiter
 
 **File:** `api-gateway/src/main/resources/application.yaml`
-
-Thêm cấu hình rate limiter:
 
 ```yaml
 spring:
@@ -35,9 +44,9 @@ spring:
         - name: RequestRateLimiter
           args:
             redis-rate-limiter:
-              replenishRate: 10       # 10 requests/second
-              burstCapacity: 20      # burst tối đa 20
-              requestedTokens: 1
+              replenishRate: 10       # 10 tokens/second
+              burstCapacity: 20       # Burst tối đa 20 requests
+              requestedTokens: 1      # Mỗi request tốn 1 token
             key-resolver: "#{@userKeyResolver}"
   data:
     redis:
@@ -63,12 +72,13 @@ public class RateLimiterConfig {
 
     @Bean
     public KeyResolver userKeyResolver() {
-        // Rate limit theo user ID (từ JWT header) hoặc IP
         return exchange -> {
+            // Rate limit theo userId (từ JWT) nếu authenticated
             String userId = exchange.getRequest().getHeaders().getFirst("X-User-Id");
             if (userId != null) {
                 return Mono.just(userId);
             }
+            // Fallback: rate limit theo IP
             return Mono.just(
                     exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
             );
@@ -77,337 +87,229 @@ public class RateLimiterConfig {
 }
 ```
 
+### Bước 4: Thêm X-User-Id header sau authentication
+
+**File:** `api-gateway/src/main/java/com/blur/apigateway/configuration/AuthenticationFilter.java`
+
+Sau khi introspect token thành công, thêm userId vào header:
+
+```java
+// Trong method filter(), sau khi token valid:
+exchange.getRequest().mutate()
+    .header("X-User-Id", userId)
+    .build();
+```
+
+---
+
 ## Phần B: Frontend Upgrades
 
-### Bước 4: Migrate WebSocket từ Socket.IO sang STOMP over SockJS
+### Hiện trạng Frontend
 
-**File:** `frontend/src/api/websocket.ts`
+Frontend hiện tại đã sử dụng:
+- **STOMP over SockJS** cho real-time messaging (`SocketContext.tsx`)
+- **STOMP notifications** (`NotificationSocketContext.tsx`)
+- **WebRTC** cho video/audio calls (`useCall.ts`, `WebRTCService.ts`)
+- **Axios with HttpOnly cookies** (`axiosClient.ts`)
+- **Moderation listener** (`useModerationListener.ts`)
 
-```typescript
-import SockJS from 'sockjs-client';
-import { Client, IMessage } from '@stomp/stompjs';
+### Bước 5: Xử lý HTTP 429 (Rate Limited) trong Frontend
 
-const GATEWAY_WS = 'http://localhost:8888/ws';
+**File:** `frontend/src/api/axiosClient.ts`
 
-export const createStompClient = (token: string): Client => {
-    return new Client({
-        webSocketFactory: () => new SockJS(GATEWAY_WS),
-        connectHeaders: { Authorization: `Bearer ${token}` },
-        onConnect: () => console.log('STOMP connected'),
-        onDisconnect: () => console.log('STOMP disconnected'),
-        reconnectDelay: 5000,
-    });
-};
-
-export const subscribeToNotifications = (
-    client: Client,
-    userId: string,
-    onMessage: (message: any) => void
-): void => {
-    client.subscribe(`/user/${userId}/queue/notifications`, (message: IMessage) => {
-        const notification = JSON.parse(message.body);
-        onMessage(notification);
-    });
-};
-
-export const subscribeToChat = (
-    client: Client,
-    conversationId: string,
-    onMessage: (message: any) => void
-): void => {
-    client.subscribe(`/topic/chat/${conversationId}`, (message: IMessage) => {
-        const chatMessage = JSON.parse(message.body);
-        onMessage(chatMessage);
-    });
-};
-
-export const sendChatMessage = (
-    client: Client,
-    conversationId: string,
-    content: string
-): void => {
-    client.publish({
-        destination: `/app/chat/${conversationId}`,
-        body: JSON.stringify({ content }),
-    });
-};
-```
-
-### Bước 5: Cập nhật Notification subscription
-
-**File:** `frontend/src/hooks/useNotifications.ts`
+Thêm interceptor xử lý rate limit response:
 
 ```typescript
-import { useEffect, useState, useCallback } from 'react';
-import { Client } from '@stomp/stompjs';
-import { createStompClient, subscribeToNotifications } from '../api/websocket';
+import axios from 'axios';
 
-interface Notification {
-    id: string;
-    type: string;
-    message: string;
-    read: boolean;
-    createdAt: string;
-}
+const axiosClient = axios.create({
+    baseURL: 'http://localhost:8888/api',
+    withCredentials: true,
+});
 
-export const useNotifications = (token: string, userId: string) => {
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [client, setClient] = useState<Client | null>(null);
-    const [connected, setConnected] = useState(false);
+// Response interceptor cho rate limiting
+axiosClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 429) {
+            // Rate limited - hiển thị thông báo cho user
+            const retryAfter = error.response.headers['retry-after'];
+            console.warn(`Rate limited. Retry after ${retryAfter || '1'}s`);
 
-    useEffect(() => {
-        if (!token || !userId) return;
+            // Có thể hiển thị toast notification
+            // toast.error('Bạn đang gửi quá nhiều request. Vui lòng đợi một chút.');
 
-        const stompClient = createStompClient(token);
-
-        stompClient.onConnect = () => {
-            setConnected(true);
-            subscribeToNotifications(stompClient, userId, (notification: Notification) => {
-                setNotifications(prev => [notification, ...prev]);
+            // Auto-retry sau delay
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve(axiosClient(error.config));
+                }, (parseInt(retryAfter) || 1) * 1000);
             });
-        };
+        }
+        return Promise.reject(error);
+    }
+);
 
-        stompClient.onDisconnect = () => {
-            setConnected(false);
-        };
-
-        stompClient.activate();
-        setClient(stompClient);
-
-        return () => {
-            if (stompClient.active) {
-                stompClient.deactivate();
-            }
-        };
-    }, [token, userId]);
-
-    const markAsRead = useCallback((notificationId: string) => {
-        setNotifications(prev =>
-            prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-        );
-    }, []);
-
-    return { notifications, connected, markAsRead };
-};
+export default axiosClient;
 ```
 
-### Bước 6: Hiển thị Moderation Status
+### Bước 6: Thêm request throttling cho actions thường xuyên
 
-**File:** `frontend/src/components/PostCard.tsx`
+**File:** `frontend/src/utils/throttle.ts`
+
+```typescript
+/**
+ * Throttle function - giới hạn tần suất gọi function.
+ * Dùng cho like, comment, follow actions.
+ */
+export function throttle<T extends (...args: any[]) => any>(
+    func: T,
+    limit: number
+): (...args: Parameters<T>) => ReturnType<T> | undefined {
+    let inThrottle = false;
+    let lastResult: ReturnType<T>;
+
+    return function (this: any, ...args: Parameters<T>) {
+        if (!inThrottle) {
+            lastResult = func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => (inThrottle = false), limit);
+            return lastResult;
+        }
+        return undefined;
+    };
+}
+```
+
+### Bước 7: Áp dụng throttle cho PostCard actions
+
+**File:** `frontend/src/Components/Post/PostCard.tsx`
+
+```typescript
+import { throttle } from '../../utils/throttle';
+
+// Trong component:
+const throttledLike = useMemo(
+    () => throttle(async () => {
+        await postApi.likePost(post.id);
+    }, 1000), // Tối đa 1 like/second
+    [post.id]
+);
+
+const throttledSave = useMemo(
+    () => throttle(async () => {
+        await postApi.savePost(post.id);
+    }, 1000),
+    [post.id]
+);
+```
+
+### Bước 8: Hiển thị Moderation Status trên Comment
+
+Frontend đã có `ModerationWarningModal.tsx` và `useModerationListener.ts`. Cần thêm badge hiển thị trạng thái moderation trên mỗi comment.
+
+**File:** `frontend/src/Components/Comment/CommentCard.tsx`
+
+Thêm moderation badge:
 
 ```tsx
-import React from 'react';
+const ModerationBadge: React.FC<{ status: string | null }> = ({ status }) => {
+    if (!status || status === 'APPROVED') return null;
 
-interface Post {
-    id: string;
-    content: string;
-    authorUsername: string;
-    authorAvatar: string;
-    moderationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
-    createdDate: string;
-}
-
-interface PostCardProps {
-    post: Post;
-}
-
-const ModerationBadge: React.FC<{ status: Post['moderationStatus'] }> = ({ status }) => {
-    const badgeStyles: Record<string, { backgroundColor: string; color: string; label: string }> = {
-        PENDING: { backgroundColor: '#fef3cd', color: '#856404', label: 'Pending Review' },
-        APPROVED: { backgroundColor: '#d4edda', color: '#155724', label: 'Approved' },
-        REJECTED: { backgroundColor: '#f8d7da', color: '#721c24', label: 'Rejected' },
+    const styles: Record<string, { bg: string; text: string; label: string }> = {
+        PENDING: { bg: '#fef3cd', text: '#856404', label: 'Đang kiểm duyệt' },
+        REJECTED: { bg: '#f8d7da', text: '#721c24', label: 'Vi phạm' },
     };
 
-    const style = badgeStyles[status];
+    const style = styles[status];
+    if (!style) return null;
 
     return (
-        <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            backgroundColor: style.backgroundColor,
-            color: style.color,
-        }}>
+        <span className="px-2 py-0.5 rounded text-xs font-medium"
+              style={{ backgroundColor: style.bg, color: style.text }}>
             {style.label}
         </span>
     );
 };
-
-const PostCard: React.FC<PostCardProps> = ({ post }) => {
-    return (
-        <div style={{
-            border: '1px solid #e0e0e0',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '12px',
-            opacity: post.moderationStatus === 'REJECTED' ? 0.5 : 1,
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-                <img
-                    src={post.authorAvatar}
-                    alt={post.authorUsername}
-                    style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '8px' }}
-                />
-                <div>
-                    <strong>{post.authorUsername}</strong>
-                    <div style={{ fontSize: '12px', color: '#666' }}>{post.createdDate}</div>
-                </div>
-                <div style={{ marginLeft: 'auto' }}>
-                    <ModerationBadge status={post.moderationStatus} />
-                </div>
-            </div>
-            <p>{post.content}</p>
-            {post.moderationStatus === 'REJECTED' && (
-                <p style={{ color: '#721c24', fontSize: '14px', fontStyle: 'italic' }}>
-                    This post has been rejected by moderation.
-                </p>
-            )}
-        </div>
-    );
-};
-
-export default PostCard;
 ```
 
-### Bước 7: Cài đặt package cần thiết cho frontend
-
-```bash
-cd frontend
-npm install sockjs-client @stomp/stompjs
-npm install --save-dev @types/sockjs-client
-```
+---
 
 ## Hướng dẫn Test
 
-### Test 1: Rate Limiter hoạt động (cho phép trong ngưỡng)
-
-**Bước 1:** Đảm bảo API Gateway và Redis đang chạy.
+### Test 1: Rate limiter cho phép trong ngưỡng
 
 ```bash
-docker-compose up -d redis api-gateway
-```
-
-**Bước 2:** Gửi 10 requests liên tiếp (trong ngưỡng replenishRate = 10/s).
-
-```bash
+# Gửi 10 requests (trong ngưỡng replenishRate = 10/s)
 for i in {1..10}; do
   STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    http://localhost:8888/api/content/posts \
+    http://localhost:8888/api/post/all?page=0&limit=10 \
     -H "Authorization: Bearer <TOKEN>")
   echo "Request $i: HTTP $STATUS"
 done
+# Mong đợi: tất cả HTTP 200
 ```
 
-Mong đợi: tất cả 10 requests trả về HTTP 200.
-
-### Test 2: Rate Limiter chặn khi vượt ngưỡng
-
-**Bước 3:** Gửi 30 requests liên tiếp (vượt burstCapacity = 20).
+### Test 2: Rate limiter chặn khi vượt ngưỡng
 
 ```bash
+# Gửi 30 requests liên tiếp (vượt burstCapacity = 20)
 for i in {1..30}; do
   STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    http://localhost:8888/api/content/posts \
+    http://localhost:8888/api/post/all?page=0&limit=10 \
     -H "Authorization: Bearer <TOKEN>")
   echo "Request $i: HTTP $STATUS"
 done
+# Mong đợi: ~20 requests đầu HTTP 200, sau đó HTTP 429
 ```
 
-Mong đợi: khoảng 20 requests đầu trả về HTTP 200, các requests sau trả về HTTP 429 (Too Many Requests).
-
-### Test 3: Kiểm tra Redis rate limit keys
+### Test 3: Redis rate limit keys
 
 ```bash
 docker exec -it redis redis-cli
 
-# Xem rate limit keys
 KEYS request_rate_limiter*
-
-# Xem chi tiết một key
 GET "request_rate_limiter.{user-id-xxx}.tokens"
 GET "request_rate_limiter.{user-id-xxx}.timestamp"
 ```
 
-### Test 4: Rate limit theo IP cho unauthenticated requests
+### Test 4: Rate limit reset
 
 ```bash
+# Spam vượt ngưỡng
 for i in {1..25}; do
-  STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    http://localhost:8888/api/identity/auth/token \
-    -H "Content-Type: application/json" \
-    -d '{"username":"test","password":"test"}')
-  echo "Request $i: HTTP $STATUS"
-done
-```
-
-Mong đợi: sau khoảng 20 requests, nhận HTTP 429.
-
-### Test 5: Frontend WebSocket STOMP
-
-**Bước 1:** Mở browser, truy cập frontend `http://localhost:3000`.
-
-**Bước 2:** Đăng nhập → mở Developer Console (F12 → Console tab).
-
-**Bước 3:** Kiểm tra log: `STOMP connected` xuất hiện.
-
-**Bước 4:** Từ một tab khác, gửi một notification hoặc chat message.
-
-**Bước 5:** Kiểm tra tab đầu tiên → notification hiển thị realtime.
-
-### Test 6: Moderation Status hiển thị
-
-**Bước 1:** Tạo một post mới.
-
-```bash
-curl -X POST http://localhost:8888/api/content/posts \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <TOKEN>" \
-  -d '{"content": "Test moderation status"}'
-```
-
-**Bước 2:** Xem post trên frontend → thấy badge "Pending Review" (màu vàng).
-
-**Bước 3:** Sau khi AI moderation xử lý xong → badge chuyển thành:
-- "Approved" (màu xanh) nếu nội dung hợp lệ
-- "Rejected" (màu đỏ) nếu nội dung vi phạm
-
-### Test 7: Đợi rate limit reset
-
-```bash
-# Gửi requests vượt ngưỡng
-for i in {1..25}; do
-  curl -s -o /dev/null -w "" http://localhost:8888/api/content/posts \
+  curl -s -o /dev/null http://localhost:8888/api/post/all?page=0&limit=10 \
     -H "Authorization: Bearer <TOKEN>"
 done
 
-# Đợi 1 giây (replenishRate = 10/s → tokens được bổ sung)
+# Đợi 1s → tokens được bổ sung
 sleep 1
 
-# Gửi lại → thành công
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-  http://localhost:8888/api/content/posts \
+  http://localhost:8888/api/post/all?page=0&limit=10 \
   -H "Authorization: Bearer <TOKEN>")
 echo "After reset: HTTP $STATUS"
+# Mong đợi: HTTP 200
 ```
 
-Mong đợi: HTTP 200 (tokens đã được bổ sung).
+### Test 5: Frontend rate limit handling
+
+1. Mở browser → F12 → Network tab
+2. Click Like nhanh nhiều lần → throttle giới hạn 1 request/second
+3. Nếu server trả 429 → auto-retry sau delay
 
 ## Checklist
 
 - [ ] Thêm spring-boot-starter-data-redis-reactive vào api-gateway
-- [ ] Cấu hình RequestRateLimiter trong application.yaml
-- [ ] Tạo RateLimiterConfig với UserKeyResolver
-- [ ] Cấu hình Redis connection cho api-gateway
-- [ ] Frontend: cài đặt sockjs-client và @stomp/stompjs
-- [ ] Frontend: tạo websocket.ts với createStompClient
-- [ ] Frontend: tạo useNotifications hook
-- [ ] Frontend: tạo PostCard component với ModerationBadge
-- [ ] Test: gửi 10 requests/s → tất cả HTTP 200
-- [ ] Test: gửi 30 requests/s → requests vượt ngưỡng nhận HTTP 429
-- [ ] Test: kiểm tra Redis rate limit keys
-- [ ] Test: rate limit theo IP cho unauthenticated requests
-- [ ] Test: STOMP WebSocket connect thành công trên frontend
-- [ ] Test: notification realtime hoạt động
-- [ ] Test: moderation badge hiển thị đúng trạng thái
-- [ ] Test: rate limit reset sau 1 giây
+- [ ] Cấu hình RequestRateLimiter trong application.yaml (10 req/s, burst 20)
+- [ ] Tạo RateLimiterConfig với UserKeyResolver (userId hoặc IP)
+- [ ] Sửa AuthenticationFilter thêm X-User-Id header sau introspection
+- [ ] Frontend: thêm 429 interceptor trong axiosClient.ts
+- [ ] Frontend: tạo throttle utility
+- [ ] Frontend: áp dụng throttle cho like, save, follow actions
+- [ ] Frontend: thêm ModerationBadge cho CommentCard
+- [ ] Test: 10 req/s → HTTP 200
+- [ ] Test: 30 req/s → HTTP 429 sau ~20 requests
+- [ ] Test: Redis rate limit keys tồn tại
+- [ ] Test: rate limit reset sau 1s
+- [ ] Test: frontend throttle hoạt động

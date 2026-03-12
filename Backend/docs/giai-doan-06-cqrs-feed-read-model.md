@@ -1,33 +1,50 @@
-# Giai Đoạn 6: CQRS + Feed Read Model
+# Giai Đoạn 6: CQRS + Feed Read Model (MỘT PHẦN ĐÃ TRIỂN KHAI)
 
 ## Mục tiêu
 
-Tách read/write cho Post Feed.
+Tách read/write cho Post Feed bằng CQRS pattern.
 
-- **Write:** MongoDB `posts` collection (như hiện tại).
-- **Read:** MongoDB `post_feed` collection (denormalized, tối ưu cho query feed).
+- **Write:** Neo4j `post` nodes (như hiện tại)
+- **Read:** Neo4j `post_feed` nodes (denormalized, tối ưu cho query feed)
+- **Sync:** Kafka events từ write side → FeedProjectionService → update read model
+
+## Trạng thái: MỘT PHẦN ĐÃ TRIỂN KHAI
+
+### Đã có:
+- PostFeedItem entity (Neo4j Node)
+- PostFeedRepository (Neo4jRepository)
+- FeedProjectionService (Kafka consumer cho "post-events")
+- FeedService (query side với caching)
+- PostController endpoint `GET /posts/my-feed`
+
+### Chưa có (cần thêm):
+- PostService.createPost() chưa publish POST_CREATED event lên Kafka "post-events"
+- Chưa có internal endpoint lấy follower IDs ở user-service
+- Chưa có getFollowerIds trong ProfileClient (Feign)
+- FeedProjectionService chưa được kích hoạt vì không có event nào publish vào "post-events"
 
 ## Kiến trúc tổng quan
 
 ```
 Write Side (Command)                 Read Side (Query)
 ────────────────────                ─────────────────
-PostService.createPost()             FeedService.getFeed()
-  → save Post (MongoDB)               → query PostFeedItem (MongoDB)
-  → publish Kafka event                  (denormalized, pre-joined)
-                                         (sorted by createdDate DESC)
-                                         (cached in Redis 30s)
+PostService.createPost()             FeedService.getMyFeed()
+  → save Post (Neo4j)                 → query PostFeedItem (Neo4j)
+  → linkPostToAuthor()                  (denormalized, pre-joined)
+  → publish Kafka event                 (cached in Redis)
          │
     Kafka: "post-events"
          │
          ▼
 FeedProjectionService
   → consume event
-  → join user info (profileClient)
-  → save PostFeedItem (denormalized)
+  → tạo PostFeedItem cho mỗi follower
+  → save PostFeedItem (Neo4j)
 ```
 
-## Bước 1: Tạo PostFeedItem Entity (Read Model)
+## Code hiện tại
+
+### PostFeedItem Entity (Read Model)
 
 **File:** `content-service/src/main/java/com/contentservice/post/entity/PostFeedItem.java`
 
@@ -36,54 +53,51 @@ package com.contentservice.post.entity;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.neo4j.core.schema.GeneratedValue;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Read model cho Feed - denormalized từ Post + UserProfile.
- * Tối ưu cho query: user mở feed → lấy posts của những người mình follow.
- * Không cần JOIN runtime → tất cả data đã pre-joined.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Document("post_feed")
-@CompoundIndex(name = "idx_feed_user_time", def = "{'targetUserId': 1, 'createdDate': -1}")
+@Node("post_feed")
 public class PostFeedItem {
     @Id
+    @GeneratedValue(generatorClass = UUIDStringGenerator.class)
     String id;
 
-    // Post data
-    String postId;               // Trỏ về Post gốc
+    // post data
+    String postId;          // tro ve post goc
     String content;
     List<String> imageUrls;
     String videoUrl;
 
-    // Author data (denormalized từ UserProfile)
+    // author data
     String authorId;
     String authorUsername;
     String authorFirstName;
     String authorLastName;
     String authorAvatar;
 
-    // Engagement counts (denormalized)
+    // engagement counts
     int likeCount;
     int commentCount;
     int shareCount;
 
-    // Feed targeting
-    String targetUserId;         // User sẽ nhìn thấy post này trong feed
+    // feed targeting
+    String targetUserId;
     LocalDateTime createdDate;
     LocalDateTime updatedDate;
 }
 ```
 
-## Bước 2: Tạo PostFeedRepository
+### PostFeedRepository
 
 **File:** `content-service/src/main/java/com/contentservice/post/repository/PostFeedRepository.java`
 
@@ -93,22 +107,18 @@ package com.contentservice.post.repository;
 import com.contentservice.post.entity.PostFeedItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface PostFeedRepository extends MongoRepository<PostFeedItem, String> {
-
-    Page<PostFeedItem> findByTargetUserIdOrderByCreatedDateDesc(
-            String targetUserId, Pageable pageable);
-
+public interface PostFeedRepository extends Neo4jRepository<PostFeedItem, String> {
+    Page<PostFeedItem> findByTargetUserIdOrderByCreatedDateDesc(String targetUserId, Pageable pageable);
     void deleteAllByPostId(String postId);
-
     void deleteAllByAuthorId(String authorId);
 }
 ```
 
-## Bước 3: Tạo FeedProjectionService (Event Consumer)
+### FeedProjectionService (Event Consumer)
 
 **File:** `content-service/src/main/java/com/contentservice/kafka/FeedProjectionService.java`
 
@@ -117,7 +127,6 @@ package com.contentservice.kafka;
 
 import com.contentservice.post.entity.PostFeedItem;
 import com.contentservice.post.repository.PostFeedRepository;
-import com.contentservice.post.repository.PostRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -129,31 +138,19 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Consume post events và cập nhật read model (PostFeedItem).
- *
- * Events:
- * - POST_CREATED → tạo PostFeedItem cho tất cả followers
- * - POST_DELETED → xóa PostFeedItem
- * - POST_LIKED → tăng likeCount
- * - POST_COMMENTED → tăng commentCount
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class FeedProjectionService {
-
     PostFeedRepository postFeedRepository;
     ObjectMapper objectMapper;
 
     @KafkaListener(topics = "post-events", groupId = "content-feed-projection")
     public void consume(String json) {
         try {
-            @SuppressWarnings("unchecked")
             Map<String, Object> event = objectMapper.readValue(json, Map.class);
             String eventType = (String) event.get("eventType");
-
             switch (eventType) {
                 case "POST_CREATED" -> handlePostCreated(event);
                 case "POST_DELETED" -> handlePostDeleted(event);
@@ -172,12 +169,9 @@ public class FeedProjectionService {
         String authorId = (String) event.get("authorId");
         String content = (String) event.get("content");
         List<String> followerIds = (List<String>) event.get("followerIds");
-
         if (followerIds == null || followerIds.isEmpty()) {
             return;
         }
-
-        // Tạo feed item cho mỗi follower
         for (String followerId : followerIds) {
             PostFeedItem item = PostFeedItem.builder()
                     .postId(postId)
@@ -194,23 +188,20 @@ public class FeedProjectionService {
                     .build();
             postFeedRepository.save(item);
         }
-        log.info("Feed populated for post {} → {} followers", postId, followerIds.size());
     }
 
     private void handlePostDeleted(Map<String, Object> event) {
         String postId = (String) event.get("postId");
         postFeedRepository.deleteAllByPostId(postId);
-        log.info("Feed items deleted for post {}", postId);
     }
 
     private void handleEngagementUpdate(Map<String, Object> event, String field) {
-        // Engagement updates can be batched/debounced for performance
-        log.debug("Engagement update: {} for post {}", field, event.get("postId"));
+        // TODO: implement engagement count update
     }
 }
 ```
 
-## Bước 4: Tạo FeedService (Query Side)
+### FeedService (Query Side)
 
 **File:** `content-service/src/main/java/com/contentservice/post/service/FeedService.java`
 
@@ -230,17 +221,16 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@FieldDefaults(level = AccessLevel.PACKAGE, makeFinal = true)
 public class FeedService {
-
     PostFeedRepository postFeedRepository;
 
-    @Cacheable(value = "feed", key = "#root.target.getCurrentUserId() + ':' + #page + ':' + #size",
-            unless = "#result.isEmpty()")
+    @Cacheable(value = "feed", key = "#root.target.getCurrentUserId() + ':'+#page +':' + #size",
+               unless = "#result.isEmpty()")
     public Page<PostFeedItem> getMyFeed(int page, int size) {
         String userId = getCurrentUserId();
-        return postFeedRepository.findByTargetUserIdOrderByCreatedDateDesc(
-                userId, PageRequest.of(page, size));
+        return postFeedRepository
+                .findByTargetUserIdOrderByCreatedDateDesc(userId, PageRequest.of(page, size));
     }
 
     public String getCurrentUserId() {
@@ -249,455 +239,319 @@ public class FeedService {
 }
 ```
 
-## Bước 5: Tạo FeedController
+### PostController - Feed Endpoint (đã có)
 
-**File:** `content-service/src/main/java/com/contentservice/post/controller/FeedController.java`
+**File:** `content-service/src/main/java/com/contentservice/post/controller/PostController.java`
 
 ```java
-package com.contentservice.post.controller;
-
-import com.contentservice.post.entity.PostFeedItem;
-import com.contentservice.post.service.FeedService;
-import com.contentservice.story.dto.response.ApiResponse;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import org.springframework.data.domain.Page;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-@RestController
-@RequestMapping("/post/feed")
-@RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class FeedController {
-
-    FeedService feedService;
-
-    @GetMapping
-    public ApiResponse<Page<PostFeedItem>> getMyFeed(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        Page<PostFeedItem> feed = feedService.getMyFeed(page, size);
-        return ApiResponse.<Page<PostFeedItem>>builder()
-                .result(feed)
-                .build();
-    }
+@GetMapping("/my-feed")
+public ApiResponse<Map<String, Object>> getMyFeed(
+        @RequestParam(defaultValue = "1") int page,
+        @RequestParam(defaultValue = "5") int limit) {
+    Page<PostFeedItem> feedItems = feedService.getMyFeed(page, limit);
+    Map<String, Object> result = new HashMap<>();
+    result.put("feeds", feedItems.getContent());
+    result.put("currentPage", feedItems.getNumber() + 1);
+    result.put("totalPages", feedItems.getTotalPages());
+    result.put("hasNextPage", feedItems.hasNext());
+    return ApiResponse.<Map<String, Object>>builder()
+            .result(result).code(1000).message("OK").build();
 }
 ```
 
-## Bước 6: Thêm endpoint lấy follower IDs trong user-service
-
-Trước khi sửa PostService, cần thêm endpoint internal trong user-service để content-service có thể gọi lấy danh sách follower IDs.
-
-### 6.1: Thêm Neo4j query trong UserProfileRepository
-
-**File:** `user-service/src/main/java/com/blur/userservice/profile/repository/UserProfileRepository.java`
-
-Thêm query mới bên dưới `findFollowingIds`:
-
-```java
-    /**
-     * Lấy danh sách userId của những người đang follow user này (theo userId, không phải profileId)
-     * Dùng cho CQRS Feed: khi tạo post → lấy follower userIds → tạo feed item cho mỗi follower
-     */
-    @Query("""
-                MATCH (follower:user_profile)-[:follows]->(u:user_profile {user_id: $userId})
-                RETURN follower.user_id
-            """)
-    List<String> findFollowerUserIdsByUserId(@Param("userId") String userId);
-```
-
-### 6.2: Thêm method trong UserProfileService
-
-**File:** `user-service/src/main/java/com/blur/userservice/profile/service/UserProfileService.java`
-
-```java
-    /**
-     * Lấy danh sách userId của tất cả followers (dùng cho CQRS Feed)
-     */
-    public List<String> getFollowerUserIds(String userId) {
-        return userProfileRepository.findFollowerUserIdsByUserId(userId);
-    }
-```
-
-### 6.3: Thêm endpoint trong InternalUserProfileController
-
-**File:** `user-service/src/main/java/com/blur/userservice/profile/controller/InternalUserProfileController.java`
-
-```java
-    /**
-     * Lấy danh sách userId của tất cả followers của một user
-     * Dùng cho content-service khi publish POST_CREATED event (CQRS Feed)
-     *
-     * GET http://localhost:8082/internal/users/{userId}/follower-ids
-     */
-    @GetMapping("/internal/users/{userId}/follower-ids")
-    public ApiResponse<List<String>> getFollowerIds(@PathVariable String userId) {
-        List<String> followerIds = userProfileService.getFollowerUserIds(userId);
-        return ApiResponse.<List<String>>builder()
-                .code(1000)
-                .result(followerIds)
-                .build();
-    }
-```
-
-## Bước 7: Thêm Feign method trong content-service ProfileClient
-
-**File:** `content-service/src/main/java/com/contentservice/post/repository/httpclient/ProfileClient.java`
-
-```java
-package com.contentservice.post.repository.httpclient;
-
-import com.contentservice.post.dto.response.UserProfileResponse;
-import com.contentservice.story.dto.response.ApiResponse;
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-
-import java.util.List;
-
-@FeignClient(name = "profile-service", url = "${app.service.profile.url}")
-public interface ProfileClient {
-    @GetMapping("/internal/users/{userId}")
-    ApiResponse<UserProfileResponse> getProfile(@PathVariable("userId") String userId);
-
-    @GetMapping("/profile/users/{profileId}")
-    ApiResponse<UserProfileResponse> getProfileByProfileId(@PathVariable String profileId);
-
-    /**
-     * Lấy danh sách userId của tất cả followers của một user
-     * Gọi đến endpoint internal của user-service
-     */
-    @GetMapping("/internal/users/{userId}/follower-ids")
-    ApiResponse<List<String>> getFollowerIds(@PathVariable("userId") String userId);
-}
-```
-
-## Bước 8: Sửa PostService để publish Kafka event (code hoàn chỉnh)
-
-Trong file `PostService.java` hiện tại, thêm logic publish event sau khi tạo post.
+### PostService.createPost() hiện tại (CHƯA CÓ Kafka publish)
 
 **File:** `content-service/src/main/java/com/contentservice/post/service/PostService.java`
 
-Thêm inject `KafkaTemplate`, `ObjectMapper` và sử dụng `ProfileClient`, `IdentityClient` đã có:
+```java
+@Transactional
+public PostResponse createPost(PostRequest postRequest) {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    var userId = authentication.getName();
+    var profileResult = profileClient.getProfile(userId).getResult();
+
+    Post post = Post.builder()
+            .content(postRequest.getContent())
+            .mediaUrls(postRequest.getMediaUrls())
+            .userId(userId)
+            .profileId(profileResult != null ? profileResult.getId() : null)
+            .firstName(profileResult != null ? profileResult.getFirstName() : null)
+            .lastName(profileResult != null ? profileResult.getLastName() : null)
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .build();
+    post = postRepository.save(post);
+
+    // Graph: (user_profile)-[:POSTED {profileId, createdAt}]->(Post)
+    postRepository.linkPostToAuthor(userId, post.getId(), post.getProfileId(), post.getCreatedAt());
+
+    return postMapper.toPostResponse(post);
+    // ⚠️ THIẾU: Không publish POST_CREATED event lên Kafka "post-events"
+    // → FeedProjectionService không nhận được event
+    // → PostFeedItem không được tạo cho followers
+    // → /my-feed luôn trả về rỗng
+}
+```
+
+---
+
+## CẦN THAY ĐỔI GÌ ĐỂ HOÀN THÀNH GIAI ĐOẠN 6
+
+### Thay đổi 1: Thêm endpoint lấy follower IDs trong user-service
+
+**Tại sao cần:** Khi tạo post, content-service cần biết ai đang follow user này để tạo PostFeedItem cho mỗi follower. Phải gọi user-service vì data follows nằm ở Neo4j của user-service.
+
+**File cần sửa:** `user-service/src/main/java/com/blur/userservice/profile/repository/UserProfileRepository.java`
+
+**Thêm query:**
 
 ```java
-import org.springframework.kafka.core.KafkaTemplate;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.contentservice.post.repository.httpclient.ProfileClient;
-import com.contentservice.post.repository.httpclient.IdentityClient;
+@Query("""
+    MATCH (follower:user_profile)-[:follows]->(u:user_profile {user_id: $userId})
+    RETURN follower.user_id
+""")
+List<String> findFollowerUserIdsByUserId(@Param("userId") String userId);
+```
 
-@Slf4j
-@Service
-@RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class PostService {
+**File cần sửa:** `user-service/src/main/java/com/blur/userservice/profile/service/UserProfileService.java`
 
-    PostRepository postRepository;
-    PostMapper postMapper;
-    ProfileClient profileClient;
-    IdentityClient identityClient;
-    PostLikeRepository postLikeRepository;
-    NotificationEventPublisher notificationEventPublisher;
-    KafkaTemplate<String, String> kafkaTemplate;
-    ObjectMapper objectMapper;
+**Thêm method:**
 
-    @Transactional
-    public PostResponse createPost(PostRequest postRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        var userId = authentication.getName();
-        var profile = profileClient.getProfile(userId);
-        Post post = Post.builder()
-                .content(postRequest.getContent())
-                .mediaUrls(postRequest.getMediaUrls())
-                .userId(userId)
-                .firstName(profile.getResult().getFirstName())
-                .lastName(profile.getResult().getLastName())
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .build();
-        post = postRepository.save(post);
+```java
+public List<String> getFollowerUserIds(String userId) {
+    return userProfileRepository.findFollowerUserIdsByUserId(userId);
+}
+```
 
-        // Publish POST_CREATED event lên Kafka cho CQRS Feed
-        publishPostCreatedEvent(post);
+**File cần sửa:** `user-service/src/main/java/com/blur/userservice/profile/controller/InternalUserProfileController.java`
 
-        return postMapper.toPostResponse(post);
-    }
+**Thêm endpoint:**
 
-    // ... các method khác giữ nguyên ...
+```java
+@GetMapping("/internal/users/{userId}/follower-ids")
+public ApiResponse<List<String>> getFollowerIds(@PathVariable String userId) {
+    List<String> followerIds = userProfileService.getFollowerUserIds(userId);
+    return ApiResponse.<List<String>>builder()
+            .code(1000)
+            .result(followerIds)
+            .build();
+}
+```
 
-    /**
-     * Publish POST_CREATED event lên Kafka topic "post-events".
-     * Event chứa đầy đủ thông tin author (lấy từ IdentityClient + ProfileClient)
-     * và danh sách follower IDs (lấy từ ProfileClient) để FeedProjectionService
-     * tạo PostFeedItem cho mỗi follower.
-     */
-    private void publishPostCreatedEvent(Post post) {
-        try {
-            // 1. Lấy thông tin username từ IdentityClient
-            String authorUsername = "";
-            try {
-                var userResponse = identityClient.getUser(post.getUserId());
-                if (userResponse != null && userResponse.getResult() != null) {
-                    authorUsername = userResponse.getResult().getUsername();
-                }
-            } catch (Exception e) {
-                log.warn("Failed to get username for user {}", post.getUserId(), e);
-            }
+---
 
-            // 2. Lấy thông tin profile (firstName, lastName, avatar) từ ProfileClient
-            String authorFirstName = post.getFirstName();  // Đã có sẵn từ createPost
-            String authorLastName = post.getLastName();     // Đã có sẵn từ createPost
-            String authorAvatar = "";
-            try {
-                var profileResponse = profileClient.getProfile(post.getUserId());
-                if (profileResponse != null && profileResponse.getResult() != null) {
-                    var profile = profileResponse.getResult();
-                    authorFirstName = profile.getFirstName();
-                    authorLastName = profile.getLastName();
-                    authorAvatar = profile.getImageUrl() != null ? profile.getImageUrl() : "";
-                }
-            } catch (Exception e) {
-                log.warn("Failed to get profile for user {}", post.getUserId(), e);
-            }
+### Thay đổi 2: Thêm getFollowerIds vào ProfileClient (Feign) trong content-service
 
-            // 3. Lấy danh sách follower IDs từ ProfileClient (internal endpoint)
-            List<String> followerIds = getFollowerIds(post.getUserId());
+**Tại sao cần:** Content-service cần gọi endpoint mới ở user-service để lấy follower IDs. ProfileClient là Feign client dùng để giao tiếp với user-service.
 
-            // 4. Build event và gửi lên Kafka
-            Map<String, Object> event = new HashMap<>();
-            event.put("eventType", "POST_CREATED");
-            event.put("postId", post.getId());
-            event.put("authorId", post.getUserId());
-            event.put("content", post.getContent());
-            event.put("mediaUrls", post.getMediaUrls());
-            event.put("authorUsername", authorUsername);
-            event.put("authorFirstName", authorFirstName);
-            event.put("authorLastName", authorLastName);
-            event.put("authorAvatar", authorAvatar);
-            event.put("followerIds", followerIds);
+**File cần sửa:** `content-service/src/main/java/com/contentservice/post/repository/httpclient/ProfileClient.java`
 
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send("post-events", post.getId(), json);
+**Thêm method:**
 
-            log.info("Published POST_CREATED event for post {} → {} followers",
-                    post.getId(), followerIds.size());
-        } catch (Exception e) {
-            log.error("Failed to publish POST_CREATED event for post {}", post.getId(), e);
+```java
+@GetMapping("/internal/users/{userId}/follower-ids")
+ApiResponse<List<String>> getFollowerIds(@PathVariable("userId") String userId);
+```
+
+---
+
+### Thay đổi 3: Sửa PostService.createPost() để publish POST_CREATED event
+
+**Tại sao cần:** Đây là phần QUAN TRỌNG NHẤT. Hiện tại `createPost()` chỉ save post và link author, KHÔNG publish event lên Kafka. FeedProjectionService đang lắng nghe topic "post-events" nhưng không bao giờ nhận được event → feed luôn rỗng.
+
+**File cần sửa:** `content-service/src/main/java/com/contentservice/post/service/PostService.java`
+
+**Cần thêm inject:**
+
+```java
+KafkaTemplate<String, String> kafkaTemplate;
+ObjectMapper objectMapper;
+```
+
+**Cần thêm vào cuối method createPost(), TRƯỚC return:**
+
+```java
+// Publish POST_CREATED event cho CQRS Feed
+publishPostCreatedEvent(post);
+```
+
+**Cần thêm method mới:**
+
+```java
+private void publishPostCreatedEvent(Post post) {
+    try {
+        // 1. Lấy profile info (đã có từ createPost)
+        var profileResponse = profileClient.getProfile(post.getUserId());
+        String authorUsername = "";
+        String authorAvatar = "";
+        if (profileResponse != null && profileResponse.getResult() != null) {
+            var profile = profileResponse.getResult();
+            authorUsername = profile.getUsername() != null ? profile.getUsername() : "";
+            authorAvatar = profile.getImageUrl() != null ? profile.getImageUrl() : "";
         }
-    }
 
-    /**
-     * Lấy danh sách userId của tất cả followers qua ProfileClient (Feign).
-     * Gọi endpoint: GET /internal/users/{userId}/follower-ids
-     */
-    private List<String> getFollowerIds(String userId) {
+        // 2. Lấy danh sách follower IDs
+        List<String> followerIds = List.of();
         try {
-            var response = profileClient.getFollowerIds(userId);
-            if (response != null && response.getResult() != null) {
-                return response.getResult();
+            var followerResponse = profileClient.getFollowerIds(post.getUserId());
+            if (followerResponse != null && followerResponse.getResult() != null) {
+                followerIds = followerResponse.getResult();
             }
         } catch (Exception e) {
-            log.warn("Failed to get follower IDs for user {}", userId, e);
+            log.warn("Failed to get follower IDs for user {}", post.getUserId(), e);
         }
-        return List.of();
+
+        if (followerIds.isEmpty()) {
+            log.debug("No followers for user {}, skipping feed event", post.getUserId());
+            return;
+        }
+
+        // 3. Build event payload
+        Map<String, Object> event = new HashMap<>();
+        event.put("eventType", "POST_CREATED");
+        event.put("postId", post.getId());
+        event.put("authorId", post.getUserId());
+        event.put("content", post.getContent());
+        event.put("mediaUrls", post.getMediaUrls() != null ? post.getMediaUrls() : List.of());
+        event.put("authorUsername", authorUsername);
+        event.put("authorFirstName", post.getFirstName());
+        event.put("authorLastName", post.getLastName());
+        event.put("authorAvatar", authorAvatar);
+        event.put("followerIds", followerIds);
+
+        // 4. Publish lên Kafka topic "post-events"
+        String json = objectMapper.writeValueAsString(event);
+        kafkaTemplate.send("post-events", post.getId(), json);
+
+        log.info("Published POST_CREATED event for post {} → {} followers",
+                post.getId(), followerIds.size());
+    } catch (Exception e) {
+        log.error("Failed to publish POST_CREATED event for post {}", post.getId(), e);
+        // Không throw exception → post vẫn được tạo, chỉ feed không cập nhật
     }
 }
 ```
 
-> **Lưu ý:** Cần thêm `@Slf4j` annotation (từ Lombok) vào class PostService nếu chưa có, để sử dụng `log.info()`, `log.warn()`, `log.error()`.
+---
+
+### Thay đổi 4 (tùy chọn): Publish POST_DELETED event khi xóa post
+
+**Tại sao cần:** Khi user xóa post, cần xóa PostFeedItem tương ứng khỏi feed của tất cả followers. FeedProjectionService đã handle `POST_DELETED` event nhưng chưa ai publish event này.
+
+**File cần sửa:** `content-service/src/main/java/com/contentservice/post/service/PostService.java`
+
+**Thêm vào method deletePost(), sau khi delete post:**
+
+```java
+// Publish POST_DELETED event
+try {
+    Map<String, Object> event = Map.of(
+        "eventType", "POST_DELETED",
+        "postId", postId
+    );
+    String json = objectMapper.writeValueAsString(event);
+    kafkaTemplate.send("post-events", postId, json);
+} catch (Exception e) {
+    log.error("Failed to publish POST_DELETED event for post {}", postId, e);
+}
+```
+
+---
+
+### Thay đổi 5 (tùy chọn): Implement handleEngagementUpdate trong FeedProjectionService
+
+**Tại sao cần:** Hiện tại method `handleEngagementUpdate()` rỗng. Khi user like/comment post, likeCount/commentCount trong PostFeedItem không được cập nhật → feed hiển thị sai engagement counts.
+
+**File cần sửa:** `content-service/src/main/java/com/contentservice/kafka/FeedProjectionService.java`
+
+**Thay thế method rỗng bằng:**
+
+```java
+private void handleEngagementUpdate(Map<String, Object> event, String field) {
+    String postId = (String) event.get("postId");
+    List<PostFeedItem> feedItems = postFeedRepository.findAllByPostId(postId);
+    for (PostFeedItem item : feedItems) {
+        if ("likeCount".equals(field)) {
+            item.setLikeCount(item.getLikeCount() + 1);
+        } else if ("commentCount".equals(field)) {
+            item.setCommentCount(item.getCommentCount() + 1);
+        }
+        postFeedRepository.save(item);
+    }
+    log.debug("Updated {} for post {} across {} feed items", field, postId, feedItems.size());
+}
+```
+
+**Cần thêm vào PostFeedRepository:**
+
+```java
+List<PostFeedItem> findAllByPostId(String postId);
+```
+
+---
+
+### Tóm tắt thứ tự thay đổi
+
+| # | File | Service | Thay đổi | Bắt buộc |
+|---|------|---------|----------|----------|
+| 1 | `UserProfileRepository.java` | user-service | Thêm `findFollowerUserIdsByUserId()` query | Có |
+| 2 | `UserProfileService.java` | user-service | Thêm `getFollowerUserIds()` method | Có |
+| 3 | `InternalUserProfileController.java` | user-service | Thêm `GET /internal/users/{userId}/follower-ids` | Có |
+| 4 | `ProfileClient.java` | content-service | Thêm `getFollowerIds()` Feign method | Có |
+| 5 | `PostService.java` | content-service | Inject KafkaTemplate, ObjectMapper; thêm `publishPostCreatedEvent()` | Có |
+| 6 | `PostService.java` | content-service | Thêm POST_DELETED event trong deletePost() | Tùy chọn |
+| 7 | `FeedProjectionService.java` | content-service | Implement `handleEngagementUpdate()` | Tùy chọn |
+| 8 | `PostFeedRepository.java` | content-service | Thêm `findAllByPostId()` | Tùy chọn (cho #7) |
 
 ## Hướng dẫn Test
 
 ### Test 1: Kiểm tra tạo PostFeedItem khi tạo post
 
-**Bước 1:** Đảm bảo các service đang chạy: MongoDB, Kafka, content-service, user-service.
-
 ```bash
-docker-compose up -d mongodb kafka zookeeper
-```
-
-**Bước 2:** Đăng nhập lấy token (thay bằng thông tin user thực tế).
-
-```bash
-curl -X POST http://localhost:8888/api/identity/auth/token \
+# Đăng nhập lấy token
+curl -X POST http://localhost:8888/api/auth/token \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "password123"
-  }'
-```
+  -d '{"username": "testuser", "password": "password123"}'
 
-Lưu lại token từ response:
-```json
-{
-  "code": 1000,
-  "result": {
-    "token": "eyJhbGciOiJIUzI1NiJ9...",
-    "authenticated": true
-  }
-}
-```
-
-**Bước 3:** Tạo một post mới (dùng token ở trên).
-
-```bash
-curl -X POST http://localhost:8888/api/content/posts \
+# Tạo post mới
+curl -X POST http://localhost:8888/api/post/create \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN>" \
-  -d '{
-    "content": "Hello from CQRS Feed test!",
-    "imageUrls": [],
-    "videoUrl": null
-  }'
-```
+  -d '{"content": "Hello from CQRS Feed test!"}'
 
-Response mong đợi:
-```json
-{
-  "code": 1000,
-  "result": {
-    "id": "abc123",
-    "content": "Hello from CQRS Feed test!",
-    "userId": "user-id-xxx",
-    "createdDate": "2026-03-10T10:00:00"
-  }
-}
-```
-
-**Bước 4:** Kiểm tra Kafka đã nhận event (xem log content-service).
-
-```bash
+# Kiểm tra log content-service
 docker logs content-service 2>&1 | grep "Feed populated"
 ```
 
-Log mong đợi:
-```
-Feed populated for post abc123 → 5 followers
-```
-
-### Test 2: Query feed của user
-
-**Bước 5:** Đăng nhập bằng tài khoản follower (người đang follow user ở bước 3).
+### Test 2: Query feed của follower
 
 ```bash
-curl -X POST http://localhost:8888/api/identity/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "followeruser",
-    "password": "password123"
-  }'
-```
-
-**Bước 6:** Gọi API lấy feed.
-
-```bash
-curl -X GET "http://localhost:8888/api/content/post/feed?page=0&size=20" \
+# Đăng nhập bằng tài khoản follower
+# Gọi API lấy feed
+curl -X GET "http://localhost:8888/api/post/my-feed?page=1&limit=20" \
   -H "Authorization: Bearer <FOLLOWER_TOKEN>"
 ```
 
-Response mong đợi:
-```json
-{
-  "code": 1000,
-  "result": {
-    "content": [
-      {
-        "id": "feed-item-id",
-        "postId": "abc123",
-        "content": "Hello from CQRS Feed test!",
-        "authorId": "user-id-xxx",
-        "authorUsername": "testuser",
-        "authorFirstName": "Test",
-        "authorLastName": "User",
-        "authorAvatar": "avatar-url",
-        "targetUserId": "follower-id",
-        "likeCount": 0,
-        "commentCount": 0,
-        "shareCount": 0,
-        "createdDate": "2026-03-10T10:00:00"
-      }
-    ],
-    "pageable": {
-      "pageNumber": 0,
-      "pageSize": 20
-    },
-    "totalElements": 1,
-    "totalPages": 1
-  }
-}
-```
+### Test 3: Kiểm tra Neo4j trực tiếp
 
-### Test 3: Kiểm tra xóa post cũng xóa feed items
-
-**Bước 7:** Xóa post đã tạo.
-
-```bash
-curl -X DELETE http://localhost:8888/api/content/posts/abc123 \
-  -H "Authorization: Bearer <TOKEN>"
-```
-
-**Bước 8:** Query feed lại → post đã biến mất.
-
-```bash
-curl -X GET "http://localhost:8888/api/content/post/feed?page=0&size=20" \
-  -H "Authorization: Bearer <FOLLOWER_TOKEN>"
-```
-
-Response mong đợi: `content` array rỗng (post đã bị xóa khỏi feed).
-
-### Test 4: Kiểm tra MongoDB trực tiếp
-
-```bash
-# Kết nối MongoDB shell
-docker exec -it mongodb mongosh
-
-# Xem collection post_feed
-use content_service
-db.post_feed.find().pretty()
-
-# Đếm số feed items
-db.post_feed.countDocuments()
-
-# Xem feed của một user cụ thể
-db.post_feed.find({ targetUserId: "follower-id" }).sort({ createdDate: -1 })
-```
-
-### Test 5: Kiểm tra Redis cache
-
-```bash
-# Kết nối Redis CLI
-docker exec -it redis redis-cli
-
-# Xem tất cả cache keys liên quan feed
-KEYS feed*
-
-# Xem nội dung một cache key
-GET "feed::follower-id:0:20"
-
-# Xóa cache thủ công để test cache miss
-DEL "feed::follower-id:0:20"
+```cypher
+MATCH (f:post_feed) RETURN f
+MATCH (f:post_feed {targetUserId: "follower-user-id"}) RETURN f ORDER BY f.createdDate DESC
+MATCH (f:post_feed) RETURN COUNT(f)
 ```
 
 ## Checklist
 
-- [ ] Tạo PostFeedItem entity (read model)
-- [ ] Tạo PostFeedRepository
-- [ ] Tạo FeedProjectionService (Kafka consumer)
-- [ ] Tạo FeedService (query side)
-- [ ] Tạo FeedController với endpoint GET /post/feed
-- [ ] Thêm Neo4j query `findFollowerUserIdsByUserId` trong UserProfileRepository (user-service)
-- [ ] Thêm `getFollowerUserIds` method trong UserProfileService (user-service)
-- [ ] Thêm endpoint `GET /internal/users/{userId}/follower-ids` trong InternalUserProfileController (user-service)
-- [ ] Thêm `getFollowerIds` method trong ProfileClient (content-service)
-- [ ] Sửa PostService: inject KafkaTemplate + ObjectMapper, thêm @Slf4j
-- [ ] Sửa PostService.createPost() → gọi publishPostCreatedEvent(post)
-- [ ] Hoàn chỉnh publishPostCreatedEvent() → lấy author info từ IdentityClient + ProfileClient
-- [ ] Hoàn chỉnh getFollowerIds() → gọi ProfileClient.getFollowerIds()
-- [ ] Test: tạo post → kiểm tra Kafka log → feed item xuất hiện cho followers
-- [ ] Test: query feed → response trả về đúng format phân trang
-- [ ] Test: xóa post → feed items bị xóa theo
-- [ ] Test: kiểm tra Redis cache hoạt động đúng
+- [x] Tạo PostFeedItem entity (Neo4j Node)
+- [x] Tạo PostFeedRepository (Neo4jRepository)
+- [x] Tạo FeedProjectionService (Kafka consumer)
+- [x] Tạo FeedService (query side với caching)
+- [x] Tạo endpoint GET /posts/my-feed trong PostController
+- [ ] **Thêm `findFollowerUserIdsByUserId` query trong UserProfileRepository (user-service)**
+- [ ] **Thêm `getFollowerUserIds` method trong UserProfileService (user-service)**
+- [ ] **Thêm endpoint `GET /internal/users/{userId}/follower-ids` (user-service)**
+- [ ] **Thêm `getFollowerIds` method trong ProfileClient (content-service)**
+- [ ] **Sửa PostService.createPost() → publish POST_CREATED event lên Kafka "post-events"**
+- [ ] Thêm POST_DELETED event trong PostService.deletePost() (tùy chọn)
+- [ ] Implement handleEngagementUpdate trong FeedProjectionService (tùy chọn)
+- [ ] Test: tạo post → PostFeedItem tạo cho followers → query feed thành công
