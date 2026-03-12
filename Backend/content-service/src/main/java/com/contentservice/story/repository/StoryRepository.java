@@ -14,7 +14,7 @@ import java.util.List;
 public interface StoryRepository extends Neo4jRepository<Story, String> {
 
 	@Query("MATCH (s:story {authorId: $userId}) DETACH DELETE s")
-	void deleteByAuthorId(@Param("userI") String userId);
+	void deleteByAuthorId(@Param("userId") String userId);
 
 	@Query("""
 			MATCH (u:user_profile {user_id: $userId}), (s:story {id: $storyId})

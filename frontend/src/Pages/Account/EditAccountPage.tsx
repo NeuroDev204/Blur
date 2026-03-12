@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { fetchUserInfo, updateUserProfile } from "../../api/userApi";
+import { fetchUserInfo, updateUserProfile, deleteAccount } from "../../api/userApi";
 import { useToast } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { uploadToCloudnary } from "../../Config/UploadToCloudinary";
@@ -39,6 +39,9 @@ const EditAccountPage: React.FC = () => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string>('');
     const toast = useToast();
     const navigate = useNavigate();
 
@@ -47,6 +50,7 @@ const EditAccountPage: React.FC = () => {
             try {
                 const userInfo = await fetchUserInfo();
                 if (userInfo) {
+                    setCurrentUserId(userInfo.userId || '');
                     setFormData({
                         firstName: userInfo.firstName || "",
                         lastName: userInfo.lastName || "",
@@ -146,6 +150,35 @@ const EditAccountPage: React.FC = () => {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        setDeleteLoading(true);
+        try {
+            await deleteAccount(currentUserId);
+            toast({
+                title: "Account deleted",
+                description: "Your account has been permanently deleted.",
+                status: "success",
+                duration: 3000,
+                position: "top-right",
+                isClosable: true,
+            });
+            navigate("/login");
+        } catch (error) {
+            const err = error as Error;
+            toast({
+                title: "Delete failed",
+                description: err.message || "Something went wrong",
+                status: "error",
+                duration: 3000,
+                position: "top-right",
+                isClosable: true,
+            });
+        } finally {
+            setDeleteLoading(false);
+            setShowDeleteModal(false);
+        }
+    };
+
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsLoading(true);
@@ -202,7 +235,7 @@ const EditAccountPage: React.FC = () => {
                 </div>
 
                 {/* Form Container */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Avatar Upload */}
                         <div className="flex flex-col items-center space-y-4">
@@ -402,7 +435,68 @@ const EditAccountPage: React.FC = () => {
                         </div>
                     </form>
                 </div>
+                {/* Danger Zone */}
+                <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-6">
+                    <h3 className="text-base font-semibold text-red-600 mb-1">Danger Zone</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                        Permanently delete your account and all associated data. This action cannot be undone.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteModal(true)}
+                        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                    >
+                        Delete Account
+                    </button>
+                </div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900">Delete your account?</h3>
+                                <p className="text-sm text-gray-500">This action is permanent and cannot be undone.</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-6">
+                            All your posts, followers, messages, and personal data will be permanently removed.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deleteLoading}
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteAccount}
+                                disabled={deleteLoading}
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {deleteLoading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    "Yes, delete my account"
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

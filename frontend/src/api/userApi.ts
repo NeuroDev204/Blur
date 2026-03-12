@@ -41,6 +41,11 @@ export const deleteUserProfile = async (userProfileId: string): Promise<unknown>
     return response.data?.result
 }
 
+export const deleteAccount = async (userId: string): Promise<unknown> => {
+    const response = await axiosClient.delete<ApiResponse<unknown>>(`/users/${userId}`)
+    return response.data?.result
+}
+
 export const followUser = async (userId: string): Promise<unknown> => {
     const response = await axiosClient.put<ApiResponse<unknown>>(`/profile/users/follow/${userId}`, {})
     return response.data?.result

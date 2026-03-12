@@ -7,7 +7,8 @@
       "Bash(find /f/Blur -maxdepth 2 -name *.md -type f)",
       "Bash(grep -r \"recommend\\\\|suggestion\\\\|friend\\\\|user.*card\" /f/Blur/Frontend/src/Components --include=*.tsx -l)",
       "Bash(docker ps:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(find f:/Blur/Backend/api-gateway -name *.yml -o -name *.yaml -o -name *.properties)"
     ]
   }
 }

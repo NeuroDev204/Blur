@@ -34,22 +34,15 @@ public class UserDeleteSagaConsumer {
   ObjectMapper objectMapper;
 
   @KafkaListener(topics = "user-delete-saga", groupId = "content-service,saga")
-  @Transactional
   public void handleSagaEvent(String message) {
     try {
       Map<String, Object> event = objectMapper.readValue(message, Map.class);
       String step = (String) event.get("step");
       String userId = (String) event.get("userId");
-      if (!"INITIATED".equals(step))
+      if (!"INITIATED".equals(step) || userId == null)
         return;
 
-      // xoa tat ca content cua user
-      // neo4j xoa nodes va relationship lien quan
-      postRepository.deleteAllByUserId(userId);
-      commentRepository.deleteAllByUserId(userId);
-      commentReplyRepository.deleteAllByUserId(userId);
-      storyRepository.deleteByAuthorId(userId);
-      postFeedRepository.deleteAllByAuthorId(userId);
+      deleteUserContent(userId);
 
       // publish CONTENT_CLEANED
       event.put("step", "CONTENT_CLEANED");
@@ -59,6 +52,15 @@ public class UserDeleteSagaConsumer {
     } catch (Exception e) {
       publishFailure(message, e.getMessage());
     }
+  }
+
+  @Transactional
+  public void deleteUserContent(String userId) {
+    postRepository.deleteAllByUserId(userId);
+    commentRepository.deleteAllByUserId(userId);
+    commentReplyRepository.deleteAllByUserId(userId);
+    storyRepository.deleteByAuthorId(userId);
+    postFeedRepository.deleteAllByAuthorId(userId);
   }
 
   private void publishFailure(String originalMessage, String error) {
