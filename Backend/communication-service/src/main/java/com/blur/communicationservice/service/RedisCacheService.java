@@ -119,6 +119,7 @@ public class RedisCacheService {
         }
     }
 
+
     public boolean isUserOnline(String userId) {
         try {
             String key = USER_STATUS_PREFIX + userId;
