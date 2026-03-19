@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
@@ -28,117 +28,120 @@ import java.util.Map;
 @EnableCaching
 public class RedisConfig {
 
-    /**
-     * ObjectMapper cho Redis - CÓ type information
-     */
-    @Bean
-    public ObjectMapper redisObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
-        return mapper;
-    }
 
-    /**
-     * ObjectMapper cho HTTP REST APIs - KHÔNG có type information
-     */
-    @Bean
-    @Primary
-    public ObjectMapper httpObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        return mapper;
-    }
+  @Bean
+  public ObjectMapper redisObjectMapper() {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.registerModule(new JavaTimeModule());
+    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    BasicPolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+        .allowIfBaseType("com.contentservice.")
+        .allowIfBaseType("com.blur.")
+        .allowIfBaseType("java.util.")
+        .allowIfBaseType("java.time.")
+        .allowIfBaseType("java.lang.")
+        .allowIfBaseType("org.springframework.data.domain")
+        .build();
+    mapper.activateDefaultTyping(
+        ptv,
+        ObjectMapper.DefaultTyping.NON_FINAL,
+        JsonTypeInfo.As.PROPERTY
+    );
+    return mapper;
+  }
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(
-            RedisConnectionFactory connectionFactory,
-            @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
+  @Bean
+  @Primary
+  public ObjectMapper httpObjectMapper() {
+    ObjectMapper mapper = new ObjectMapper();
+    mapper.registerModule(new JavaTimeModule());
+    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    return mapper;
+  }
 
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
+  @Bean
+  public RedisTemplate<String, Object> redisTemplate(
+      RedisConnectionFactory connectionFactory,
+      @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
 
-        StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        GenericJackson2JsonRedisSerializer jsonSerializer =
-                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+    RedisTemplate<String, Object> template = new RedisTemplate<>();
+    template.setConnectionFactory(connectionFactory);
 
-        template.setKeySerializer(stringSerializer);
-        template.setValueSerializer(jsonSerializer);
-        template.setHashKeySerializer(stringSerializer);
-        template.setHashValueSerializer(jsonSerializer);
+    StringRedisSerializer stringSerializer = new StringRedisSerializer();
+    GenericJackson2JsonRedisSerializer jsonSerializer =
+        new GenericJackson2JsonRedisSerializer(redisObjectMapper);
 
-        template.afterPropertiesSet();
-        return template;
-    }
+    template.setKeySerializer(stringSerializer);
+    template.setValueSerializer(jsonSerializer);
+    template.setHashKeySerializer(stringSerializer);
+    template.setHashValueSerializer(jsonSerializer);
 
-    @Bean
-    public CacheManager cacheManager(
-            RedisConnectionFactory connectionFactory,
-            @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
+    template.afterPropertiesSet();
+    return template;
+  }
 
-        GenericJackson2JsonRedisSerializer serializer =
-                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+  @Bean
+  public CacheManager cacheManager(
+      RedisConnectionFactory connectionFactory,
+      @Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper) {
 
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
-                .defaultCacheConfig()
-                .serializeKeysWith(
-                        RedisSerializationContext.SerializationPair
-                                .fromSerializer(new StringRedisSerializer())
-                )
-                .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair
-                                .fromSerializer(serializer)
-                )
-                .disableCachingNullValues()
-                .entryTtl(Duration.ofMinutes(5));
+    GenericJackson2JsonRedisSerializer serializer =
+        new GenericJackson2JsonRedisSerializer(redisObjectMapper);
 
-        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+    RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
+        .defaultCacheConfig()
+        .serializeKeysWith(
+            RedisSerializationContext.SerializationPair
+                .fromSerializer(new StringRedisSerializer())
+        )
+        .serializeValuesWith(
+            RedisSerializationContext.SerializationPair
+                .fromSerializer(serializer)
+        )
+        .disableCachingNullValues()
+        .entryTtl(Duration.ofMinutes(5));
 
-        // ==================== POST CACHES ====================
-        cacheConfigurations.put("posts",
-                defaultConfig.entryTtl(Duration.ofMinutes(2)));
+    Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-        cacheConfigurations.put("post",
-                defaultConfig.entryTtl(Duration.ofMinutes(5)));
+    // ==================== POST CACHES ====================
+    cacheConfigurations.put("posts",
+        defaultConfig.entryTtl(Duration.ofMinutes(2)));
 
-        cacheConfigurations.put("userPosts",
-                defaultConfig.entryTtl(Duration.ofMinutes(5)));
+    cacheConfigurations.put("post",
+        defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
-        cacheConfigurations.put("postLikes",
-                defaultConfig.entryTtl(Duration.ofMinutes(3)));
+    cacheConfigurations.put("userPosts",
+        defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
-        // ==================== SAVED POST CACHES ====================
-        cacheConfigurations.put("savedPosts",
-                defaultConfig.entryTtl(Duration.ofMinutes(10)));
+    cacheConfigurations.put("postLikes",
+        defaultConfig.entryTtl(Duration.ofMinutes(3)));
 
-        // ==================== COMMENT CACHES ====================
-        cacheConfigurations.put("comments",
-                defaultConfig.entryTtl(Duration.ofMinutes(3)));
+    // ==================== SAVED POST CACHES ====================
+    cacheConfigurations.put("savedPosts",
+        defaultConfig.entryTtl(Duration.ofMinutes(10)));
 
-        cacheConfigurations.put("commentReplies",
-                defaultConfig.entryTtl(Duration.ofMinutes(3)));
+    // ==================== COMMENT CACHES ====================
+    cacheConfigurations.put("comments",
+        defaultConfig.entryTtl(Duration.ofMinutes(3)));
 
-        cacheConfigurations.put("nestedReplies",
-                defaultConfig.entryTtl(Duration.ofMinutes(3)));
+    cacheConfigurations.put("commentReplies",
+        defaultConfig.entryTtl(Duration.ofMinutes(3)));
 
-        cacheConfigurations.put("commentReplyById",
-                defaultConfig.entryTtl(Duration.ofMinutes(5)));
+    cacheConfigurations.put("nestedReplies",
+        defaultConfig.entryTtl(Duration.ofMinutes(3)));
 
-        // ==================== PROFILE CACHE ====================
-        cacheConfigurations.put("profiles",
-                defaultConfig.entryTtl(Duration.ofMinutes(10)));
+    cacheConfigurations.put("commentReplyById",
+        defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
-        return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(defaultConfig)
-                .withInitialCacheConfigurations(cacheConfigurations)
-                .transactionAware()
-                .build();
-    }
+    // ==================== PROFILE CACHE ====================
+    cacheConfigurations.put("profiles",
+        defaultConfig.entryTtl(Duration.ofMinutes(10)));
+
+    return RedisCacheManager.builder(connectionFactory)
+        .cacheDefaults(defaultConfig)
+        .withInitialCacheConfigurations(cacheConfigurations)
+        .transactionAware()
+        .build();
+  }
 }

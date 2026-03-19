@@ -1,6 +1,8 @@
 package com.blur.communicationservice.configuration;
 
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.CacheManager;
@@ -12,6 +14,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -22,10 +25,12 @@ import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Configuration
 @EnableCaching
 @RequiredArgsConstructor
+@Slf4j
 public class RedisConfig {
 
     private final RedisConnectionFactory connectionFactory;
@@ -82,12 +87,19 @@ public class RedisConfig {
         try {
             RedisTemplate<String, Object> template = redisTemplate(connectionFactory);
             String pattern = "communication-service:*";
-            var keys = template.keys(pattern);
-
+            Set<String> keys = new HashSet<>();
+            ScanOptions options =
+                    ScanOptions.scanOptions().match(pattern).count(100).build();
+            try (org.springframework.data.redis.core.Cursor<String> cursor = template.scan(options)) {
+                while (cursor.hasNext()) {
+                    keys.add(cursor.next());
+                }
+            }
             if (keys != null && !keys.isEmpty()) {
-                template.delete(keys);
+                template.unlink(keys);
             }
         } catch (Exception e) {
+            log.warn("Failed to cleanup cache on startup: {}", e.getMessage());
         }
     }
 }

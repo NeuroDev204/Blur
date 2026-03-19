@@ -3,193 +3,145 @@ package com.contentservice.post.service;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.redis.core.RedisCallback;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CacheService {
+  RedisTemplate<String, Object> redisTemplate;
 
-    RedisTemplate<String, Object> redisTemplate;
-
-    public void evictPostCaches(String postId, String userId) {
-        try {
-            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                // Get keys matching patterns
-                Set<String> postKeys = redisTemplate.keys("post-service:post::" + postId);
-                Set<String> userPostKeys = redisTemplate.keys("post-service:userPosts::" + userId + "*");
-                Set<String> allPostsKeys = redisTemplate.keys("post-service:posts::*");
-
-                // Delete all keys in batch
-                if (postKeys != null && !postKeys.isEmpty()) {
-                    redisTemplate.delete(postKeys);
-                }
-                if (userPostKeys != null && !userPostKeys.isEmpty()) {
-                    redisTemplate.delete(userPostKeys);
-                }
-                if (allPostsKeys != null && !allPostsKeys.isEmpty()) {
-                    redisTemplate.delete(allPostsKeys);
-                }
-
-                return null;
-            });
-        } catch (Exception e) {
-
-        }
+  private Set<String> scanKeys(String pattern) {
+    Set<String> keys = new HashSet<>();
+    ScanOptions options = ScanOptions.scanOptions().match(pattern).count(100).build();
+    try (Cursor<String> cursor = redisTemplate.scan(options)) {
+      while (cursor.hasNext()) {
+        keys.add(cursor.next());
+      }
     }
+    return keys;
+  }
 
-    public void evictPostLikeCache(String postId) {
-        try {
-            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                Set<String> likeKeys = redisTemplate.keys("post-service:postLikes::" + postId);
-                Set<String> postKeys = redisTemplate.keys("post-service:post::" + postId);
-
-                if (likeKeys != null && !likeKeys.isEmpty()) {
-                    redisTemplate.delete(likeKeys);
-                }
-                if (postKeys != null && !postKeys.isEmpty()) {
-                    redisTemplate.delete(postKeys);
-                }
-
-                return null;
-            });
-        } catch (Exception e) {
-
-        }
+  private void deleteByPattern(String pattern) {
+    try {
+      Set<String> keys = scanKeys(pattern);
+      if (!keys.isEmpty()) {
+        redisTemplate.unlink(keys);
+      }
+    } catch (Exception e) {
+      log.warn("Failed to delete cache by pattern {}: {}", pattern, e.getMessage());
     }
+  }
 
-    public void evictSavedPostsCache(String userId) {
-        try {
-            deleteByPattern("post-service:savedPosts::" + userId);
-        } catch (Exception e) {
-        }
+  public void evictPostCache(String postId, String userId) {
+    try {
+      deleteByPattern("content-service:post::" + postId);
+      deleteByPattern("content-service:userPosts::" + userId + "*");
+      deleteByPattern("content-service:posts::*");
+    } catch (Exception e) {
+      log.warn("Failed to evict post caches postId={}, userId={}: {}", postId, userId, e.getMessage());
     }
+  }
 
-    public void evictCommentCaches(String postId, String commentId) {
-        try {
-            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                Set<String> commentKeys = redisTemplate.keys("post-service:comments::" + postId);
-                Set<String> replyKeys = redisTemplate.keys("post-service:commentReplies::" + commentId);
-
-                if (commentKeys != null && !commentKeys.isEmpty()) {
-                    redisTemplate.delete(commentKeys);
-                }
-                if (replyKeys != null && !replyKeys.isEmpty()) {
-                    redisTemplate.delete(replyKeys);
-                }
-
-                return null;
-            });
-        } catch (Exception e) {
-        }
+  public void evictPostLikeCache(String postId) {
+    try {
+      deleteByPattern("content-service:postLikes::" + postId);
+      deleteByPattern("content-service:post::" + postId);
+    } catch (Exception e) {
+      log.warn("Failed to evict post like cache postId={}: {}", postId, e.getMessage());
     }
+  }
 
-    public void evictCommentReplyCaches(String commentId, String replyId, String parentReplyId) {
-        try {
-            redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-                Set<String> replyListKeys = redisTemplate.keys("post-service:commentReplies::" + commentId);
-
-                if (replyListKeys != null && !replyListKeys.isEmpty()) {
-                    redisTemplate.delete(replyListKeys);
-                }
-
-                if (replyId != null) {
-                    Set<String> singleReplyKeys = redisTemplate.keys("post-service:commentReplyById::" + replyId);
-                    if (singleReplyKeys != null && !singleReplyKeys.isEmpty()) {
-                        redisTemplate.delete(singleReplyKeys);
-                    }
-                }
-
-                if (parentReplyId != null) {
-                    Set<String> nestedKeys = redisTemplate.keys("post-service:nestedReplies::" + parentReplyId);
-                    if (nestedKeys != null && !nestedKeys.isEmpty()) {
-                        redisTemplate.delete(nestedKeys);
-                    }
-                }
-
-                return null;
-            });
-        } catch (Exception e) {
-
-        }
+  public void evictSavedPostsCache(String userId) {
+    try {
+      deleteByPattern("content-service:savedPosts::" + userId);
+    } catch (Exception e) {
+      log.warn("Failed to evict posts caches userId={}: {}", userId, e.getMessage());
     }
+  }
 
-    private void deleteByPattern(String pattern) {
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
+  public void evictCommentCaches(String postId, String commentId) {
+    try {
+      deleteByPattern("content-service:comments::" + postId);
+      deleteByPattern("content-service:commentReplies::" + commentId);
+    } catch (Exception e) {
+      log.warn("Failed to evict comment caches postId={}, commentId={}: {}", postId, commentId, e.getMessage());
     }
+  }
 
-    public void set(String key, Object value, long timeout, TimeUnit unit) {
-        try {
-            redisTemplate.opsForValue().set(key, value, timeout, unit);
-        } catch (Exception e) {
-            // Silent fail
-        }
+  public void evictCommentReplyCaches(String commentId, String replyId, String parentReplyId) {
+    try {
+      deleteByPattern("content-service:commentReplies::" + commentId);
+      if (replyId != null) {
+        deleteByPattern("content-service:commentReplyById::" + commentId);
+      }
+      if (parentReplyId != null) {
+        deleteByPattern("content-service:nestedReplies::" + parentReplyId);
+      }
+    } catch (Exception e) {
+      log.warn("Failed to evict comment reply caches commentId={}: {}", commentId, e.getMessage());
     }
+  }
 
-    public Object get(String key) {
-        try {
-            return redisTemplate.opsForValue().get(key);
-        } catch (Exception e) {
-            return null;
-        }
+  public void set(String key, Object value, long timeout, TimeUnit unit) {
+    try {
+      redisTemplate.opsForValue().set(key, value, timeout, unit);
+    } catch (Exception e) {
+      log.warn("Failed to set cache key={}: {}", key, e.getMessage());
     }
+  }
 
-    public boolean exists(String key) {
-        try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
-        } catch (Exception e) {
-            return false;
-        }
+  public Object get(String key) {
+    try {
+      return redisTemplate.opsForValue().get(key);
+    } catch (Exception e) {
+      log.warn("Failed to get cache key={}: {}", key, e.getMessage());
+      return null;
     }
+  }
 
-    public void delete(String key) {
-        try {
-            redisTemplate.delete(key);
-        } catch (Exception e) {
-        }
+  public void delete(String key) {
+    try {
+      redisTemplate.unlink(key);
+    } catch (Exception e) {
+      log.warn("Failed to delete cache key={}: {}", key, e.getMessage());
     }
+  }
 
-    public long getCacheSize() {
-        try {
-            Set<String> keys = redisTemplate.keys("post-service:*");
-            return keys != null ? keys.size() : 0;
-        } catch (Exception e) {
-            return -1;
-        }
+  public long getCacheSize() {
+    try {
+      return scanKeys("content:service:*").size();
+    } catch (Exception e) {
+      log.warn("Failed to get cache size: {}", e.getMessage());
+      return -1;
     }
+  }
 
-    public long getCacheSizeByPattern(String pattern) {
-        try {
-            Set<String> keys = redisTemplate.keys("post-service:" + pattern);
-            return keys != null ? keys.size() : 0;
-        } catch (Exception e) {
-            return -1;
-        }
+  public long getCacheSizeByPattern(String pattern) {
+    try {
+      return scanKeys("content-service:" + pattern).size();
+    } catch (Exception e) {
+      log.warn("Failed to get cache size by pattern={}: {}", pattern, e.getMessage());
+      return -1;
     }
+  }
 
-    public void clearAllCaches() {
-        try {
-            Set<String> keys = redisTemplate.keys("post-service:*");
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
-            }
-        } catch (Exception e) {
-        }
+  public void warmUp(String cacheName, String key, Object value) {
+    try {
+      String fullKey = "content-service:" + cacheName + "::" + key;
+      redisTemplate.opsForValue().set(fullKey, value, 5, TimeUnit.MINUTES);
+      log.debug("Cache warmed up: {}::{}", cacheName, key);
+    } catch (Exception e) {
+      log.warn("Failed to warm up cache {}::{}: {}", cacheName, key, e.getMessage());
     }
-
-    public void warmUp(String cacheName, String key, Object value) {
-        try {
-            String fullKey = "post-service:" + cacheName + "::" + key;
-            redisTemplate.opsForValue().set(fullKey, value, 5, TimeUnit.MINUTES);
-        } catch (Exception e) {
-        }
-    }
+  }
 }
