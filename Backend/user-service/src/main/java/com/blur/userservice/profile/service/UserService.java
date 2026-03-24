@@ -96,7 +96,7 @@ public class UserService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @Cacheable(value = "users", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "users", sync = true)
     @Transactional(readOnly = true)
     public List<UserResponse> getUsers() {
         return userProfileRepository.findAll().stream()
@@ -104,13 +104,18 @@ public class UserService {
                 .toList();
     }
 
-    @Cacheable(value = "userById", key = "#userId", unless = "#result == null")
+    @Cacheable(value = "userById", key = "#userId", sync = true)
     @Transactional(readOnly = true)
     public UserProfile getUserById(String userId) {
         return userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "userById", key = "#userId"),
+            @CacheEvict(value = "users", allEntries = true),
+            @CacheEvict(value = "myInfo", allEntries = true)
+    })
     public UserProfile updateUser(String userId, UserUpdateRequest request) {
         UserProfile userProfile = getUserById(userId);
         userMapper.updateUser(userProfile, request);
@@ -133,7 +138,7 @@ public class UserService {
         userProfileRepository.deleteById(userProfile.getId());
     }
 
-    @Cacheable(value = "myInfo", key = "#root.target.getCurrentUsername()", unless = "#result == null ")
+    @Cacheable(value = "myInfo", key = "#root.target.getCurrentUsername()", sync = true)
     @Transactional(readOnly = true)
     public UserResponse getMyInfo() {
         var context = SecurityContextHolder.getContext();

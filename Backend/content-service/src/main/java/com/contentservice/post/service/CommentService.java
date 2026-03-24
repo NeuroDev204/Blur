@@ -1,5 +1,8 @@
 package com.contentservice.post.service;
 
+import com.contentservice.kafka.ModerationProducer;
+import com.contentservice.kafka.NotificationEventPublisher;
+import com.contentservice.outbox.service.OutboxService;
 import com.contentservice.post.dto.event.Event;
 import com.contentservice.post.dto.request.CreateCommentRequest;
 import com.contentservice.post.dto.response.CommentResponse;
@@ -10,10 +13,6 @@ import com.contentservice.post.mapper.CommentMapper;
 import com.contentservice.post.repository.CommentRepository;
 import com.contentservice.post.repository.PostRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
-import com.contentservice.kafka.ModerationProducer;
-import com.contentservice.kafka.NotificationEventPublisher;
-import com.contentservice.outbox.service.OutboxService;
-
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -42,6 +41,7 @@ public class CommentService {
     PostRepository postRepository;
     OutboxService outboxService;
 
+    @CacheEvict(value = "comments", key = "#postId")
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -96,7 +96,7 @@ public class CommentService {
         return commentMapper.toCommentResponse(comment);
     }
 
-    @Cacheable(value = "comments", key = "#postId", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "comments", key = "#postId", sync = true)
     public List<CommentResponse> getAllCommentByPostId(String postId) {
         // Traverses (comment)-[:COMMENTS_ON]->(Post) graph edge
         return commentRepository.findAllByPostId(postId).stream()

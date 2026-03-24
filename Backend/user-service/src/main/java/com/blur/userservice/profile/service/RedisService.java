@@ -3,6 +3,7 @@ package com.blur.userservice.profile.service;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.util.Date;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class RedisService {
     private static final String ONLINE_KEY_PREFIX = "user:online:";
     private static final String INVALIDATED_TOKEN_PREFIX = "token:invalidated:";
@@ -24,12 +26,13 @@ public class RedisService {
         if (userId == null || userId.trim().isEmpty()) {
             return;
         }
-
         String key = ONLINE_KEY_PREFIX + userId;
         try {
             redisTemplate.opsForValue().set(key, System.currentTimeMillis(), ONLINE_TTL);
         } catch (RedisConnectionFailureException e) {
+            log.warn("Redis connection failed for setOnline userId={}: {}", userId, e.getMessage());
         } catch (Exception e) {
+            log.warn("Failed to set online status userId={}: {}", userId, e.getMessage());
         }
     }
 
@@ -42,7 +45,9 @@ public class RedisService {
         try {
             redisTemplate.delete(key);
         } catch (RedisConnectionFailureException e) {
+            log.warn("Redis connection failed for setOffline userId={}: {}", userId, e.getMessage());
         } catch (Exception e) {
+            log.warn("Failed to set offline status userId={}: {}", userId, e.getMessage());
         }
     }
 
@@ -53,10 +58,12 @@ public class RedisService {
 
         String key = ONLINE_KEY_PREFIX + userId;
         try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+            return redisTemplate.hasKey(key);
         } catch (RedisConnectionFailureException e) {
+            log.warn("Redis connection failed for isOnline userId={}: {}", userId, e.getMessage());
             return false;
         } catch (Exception e) {
+            log.warn("Failed to check online status userId={}: {}", userId, e.getMessage());
             return false;
         }
     }
@@ -74,7 +81,9 @@ public class RedisService {
             }
             redisTemplate.opsForValue().set(key, "1", ttl);
         } catch (RedisConnectionFailureException e) {
+            log.warn("Redis connection failed for invalidateToken tokenId={}: {}", tokenId, e.getMessage());
         } catch (Exception e) {
+            log.warn("Failed to invalidate token tokenId={}: {}", tokenId, e.getMessage());
         }
     }
 
@@ -85,10 +94,12 @@ public class RedisService {
 
         String key = INVALIDATED_TOKEN_PREFIX + tokenId;
         try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+            return redisTemplate.hasKey(key);
         } catch (RedisConnectionFailureException e) {
+            log.warn("Redis connection failed for isTokenInvalidated tokenId={}: {}", tokenId, e.getMessage());
             return false;
         } catch (Exception e) {
+            log.warn("Failed to check token invalidated tokenId={}: {}", tokenId, e.getMessage());
             return false;
         }
     }

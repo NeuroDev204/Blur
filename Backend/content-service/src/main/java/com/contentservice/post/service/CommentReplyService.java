@@ -1,5 +1,6 @@
 package com.contentservice.post.service;
 
+import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.post.dto.event.Event;
 import com.contentservice.post.dto.request.CreateCommentRequest;
 import com.contentservice.post.dto.response.CommentResponse;
@@ -10,7 +11,6 @@ import com.contentservice.post.mapper.CommentMapper;
 import com.contentservice.post.repository.CommentReplyRepository;
 import com.contentservice.post.repository.CommentRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
-import com.contentservice.kafka.NotificationEventPublisher;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -156,7 +156,7 @@ public class CommentReplyService {
         return "Comment deleted";
     }
 
-    @Cacheable(value = "commentReplies", key = "#commentId", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "commentReplies", key = "#commentId", sync = true)
     public List<CommentResponse> getAllCommentReplyByCommentId(String commentId) {
         // Traverses (comment_reply)-[:REPLIES_TO]->(comment) graph edge
         return commentReplyRepository.findAllByCommentId(commentId)
@@ -164,13 +164,13 @@ public class CommentReplyService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(value = "commentReplyById", key = "#commentReplyId", unless = "#result == null")
+    @Cacheable(value = "commentReplyById", key = "#commentReplyId", sync = true)
     public CommentResponse getCommentReplyByCommentReplyId(String commentReplyId) {
         return commentMapper.toCommentResponse(commentReplyRepository.findById(commentReplyId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND)));
     }
 
-    @Cacheable(value = "nestedReplies", key = "#parentReplyId", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "nestedReplies", key = "#parentReplyId", sync = true)
     public List<CommentResponse> getRepliesByParentReplyId(String parentReplyId) {
         // Traverses (comment_reply)-[:NESTED_REPLY_OF]->(parent) graph edge
         return commentReplyRepository.findAllByParentReplyId(parentReplyId)
@@ -178,12 +178,16 @@ public class CommentReplyService {
                 .collect(Collectors.toList());
     }
 
-    /** Traverses (comment_reply)-[:REPLIES_TO]->(comment) — cache-key helper. */
+    /**
+     * Traverses (comment_reply)-[:REPLIES_TO]->(comment) — cache-key helper.
+     */
     public String getCommentIdByReplyId(String replyId) {
         return commentReplyRepository.findCommentIdByReplyId(replyId);
     }
 
-    /** Traverses (comment_reply)-[:NESTED_REPLY_OF]->(parent) — cache-key helper. */
+    /**
+     * Traverses (comment_reply)-[:NESTED_REPLY_OF]->(parent) — cache-key helper.
+     */
     public String getParentReplyId(String replyId) {
         return commentReplyRepository.findParentReplyIdByReplyId(replyId);
     }

@@ -1,6 +1,6 @@
 package com.contentservice.post.service;
 
-import com.contentservice.outbox.repository.OutboxRepository;
+import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.outbox.service.OutboxService;
 import com.contentservice.post.dto.event.Event;
 import com.contentservice.post.dto.request.PostRequest;
@@ -13,15 +13,15 @@ import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.PostMapper;
 import com.contentservice.post.repository.PostRepository;
 import com.contentservice.post.repository.httpclient.ProfileClient;
-import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.story.dto.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.Authentication;
@@ -50,6 +50,10 @@ public class PostService {
     KafkaTemplate<String, String> kafkaTemplate;
     ObjectMapper objectMapper;
 
+    @Caching(evict = {
+            @CacheEvict(value = "userPosts", key = "#root.target.getCurrentUserId()"),
+            @CacheEvict(value = "posts", allEntries = true)
+    })
     @Transactional
     public PostResponse createPost(PostRequest postRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -80,6 +84,11 @@ public class PostService {
         return postMapper.toPostResponse(post);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "post", key = "#postId"),
+            @CacheEvict(value = "userPosts", key = "#root.target.getCurrentUserId()"),
+            @CacheEvict(value = "posts", allEntries = true)
+    })
     @Transactional
     public PostResponse updatePost(String postId, PostRequest postRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -95,6 +104,14 @@ public class PostService {
         return postMapper.toPostResponse(postRepository.save(post));
     }
 
+
+    @Caching(evict = {
+            @CacheEvict(value = "post", key = "#postId"),
+            @CacheEvict(value = "userPosts", key = "#root.target.getCurrentUserId()"),
+            @CacheEvict(value = "posts", allEntries = true),
+            @CacheEvict(value = "postLikes", key = "#postId"),
+            @CacheEvict(value = "savedPosts", allEntries = true)
+    })
     @Transactional
     public String deletePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -108,6 +125,7 @@ public class PostService {
         return "Post deleted successfully";
     }
 
+    @Cacheable(value = "posts", key = "'page-' + #page + '-' + #limit", sync = true)
     public Page<PostResponse> getAllPots(int page, int limit) {
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by("createdAt").descending());
         Page<Post> postPage = postRepository.findAll(pageable);
@@ -145,15 +163,19 @@ public class PostService {
         return new PageImpl<>(responses, pageable, postPage.getTotalElements());
     }
 
+    @Cacheable(value = "userPosts", key = "#root.target.getCurrentUserId()", unless = "#result == null || #result.isEmpty()")
     public List<PostResponse> getMyPosts() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
-        // Traverses (user_profile)-[:POSTED]->(Post) graph edge
         return postRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream().map(postMapper::toPostResponse)
                 .collect(Collectors.toList());
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "postLikes", key = "#postId"),
+            @CacheEvict(value = "post", key = "#postId")
+    })
     @Transactional
     public String likePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -198,6 +220,11 @@ public class PostService {
         return "Post liked successfully";
     }
 
+
+    @Caching(evict = {
+            @CacheEvict(value = "postLikes", key = "#postId"),
+            @CacheEvict(value = "post", key = "#postId")
+    })
     @Transactional
     public String unlikePost(String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -211,19 +238,26 @@ public class PostService {
      * Traverses (user_profile)-[:LIKED_POST]->(Post) edges to list who liked a
      * post.
      */
+    @Cacheable(value = "postLikes", key = "#postId", unless = "#result == null || #result.isEmpty()")
     public List<PostLike> getPostLikesByPostId(String postId) {
         return postRepository.findLikesByPostId(postId);
     }
 
+    @Cacheable(value = "userPosts", key = "#userId", sync = true)
     public List<PostResponse> getPostsByUserId(String userId) {
         return postRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream().map(postMapper::toPostResponse)
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "post", key = "#postId", sync = true)
     public PostResponse getPostById(String postId) {
         return postMapper.toPostResponse(postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND)));
+    }
+
+    public String getCurrentUserId() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     private void publishPostCreatedEvent(Post post) {

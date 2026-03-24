@@ -50,11 +50,7 @@ public class PostSaveService {
         return "Post unsaved";
     }
 
-    @Cacheable(
-            value = "savedPosts",
-            key = "#root.target.getCurrentUserId()",
-            unless = "#result == null || #result.isEmpty()"
-    )
+    @Cacheable(value = "savedPosts", key = "#root.target.getCurrentUserId()", sync = true)
     public List<PostResponse> getAllSavedPost() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();

@@ -9,6 +9,9 @@ import com.contentservice.story.repository.StoryRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -22,12 +25,14 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class StoryService {
     StoryRepository storyRepository;
     ProfileClient profileClient;
+    private final CacheManager cacheManager;
 
     @Caching(evict = {
             @CacheEvict(value = "stories", allEntries = true),
@@ -58,7 +63,7 @@ public class StoryService {
         return story;
     }
 
-    @Cacheable(value = "storyById", key = "#id", unless = "#result == null")
+    @Cacheable(value = "storyById", key = "#id", sync = true)
     public Story getStoryById(String id) {
         return storyRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.STORY_NOT_FOUND));
     }
@@ -76,12 +81,12 @@ public class StoryService {
         return storyRepository.findAllByAuthorId(userId);
     }
 
-    @Cacheable(value = "stories", key = "'all'", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "stories", key = "'all'", sync = true)
     public List<Story> getAllStories() {
         return storyRepository.findAll();
     }
 
-    @Cacheable(value = "storiesByUser", key = "#userId", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "storiesByUser", key = "#userId", sync = true)
     public List<Story> getAllStoriesByUserId(String userId) {
         return storyRepository.findAllByAuthorId(userId);
     }
@@ -138,7 +143,19 @@ public class StoryService {
         List<Story> oldStories = storyRepository.findAllByCreatedAtBefore(twentyFourHoursAgo);
         if (!oldStories.isEmpty()) {
             storyRepository.deleteAll(oldStories);
+            evictAllStoryCaches();
         }
+    }
+
+    private void evictAllStoryCaches() {
+        String[] storyCaches = {"stories", "storyById", "storiesByUser", "myStories", "storyLikes"};
+        for (String cacheName : storyCaches) {
+            Cache cache = cacheManager.getCache(cacheName);
+            if (cache != null) {
+                cache.clear();
+            }
+        }
+        log.debug("All story caches evicted");
     }
 
     public String getCurrentUserId() {
