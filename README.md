@@ -8,15 +8,32 @@ Blur is a modern, full-stack social networking platform built with a microservic
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, TypeScript, Vite, Chakra UI, Tailwind CSS, Redux |
-| Backend | Java 21, Spring Boot 3.x, Spring Cloud Gateway, Maven |
-| Graph DB | Neo4j (users, profiles, posts, comments, stories, relationships) |
-| Document DB | MongoDB (chat, notifications) |
-| Cache | Redis |
-| Messaging | Apache Kafka |
-| Real-time | WebSocket (Socket.IO + STOMP) |
-| ML/AI | Python, PyTorch, PhoBERT (Vietnamese NLP), Google Gemini API |
-| Containers | Docker, Docker Compose |
+| Frontend | React 18, TypeScript 5, Vite 5, Redux Toolkit, Chakra UI, Tailwind CSS, React Router v7, Axios, Formik, Framer Motion, WebRTC, Cloudinary |
+| Backend | Java 21, Spring Boot 3.4.3, Spring Cloud 2024.0.0, Spring Security, OpenFeign, MapStruct, Lombok, Maven |
+| API Gateway | Spring Cloud Gateway |
+| Graph DB | Neo4j (social graph, profiles, posts, relationships) |
+| Document DB | MongoDB 6.0 (chat, notifications, AI conversations) |
+| Cache | Caffeine (L1 in-memory) + Redis (L2 distributed), Redisson (distributed lock), Redis Lua Scripts |
+| Messaging | Apache Kafka 7.7.1 (KRaft mode) |
+| Real-time | WebSocket (Socket.IO + STOMP), WebRTC (video/audio calls) |
+| ML/AI | Python 3.11, FastAPI, PyTorch, PhoBERT (Vietnamese NLP), Google Gemini API |
+| Data Scraping | yt-dlp, TikTok API, Selenium, Playwright |
+| Infrastructure | Docker (multi-stage), Docker Compose, Nginx, Amazon Corretto 21 |
+
+---
+
+## Distributed System Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| Multi-Level Cache | Caffeine (L1) + Redis (L2) with per-entity TTL |
+| Distributed Lock | Redisson RLock, double-check pattern (cache stampede prevention) |
+| Cache Invalidation | Redis Pub/Sub → L1 eviction across instances |
+| Cache Warming | Hot data preloaded on startup |
+| Outbox Pattern | Reliable event publishing with scheduled outbox + cleanup |
+| Saga Pattern | Multi-service distributed transaction orchestration via Kafka |
+| CQRS | Event-driven feed projection (separate read/write models) |
+| Atomic Counters | Redis Lua scripts for lock-free operations |
 
 ---
 
@@ -54,20 +71,13 @@ Blur is a modern, full-stack social networking platform built with a microservic
 
 ## Services
 
-### user-service (port 8081)
-Handles user authentication, profile management, and identity. Supports Google OAuth2 login. Stores all user and relationship data in Neo4j.
-
-### content-service (port 8082)
-Manages posts, comments, stories, likes, and shares. Uses Neo4j for social graph queries and Kafka for async event publishing.
-
-### communication-service (port 8083)
-Provides real-time chat (Socket.IO), push notifications (STOMP), email fallback, and AI-powered chat responses via the Gemini API. Backed by MongoDB.
-
-### api-gateway (port 8888)
-Central entry point for all client traffic. Handles routing, CORS, and authentication orchestration via Spring Cloud Gateway.
-
-### model-service (Python)
-ML pipeline for Vietnamese toxic comment detection using PhoBERT. Scrapes YouTube and TikTok for training data, trains and serves a toxicity classification model.
+| Service | Port | Description |
+|---------|------|-------------|
+| **user-service** | 8081 | Auth, profiles, OAuth2, friend recommendations (Neo4j Cypher) |
+| **content-service** | 8082 | Posts, comments, stories, CQRS feed, multi-level cache, Outbox pattern |
+| **communication-service** | 8083 | Chat (Socket.IO), notifications (STOMP), WebRTC calls, Gemini AI chat, email fallback |
+| **api-gateway** | 8888 | Routing, CORS, authentication orchestration |
+| **model-service** | 8000 | PhoBERT toxic detection, async Kafka pipeline, data scraping (YouTube, TikTok) |
 
 ---
 
@@ -76,13 +86,12 @@ ML pipeline for Vietnamese toxic comment detection using PhoBERT. Scrapes YouTub
 ```
 Blur/
 ├── Backend/
-│   ├── user-service/           # Auth, profiles, OAuth2
-│   ├── content-service/        # Posts, comments, stories
-│   ├── communication-service/  # Chat, notifications, AI
+│   ├── user-service/           # Auth, profiles, OAuth2, recommendations
+│   ├── content-service/        # Posts, comments, stories, CQRS feed
+│   ├── communication-service/  # Chat, notifications, calls, AI
 │   ├── api-gateway/            # Request routing
-│   ├── model-service/          # Python ML pipeline
-│   ├── docker/                 # Infrastructure setup
-│   ├── docs/                   # Architecture guides
+│   ├── model-service/          # Python FastAPI ML pipeline
+│   ├── docker/                 # Infrastructure setup, deploy scripts
 │   └── docker-compose.yml      # Local dev infrastructure
 ├── frontend/                   # React TypeScript SPA
 ├── blur-deploy/                # Production deployment
@@ -95,69 +104,61 @@ Blur/
 
 ### Prerequisites
 - Docker & Docker Compose
-- Java 21 (for local service development)
-- Node.js 18+ (for frontend development)
+- Java 21, Node.js 18+, Python 3.11 (for local dev)
 
-### Option 1 — Full Stack (Docker)
+### Full Stack (Docker)
 
 ```bash
-cd blur-deploy
-docker compose up -d
+cd blur-deploy && docker compose up -d
 ```
 
-- Frontend: http://localhost
-- Neo4j Browser: http://localhost:7474 (user: `neo4j`, password: `12345678`)
+### Local Development
 
-### Option 2 — Local Development
-
-**Start infrastructure:**
 ```bash
+# Infrastructure
 docker compose -f Backend/docker-compose.yml up -d
-```
 
-**Run each service:**
-```bash
+# Backend services
 cd Backend/user-service && ./mvnw spring-boot:run
 cd Backend/content-service && ./mvnw spring-boot:run
 cd Backend/communication-service && ./mvnw spring-boot:run
 cd Backend/api-gateway && ./mvnw spring-boot:run
-```
 
-**Run the frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
+# Frontend
+cd frontend && npm install && npm run dev
 ```
 
 ---
 
 ## API Overview
 
-All requests go through the API Gateway at `http://localhost:8888/api`.
+All requests go through `http://localhost:8888/api`.
 
 | Prefix | Service | Description |
 |--------|---------|-------------|
-| `/auth/**` | user-service | Login, token generation/introspection |
+| `/auth/**` | user-service | Login, token |
 | `/users/**` | user-service | Account management |
-| `/profile/**` | user-service | User profile CRUD |
+| `/profile/**` | user-service | Profile CRUD |
 | `/post/**` | content-service | Posts, likes, shares |
 | `/post/comment/**` | content-service | Comments |
 | `/stories/**` | content-service | Stories |
-| `/chat/**` | communication-service | Real-time messaging |
+| `/chat/**` | communication-service | Messaging |
 | `/notification/**` | communication-service | Notifications |
 
 ---
 
 ## Key Features
 
-- **Authentication** — JWT-based auth with Google OAuth2 support
-- **Social Graph** — Follow/unfollow, friend recommendations via Neo4j graph queries
-- **Content** — Create and interact with posts, comments, and stories
-- **Real-time Chat** — Socket.IO messaging with STOMP notifications
-- **AI Chat Assistance** — Gemini-powered smart replies in conversations
-- **Content Moderation** — Automated Vietnamese toxic comment detection (PhoBERT)
-- **Feed** — CQRS-based personalized feed with Redis caching
+- **Authentication** — JWT + Google OAuth2 + Spring Security
+- **Social Graph** — Neo4j-based follow/recommend (mutual, taste, city, popular)
+- **Real-time Chat** — Socket.IO + STOMP notifications
+- **Video/Audio Calls** — WebRTC peer-to-peer
+- **AI Chat** — Gemini-powered smart replies
+- **Content Moderation** — PhoBERT Vietnamese toxic detection via Kafka pipeline
+- **Feed** — CQRS event-driven projections
+- **Multi-Level Cache** — Caffeine + Redis + distributed lock + Pub/Sub invalidation + warming
+- **Distributed Transactions** — Outbox + Saga patterns
+- **Media Upload** — Cloudinary integration
 
 ---
 

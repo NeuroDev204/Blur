@@ -34,7 +34,32 @@
       "Bash(curl -s -X POST \"http://localhost:8082/internal/feed/backfill?followerUserId=a0d2f453-29c4-4a90-bd2f-ec7da7b89e52&followedUserId=11ece51f-a4d1-46a5-965c-a0144af698af\")",
       "Bash(curl -s \"http://localhost:8082/internal/feed/backfill\")",
       "Bash(curl -s -X POST \"http://localhost:8082/internal/feed/backfill?followerUserId=a0d2f453-29c4-4a90-bd2f-ec7da7b89e52&followedUserId=11ece51f-a4d1-46a5-965c-a0144af698af\" -v)",
-      "Bash(curl -s \"http://localhost:7687\")"
+      "Bash(curl -s \"http://localhost:7687\")",
+      "Bash(find /d/Blur/blur-deploy -type f -name *.conf -o -name *.yaml -o -name *.yml -o -name *.json)",
+      "Bash(grep -r \"createSlice\\\\|configureStore\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"prometheus\\\\|grafana\\\\|elasticsearch\\\\|kibana\\\\|jaeger\\\\|monitoring\\\\|logging\" /d/Blur --include=*.yaml --include=*.yml --include=*.conf)",
+      "Bash(grep -r \"load.balancer\\\\|health\\\\|resilience\\\\|circuit.breaker\" /d/Blur --include=*.java --include=*.yaml --include=*.yml)",
+      "Bash(grep -r \"redux\\\\|Redux\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"formik\\\\|Formik\\\\|useFormik\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
+      "Bash(xargs cat:*)",
+      "Bash(grep -r \"FEIGN\\\\|RESILIENCE\\\\|CIRCUITBREAKER\\\\|CACHE\\\\|LETTUCE\\\\|JEDIS\" /d/Blur/Backend --include=*.yaml --include=*.yml)",
+      "Bash(grep -r \"framer-motion\\\\|motion\\\\.\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"socket.io\\\\|sockjs\\\\|stomp\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"HikariCP\\\\|Lettuce\\\\|Redis\\\\|Caffeine\" /d/Blur/Backend --include=*.java)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"emoji\\\\|Emoji\\\\|toast\\\\|Toast\\\\|lucide\" /d/Blur/frontend/src --include=*.tsx)",
+      "Bash(grep -r \"actuator\\\\|metrics\\\\|prometheus\\\\|grafana\" /d/Blur/Backend --include=*.java)",
+      "Bash(grep -r \"useToast\\\\|toast\\\\\\(\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(xargs wc:*)",
+      "Bash(grep -r \"react-hot-toast\\\\|hot-toast\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"Swiper\\\\|swiper\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"date-fns\\\\|datepicker\\\\|DatePicker\\\\|react-datepicker\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"yup\\\\|Yup\\\\|validationSchema\\\\|schema\\\\.\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"@chakra-ui/react\\\\|@emotion\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"axios\\\\|api\\\\|fetch\" /d/Blur/frontend/src/api --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"react-icons\\\\|BsEmojiSmile\\\\|Bs\" /d/Blur/frontend/src --include=*.tsx)",
+      "Bash(grep -r \"localStorage\\\\|sessionStorage\\\\|useContext\\\\|useState\\\\|useEffect\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"useCallback\\\\|useMemo\\\\|useRef\\\\|useReducer\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)"
     ]
   }
 }
