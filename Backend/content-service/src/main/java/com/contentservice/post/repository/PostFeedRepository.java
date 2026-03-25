@@ -13,4 +13,6 @@ public interface PostFeedRepository extends Neo4jRepository<PostFeedItem, String
   void deleteAllByPostId(String postId);
 
   void deleteAllByAuthorId(String authorId);
+
+  boolean existsByPostIdAndTargetUserId(String postId, String targetUserId);
 }

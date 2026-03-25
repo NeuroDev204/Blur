@@ -20,7 +20,8 @@ public interface PostRepository extends Neo4jRepository<Post, String> {
 
         /** Create the POSTED edge from the author's user_profile node to the Post. */
         @Query("""
-                        MATCH (u:user_profile {user_id: $userId}), (p:post {id: $postId})
+                        MATCH (u:user_profile {user_id: $userId})
+                        MATCH (p:post {id: $postId})
                         MERGE (u)-[:POSTED {profileId: $profileId, createdAt: $createdAt}]->(p)
                         """)
         void linkPostToAuthor(
@@ -45,7 +46,8 @@ public interface PostRepository extends Neo4jRepository<Post, String> {
 
         /** Create or ensure the LIKED_POST edge (idempotent via MERGE). */
         @Query("""
-                        MATCH (u:user_profile {user_id: $userId}), (p:post {id: $postId})
+                        MATCH (u:user_profile {user_id: $userId})
+                        MATCH (p:post {id: $postId})
                         MERGE (u)-[r:LIKED_POST]->(p)
                         ON CREATE SET r.createdAt = $createdAt
                         """)
@@ -86,7 +88,8 @@ public interface PostRepository extends Neo4jRepository<Post, String> {
 
         /** Create the SAVED_POST edge (idempotent). */
         @Query("""
-                        MATCH (u:user_profile {user_id: $userId}), (p:post {id: $postId})
+                        MATCH (u:user_profile {user_id: $userId})
+                        MATCH (p:post {id: $postId})
                         MERGE (u)-[r:SAVED_POST]->(p)
                         ON CREATE SET r.savedAt = $savedAt
                         """)

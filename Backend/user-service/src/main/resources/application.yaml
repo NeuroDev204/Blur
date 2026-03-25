@@ -45,6 +45,7 @@ app:
   services:
     profile: ${PROFILE_SERVICE_URL:http://localhost:8081}
     notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
+    content: ${CONTENT_SERVICE_URL:http://localhost:8082}
 
 cookie:
   domain: ${COOKIE_DOMAIN:localhost}
@@ -54,11 +55,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,caches,metrics
   endpoint:
     health:
       show-details: always
-
+    caches:
+      enabled: true
 logging:
   level:
     org.springframework.data.neo4j.cypher.deprecation: ERROR

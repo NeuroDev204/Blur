@@ -79,3 +79,14 @@ ai:
     chat:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash}
       completions-path: ${GEMINI_COMPLETIONS_PATH::generateContent}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,caches,metrics
+  endpoint:
+    health:
+      show-details: always
+    caches:
+      enabled: true

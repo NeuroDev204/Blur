@@ -12,6 +12,7 @@ import com.blur.userservice.profile.exception.AppException;
 import com.blur.userservice.profile.exception.ErrorCode;
 import com.blur.userservice.profile.mapper.UserProfileMapper;
 import com.blur.userservice.profile.repository.UserProfileRepository;
+import com.blur.userservice.profile.repository.httpclient.ContentServiceClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
 public class UserProfileService {
     UserProfileRepository userProfileRepository;
     UserProfileMapper userProfileMapper;
+    ContentServiceClient contentServiceClient;
 
     @Caching(evict = {
             @CacheEvict(value = "profileByUserId", key = "#request.userId")
@@ -148,6 +150,13 @@ public class UserProfileService {
                 .receiverEmail(followingUser.getEmail())
                 .timestamp(LocalDateTime.now())
                 .build();
+
+        // Backfill feed: tạo feed items cho bài viết cũ của người được follow
+        try {
+            contentServiceClient.backfillFeed(reqUserId, followerId);
+        } catch (Exception e) {
+            // non-blocking: feed backfill thất bại không ảnh hưởng follow
+        }
 
         return "You are following " + followingUser.getFirstName();
     }

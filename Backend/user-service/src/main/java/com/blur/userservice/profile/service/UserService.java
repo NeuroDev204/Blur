@@ -9,6 +9,8 @@ import com.blur.userservice.profile.exception.AppException;
 import com.blur.userservice.profile.exception.ErrorCode;
 import com.blur.userservice.profile.mapper.UserMapper;
 import com.blur.userservice.profile.repository.UserProfileRepository;
+import com.blur.userservice.profile.repository.httpclient.ContentServiceClient;
+import lombok.extern.slf4j.Slf4j;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -27,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -34,6 +37,7 @@ public class UserService {
     UserProfileRepository userProfileRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
+    ContentServiceClient contentServiceClient;
 
     @Caching(evict = {
             @CacheEvict(value = "users", allEntries = true),
@@ -63,13 +67,18 @@ public class UserService {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
-        // tu dong follow user "blur" khi dang ky
+        // tu dong follow user "blur" khi dang ky + backfill feed
         final UserProfile savedProfile = userProfile;
         userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
             if (!savedProfile.getId().equals(blurUser.getId())) {
                 userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
                 userProfileRepository.updateFollowCounts(savedProfile.getId());
                 userProfileRepository.updateFollowCounts(blurUser.getId());
+                try {
+                    contentServiceClient.backfillFeed(savedProfile.getUserId(), blurUser.getUserId());
+                } catch (Exception e) {
+                    log.warn("Feed backfill failed for new user {}: {}", savedProfile.getUserId(), e.getMessage());
+                }
             }
         });
 

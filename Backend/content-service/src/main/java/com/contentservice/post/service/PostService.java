@@ -131,7 +131,9 @@ public class PostService {
         Page<Post> postPage = postRepository.findAll(pageable);
 
         List<PostResponse> responses = postPage.getContent().stream().map(post -> {
-            String userName = post.getFirstName() + " " + post.getLastName();
+            String firstName = post.getFirstName();
+            String lastName = post.getLastName();
+            String userName = null;
             String userImageUrl = null;
             String profileId = post.getProfileId();
 
@@ -139,11 +141,20 @@ public class PostService {
                 ApiResponse<UserProfileResponse> response = profileClient.getProfile(post.getUserId());
                 UserProfileResponse up = response.getResult();
                 if (up != null) {
-                    userName = up.getFirstName() + " " + up.getLastName();
+                    firstName = up.getFirstName();
+                    lastName = up.getLastName();
                     userImageUrl = up.getImageUrl();
                     profileId = up.getId();
                 }
             } catch (Exception ignored) {
+            }
+
+            if (firstName != null && lastName != null) {
+                userName = firstName + " " + lastName;
+            } else if (firstName != null) {
+                userName = firstName;
+            } else if (lastName != null) {
+                userName = lastName;
             }
 
             return PostResponse.builder()
@@ -151,8 +162,8 @@ public class PostService {
                     .userId(post.getUserId())
                     .profileId(profileId)
                     .userName(userName)
-                    .firstName(post.getFirstName())
-                    .lastName(post.getLastName())
+                    .firstName(firstName)
+                    .lastName(lastName)
                     .userImageUrl(userImageUrl)
                     .content(post.getContent())
                     .mediaUrls(post.getMediaUrls())
@@ -238,7 +249,7 @@ public class PostService {
      * Traverses (user_profile)-[:LIKED_POST]->(Post) edges to list who liked a
      * post.
      */
-    @Cacheable(value = "postLikes", key = "#postId", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(value = "postLikes", key = "#postId")
     public List<PostLike> getPostLikesByPostId(String postId) {
         return postRepository.findLikesByPostId(postId);
     }
@@ -266,10 +277,14 @@ public class PostService {
             var profileResponse = profileClient.getProfile(post.getUserId());
             String authorUsername = "";
             String authorAvatar = "";
+            String authorFirstName = post.getFirstName() != null ? post.getFirstName() : "";
+            String authorLastName = post.getLastName() != null ? post.getLastName() : "";
             if (profileResponse != null && profileResponse.getResult() != null) {
                 var profile = profileResponse.getResult();
                 authorAvatar = profile.getImageUrl() != null ? profile.getImageUrl() : "";
                 authorUsername = profile.getUsername() != null ? profile.getUsername() : "";
+                if (profile.getFirstName() != null) authorFirstName = profile.getFirstName();
+                if (profile.getLastName() != null) authorLastName = profile.getLastName();
             }
             // lay danh sach follower ids
             List<String> followerIds = List.of();
@@ -281,9 +296,6 @@ public class PostService {
             } catch (Exception e) {
                 log.warn("Failed to get follower IDs for user {}", post.getUserId(), e);
             }
-            if (followerIds.isEmpty()) {
-                return;
-            }
             // build event payload
             Map<String, Object> event = new HashMap<>();
             event.put("eventType", "POST_CREATED");
@@ -292,8 +304,8 @@ public class PostService {
             event.put("content", post.getContent());
             event.put("mediaUrls", post.getMediaUrls() != null ? post.getMediaUrls() : List.of());
             event.put("authorUsername", authorUsername);
-            event.put("authorFirstName", post.getFirstName());
-            event.put("authorLastName", post.getLastName());
+            event.put("authorFirstName", authorFirstName);
+            event.put("authorLastName", authorLastName);
             event.put("authorAvatar", authorAvatar);
             event.put("followerIds", followerIds);
 

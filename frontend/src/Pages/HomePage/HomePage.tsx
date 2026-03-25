@@ -140,7 +140,7 @@ const HomePage: React.FC = () => {
                     id: p.id || p._id,
                     createdAt: p.createdAt || new Date().toISOString()
                 }));
-                setPosts(first);
+                setPosts(prev => mergeUniqueById(prev, first));
                 setPage(2);
                 setHasMore(Boolean(hasNextPage && first.length > 0));
             } catch (e) {

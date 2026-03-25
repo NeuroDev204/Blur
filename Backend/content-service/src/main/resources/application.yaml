@@ -34,7 +34,12 @@ spring:
       use-key-prefix: true
       key-prefix: ${REDIS_KEY_PREFIX:content-service:}
       enable-statistics: true
-
+redisson:
+  single-server-config:
+    address: "redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}"
+    database: 1
+    connection-minimum-idle-size: 2
+    connection-pool=size: 16
 app:
   service:
     profile:
@@ -51,11 +56,19 @@ app:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
+logging:
+  level:
+    com.contentservice.configuration: DEBUG
+    org.springframework.data.neo4j.cypher.deprecation: ERROR
+    org.springframework.data.neo4j.cypher.performance: WARN
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,caches,metrics
   endpoint:
     health:
       show-details: always
+    caches:
+      enabled: true

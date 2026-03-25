@@ -23,7 +23,18 @@
       "Bash(done)",
       "Read(//f/Blur/**)",
       "Bash(grep -r \"entryTtl\\\\|time-to-live\" /f/Blur/Backend/*/src/main/java --include=\"*.java\")",
-      "Bash(grep -r \"redisTemplate.keys\\\\|CacheEvict\\\\|@Cacheable\" /f/Blur/Backend/*/src/main/java --include=\"*.java\")"
+      "Bash(grep -r \"redisTemplate.keys\\\\|CacheEvict\\\\|@Cacheable\" /f/Blur/Backend/*/src/main/java --include=\"*.java\")",
+      "Bash(curl -s http://localhost:8081/internal/users/test-user-id)",
+      "Bash(curl -s \"http://localhost:8082/posts?page=1&limit=1\")",
+      "Bash(curl -s \"http://localhost:8082/posts/my-feed?page=1&limit=5\")",
+      "Bash(redis-cli PUBLISH \"cache-invalidation:content-service\" \"stories::all\")",
+      "Bash(curl -s -X POST \"http://localhost:8082/internal/feed/backfill?followerUserId=TEST1_USER_ID&followedUserId=BLUR_USER_ID\")",
+      "Bash(curl -s \"http://localhost:8081/internal/users/all\")",
+      "Bash(curl -s http://localhost:8081/internal/users/all)",
+      "Bash(curl -s -X POST \"http://localhost:8082/internal/feed/backfill?followerUserId=a0d2f453-29c4-4a90-bd2f-ec7da7b89e52&followedUserId=11ece51f-a4d1-46a5-965c-a0144af698af\")",
+      "Bash(curl -s \"http://localhost:8082/internal/feed/backfill\")",
+      "Bash(curl -s -X POST \"http://localhost:8082/internal/feed/backfill?followerUserId=a0d2f453-29c4-4a90-bd2f-ec7da7b89e52&followedUserId=11ece51f-a4d1-46a5-965c-a0144af698af\" -v)",
+      "Bash(curl -s \"http://localhost:7687\")"
     ]
   }
 }
