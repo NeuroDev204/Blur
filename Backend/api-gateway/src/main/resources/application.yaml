@@ -12,6 +12,9 @@ app:
 spring:
   application:
     name: api-gateway
+  threads:
+    virtual:
+      enable: true
   security:
     oauth2:
       resourceserver:
@@ -20,6 +23,7 @@ spring:
           jwk-set-uri: ${KEYCLOAK_JWKS_URI}
   cloud:
     gateway:
+    
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_FIRST
       routes:
