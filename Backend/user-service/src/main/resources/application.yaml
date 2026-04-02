@@ -7,6 +7,12 @@ server:
 spring:
   application:
     name: ${SPRING_APPLICATION_NAME:user-service}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI}
   neo4j:
     uri: ${NEO4J_URI}
     authentication:
@@ -28,18 +34,15 @@ spring:
   cache:
     type: redis
 
-outbound:
-  identity:
-    client-id: ${GOOGLE_CLIENT_ID}
-    client-secret: ${GOOGLE_CLIENT_SECRET}
-    redirect-url: ${REDIRECT_URL}
-    grant-type: authorization_code
-    authUri: ${AUTH_URI}
-
-jwt:
-  signerKey: ${SIGNER_KEY}
-  valid-duration: ${VALID_DURATION}
-  refreshable-duration: ${REFRESHABLE_DURATION}
+keycloak:
+  admin:
+    server-url: ${KEYCLOAK_URL}
+    realm: ${KEYCLOAK_REALM}
+    client-id: ${KEYCLOAK_CLIENT_ID_SERVICE}
+    client_secret: ${KEYCLOAK_CLIENT_SECRET_SERVICE}
+encryption:
+  field-key: ${FIELD_ENCRYPTION_KEY}
+  hmac-key: ${FIELD_ENCRYPTION_HMAC_KEY}
 
 app:
   services:
@@ -47,9 +50,6 @@ app:
     notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
     content: ${CONTENT_SERVICE_URL:http://localhost:8082}
 
-cookie:
-  domain: ${COOKIE_DOMAIN:localhost}
-  secure: ${COOKIE_SECURE:false}
 
 management:
   endpoints:

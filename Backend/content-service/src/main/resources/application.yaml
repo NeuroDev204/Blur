@@ -7,7 +7,12 @@ server:
 spring:
   application:
     name: ${SPRING_APPLICATION_NAME:content-service}
-
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI}
   neo4j:
     uri: ${NEO4J_URI:bolt://localhost:7687}
     authentication:

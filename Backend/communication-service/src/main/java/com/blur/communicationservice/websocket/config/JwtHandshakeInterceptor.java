@@ -11,12 +11,11 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
-
-import com.blur.communicationservice.configuration.CustomJwtDecoder;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
-    private final CustomJwtDecoder customJwtDecoder;
+    private final JwtDecoder jwtDecoder;
 
     @Override
     public boolean beforeHandshake(
@@ -44,8 +43,9 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
         }
 
         try {
-            Jwt jwt = customJwtDecoder.decode(token);
-            String userId = jwt.getSubject();
+            Jwt jwt = jwtDecoder.decode(token);
+            String blurId = jwt.getClaimAsString("blur_user_id");
+            String userId = blurId != null ? blurId : jwt.getSubject();
 
             // Gan Principal cho WebSocket session - QUAN TRONG cho convertAndSendToUser()
             Principal principal = () -> userId;

@@ -29,7 +29,7 @@ public class SecurityConfig {
         httpSecurity
                 .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.OPTIONS, "/**")
                         .permitAll()
-                        .requestMatchers("/ws/websocket/**", "/chat/ws/**", "*")
+                        .requestMatchers("/ws/**")
                         .permitAll()
                         .requestMatchers("/notification/moderation-update")
                         .permitAll()
@@ -53,6 +53,7 @@ public class SecurityConfig {
 
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+        converter.setPrincipalClaimName("blur_user_id");
 
         return converter;
     }

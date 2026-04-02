@@ -86,10 +86,15 @@ public class UserProfileService {
         return userProfileMapper.toUserProfileResponse(getOrCreateProfileByUserId(userId));
     }
 
-    @Cacheable(value = "myProfile", key = "#root.target.getCurrentUserId()", unless = "#result == null ")
+    @Cacheable(value = "myProfile", key = "#root.target.getCurrentUserId()",
+            condition = "T(org.springframework.util.StringUtils).hasText(#root.target.getCurrentUserId())",
+            unless = "#result == null")
     public UserProfileResponse myProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
+        if (!org.springframework.util.StringUtils.hasText(userId)) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
         return userProfileMapper.toUserProfileResponse(getOrCreateProfileByUserId(userId));
     }
 
@@ -370,6 +375,9 @@ public class UserProfileService {
         }
 
         String userId = authentication.getName();
+        if (!org.springframework.util.StringUtils.hasText(userId)) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
         return getOrCreateProfileByUserId(userId).getId();
     }
 

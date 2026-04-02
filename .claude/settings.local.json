@@ -59,7 +59,19 @@
       "Bash(grep -r \"axios\\\\|api\\\\|fetch\" /d/Blur/frontend/src/api --include=*.ts --include=*.tsx)",
       "Bash(grep -r \"react-icons\\\\|BsEmojiSmile\\\\|Bs\" /d/Blur/frontend/src --include=*.tsx)",
       "Bash(grep -r \"localStorage\\\\|sessionStorage\\\\|useContext\\\\|useState\\\\|useEffect\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
-      "Bash(grep -r \"useCallback\\\\|useMemo\\\\|useRef\\\\|useReducer\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)"
+      "Bash(grep -r \"useCallback\\\\|useMemo\\\\|useRef\\\\|useReducer\" /d/Blur/frontend/src --include=*.tsx --include=*.ts)",
+      "Bash(grep -E \"\\\\.\\(java|yml|properties\\)$\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx|js\\)$\")",
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(wc -l /d/Blur/Backend/docs/*.md)",
+      "Bash(xargs head:*)",
+      "Bash(curl -s -X POST \"http://localhost:8080/realms/blur/protocol/openid-connect/token\" -H \"Content-Type: application/x-www-form-urlencoded\" -d \"grant_type=password\" -d \"client_id=blur-api-gateway\" -d \"client_secret=DY8s3F29hO8nEXlRzWTtcV07fcUfZe6H\" -d \"username=testfeed6\" -d \"password=12345678\" -d \"scope=openid\")",
+      "Bash(curl -s -X POST \"http://localhost:8080/realms/blur/protocol/openid-connect/token\" -H \"Content-Type: application/x-www-form-urlencoded\" -d \"grant_type=password\" -d \"client_id=blur-api-gateway\" -d \"client_secret=DY8s3F29hO8nEXlRzWTtcV07fcUfZe6H\" -d \"username=testfeed7\" -d \"password=12345678\" -d \"scope=openid\")",
+      "Bash(curl -s -X POST \"http://localhost:8080/realms/blur/protocol/openid-connect/token\" -d \"grant_type=password\" -d \"client_id=blur-api-gateway\" -d \"client_secret=DY8s3F29hO8nEXlRzWTtcV07fcUfZe6H\" -d \"username=testfeed7\" -d \"password=12345678\" -d \"scope=openid\")",
+      "Bash(find /d/Blur -type d -name *frontend* -o -type d -name *client* -o -type d -name *web*)",
+      "Bash(grep -r \"logout\\\\|logoutUser\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
+      "Bash(find /d/Blur/frontend -name .env* -o -name *.env*)",
+      "Bash(ls -la /d/Blur/frontend/*.env*)"
     ]
   }
 }

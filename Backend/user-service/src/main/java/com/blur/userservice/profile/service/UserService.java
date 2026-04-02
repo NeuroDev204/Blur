@@ -1,5 +1,6 @@
 package com.blur.userservice.profile.service;
 
+import com.blur.userservice.profile.crypto.FieldEncryptionService;
 import com.blur.userservice.profile.dto.request.UserCreationPasswordRequest;
 import com.blur.userservice.profile.dto.request.UserCreationRequest;
 import com.blur.userservice.profile.dto.request.UserUpdateRequest;
@@ -10,10 +11,10 @@ import com.blur.userservice.profile.exception.ErrorCode;
 import com.blur.userservice.profile.mapper.UserMapper;
 import com.blur.userservice.profile.repository.UserProfileRepository;
 import com.blur.userservice.profile.repository.httpclient.ContentServiceClient;
-import lombok.extern.slf4j.Slf4j;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -38,26 +39,30 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     ContentServiceClient contentServiceClient;
+    KeycloakUserService keycloakUserService;
+    FieldEncryptionService fieldEncryptionService;
 
-    @Caching(evict = {
-            @CacheEvict(value = "users", allEntries = true),
-            @CacheEvict(value = "userById", key = "#result.id", condition = "#result != null")
-    })
     @Transactional
     public UserResponse createUser(UserCreationRequest request) {
         if (userProfileRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
-        if (StringUtils.hasText(request.getEmail())
-                && userProfileRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new AppException(ErrorCode.USER_EXISTED);
+        if (StringUtils.hasText(request.getEmail())) {
+            String emailIndex = fieldEncryptionService.blindIndex(request.getEmail());
+            if (userProfileRepository.findByEmailIndex(emailIndex).isPresent()) {
+                throw new AppException(ErrorCode.USER_EXISTED);
+
+            }
         }
 
+        // tao userProfile
         UserProfile userProfile = userMapper.toUserProfile(request);
-        userProfile.setUserId(UUID.randomUUID().toString());
+        String userId = UUID.randomUUID().toString();
+        userProfile.setUserId(userId);
         userProfile.setUsername(request.getUsername());
-        userProfile.setEmail(request.getEmail());
-        userProfile.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        userProfile.setEmail(request.getEmail()); //converter tu encrypt
+        userProfile.setEmailIndex(fieldEncryptionService.blindIndex(request.getEmail()));
+        userProfile.setPasswordHash(null); // password chi luu trong keycloak
         userProfile.setRoles(List.of("USER"));
         userProfile.setEmailVerified(false);
         userProfile.setCreatedAt(LocalDate.now());
@@ -67,20 +72,46 @@ public class UserService {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
+        // tao user trong keycloak
+        String keycloakUserId = null;
+        try {
+            keycloakUserId = keycloakUserService.createUser(
+                    request.getUsername(),
+                    request.getEmail(),
+                    request.getPassword(), // keycloak tu hash
+                    request.getFirstName(),
+                    request.getLastName(),
+                    userId,  // blurUserId → JWT sub claim
+                    List.of("USER")
+            );
+        } catch (Exception e) {
+            log.error("Failed to create Keycloak user, rolling back Neo4j: {}", e.getMessage());
+            userProfileRepository.deleteByUserId(userId);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+
         // tu dong follow user "blur" khi dang ky + backfill feed
         final UserProfile savedProfile = userProfile;
-        userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
-            if (!savedProfile.getId().equals(blurUser.getId())) {
-                userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
-                userProfileRepository.updateFollowCounts(savedProfile.getId());
-                userProfileRepository.updateFollowCounts(blurUser.getId());
-                try {
-                    contentServiceClient.backfillFeed(savedProfile.getUserId(), blurUser.getUserId());
-                } catch (Exception e) {
-                    log.warn("Feed backfill failed for new user {}: {}", savedProfile.getUserId(), e.getMessage());
+        final String finalKeycloakUserId = keycloakUserId;
+        try {
+            userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
+                if (!savedProfile.getId().equals(blurUser.getId())) {
+                    userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
+                    userProfileRepository.updateFollowCounts(savedProfile.getId());
+                    userProfileRepository.updateFollowCounts(blurUser.getId());
+                    try {
+                        contentServiceClient.backfillFeed(savedProfile.getUserId(), blurUser.getUserId());
+                    } catch (Exception e) {
+                        log.warn("Feed backfill failed for new user {}: {}", savedProfile.getUserId(), e.getMessage());
+                    }
                 }
-            }
-        });
+            });
+        } catch (Exception e) {
+            log.error("Follow/backfill failed for new user {}, rolling back: {}", userId, e.getMessage());
+            userProfileRepository.deleteByUserId(userId);
+            keycloakUserService.deleteUser(finalKeycloakUserId);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
 
         return userMapper.toUserResponse(userProfile);
     }

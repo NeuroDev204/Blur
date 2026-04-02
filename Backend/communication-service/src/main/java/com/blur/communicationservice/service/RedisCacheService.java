@@ -1,18 +1,19 @@
 package com.blur.communicationservice.service;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +38,10 @@ public class RedisCacheService {
     private static final String LAST_MESSAGE_PREFIX = "chat-service:lastmsg:";
     RedisTemplate<String, Object> redisTemplate;
 
-
     private Set<String> scanKeys(String pattern) {
         Set<String> scanKeys = new HashSet<>();
-        ScanOptions options = ScanOptions.scanOptions().match(pattern).count(100).build();
+        ScanOptions options =
+                ScanOptions.scanOptions().match(pattern).count(100).build();
         try (Cursor<String> cursor = redisTemplate.scan(options)) {
             while (cursor.hasNext()) {
                 scanKeys.add(cursor.next());
@@ -118,7 +119,6 @@ public class RedisCacheService {
             return Set.of();
         }
     }
-
 
     public boolean isUserOnline(String userId) {
         try {
@@ -245,7 +245,10 @@ public class RedisCacheService {
             String pattern = MESSAGE_PREFIX + conversationId + ":*";
             deleteByPattern(pattern);
         } catch (Exception e) {
-            log.warn("Failed to invalidate conversation messages conversationIds={}: {}", conversationId, e.getMessage());
+            log.warn(
+                    "Failed to invalidate conversation messages conversationIds={}: {}",
+                    conversationId,
+                    e.getMessage());
         }
     }
 
@@ -281,7 +284,11 @@ public class RedisCacheService {
             String key = UNREAD_COUNT_PREFIX + conversationId + ":" + userId;
             redisTemplate.opsForValue().set(key, count, 30, TimeUnit.MINUTES);
         } catch (Exception e) {
-            log.warn("Failed to cache unread count conversationId={}, userId={}: {}", conversationId, userId, e.getMessage());
+            log.warn(
+                    "Failed to cache unread count conversationId={}, userId={}: {}",
+                    conversationId,
+                    userId,
+                    e.getMessage());
         }
     }
 
@@ -291,7 +298,11 @@ public class RedisCacheService {
             Object value = redisTemplate.opsForValue().get(key);
             return value != null ? Integer.parseInt(value.toString()) : null;
         } catch (Exception e) {
-            log.warn("Failed to get unread count conversationId={}, userId={}: {}", conversationId, userId, e.getMessage());
+            log.warn(
+                    "Failed to get unread count conversationId={}, userId={}: {}",
+                    conversationId,
+                    userId,
+                    e.getMessage());
             return null;
         }
     }
@@ -301,7 +312,11 @@ public class RedisCacheService {
             String key = UNREAD_COUNT_PREFIX + conversationId + ":" + userId;
             redisTemplate.unlink(key);
         } catch (Exception e) {
-            log.warn("Failed to evict unread count conversationId={}, userId={}: {}", conversationId, userId, e.getMessage());
+            log.warn(
+                    "Failed to evict unread count conversationId={}, userId={}: {}",
+                    conversationId,
+                    userId,
+                    e.getMessage());
         }
     }
 
@@ -503,6 +518,4 @@ public class RedisCacheService {
             log.warn("Failed to evict last message conversationId={}: {}", conversationId, e.getMessage());
         }
     }
-
-
 }

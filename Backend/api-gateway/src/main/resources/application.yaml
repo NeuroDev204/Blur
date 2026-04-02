@@ -8,22 +8,21 @@ app:
     content: ${CONTENT_SERVICE_URL:http://localhost:8082}
     communication: ${COMMUNICATION_SERVICE_URL:http://localhost:8083}
 
+
 spring:
   application:
     name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI}
   cloud:
     gateway:
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_FIRST
       routes:
-        # User Service - Auth endpoints
-        - id: user_auth
-          uri: ${app.services.user}
-          predicates:
-            - Path=${app.api-prefix}/auth/**
-          filters:
-            - RewritePath=/api/auth/(?<segment>.*), /auth/${segment}
-
         # User Service - Account endpoints
         - id: user_users
           uri: ${app.services.user}
@@ -87,6 +86,14 @@ spring:
           filters:
             - RewritePath=/api/stories/(?<segment>.*), /stories/${segment}
 
+        # Communication Service - WebSocket endpoint
+        - id: communication_websocket
+          uri: ${app.services.communication}
+          predicates:
+            - Path=/ws/**
+          filters:
+            - RewritePath=/ws(?<segment>/?.*), /chat/ws${segment}
+
         # Communication Service - Chat endpoints
         - id: communication_chat
           uri: ${app.services.communication}
@@ -102,7 +109,14 @@ spring:
             - Path=${app.api-prefix}/notification/**
           filters:
             - RewritePath=/api/(?<segment>.*), /chat/${segment}
-
+keycloak:
+  token-uri: ${KEYCLOAK_TOKEN_URI}
+  logout-uri: ${KEYCLOAK_LOGOUT_URI}
+  client-id: ${KEYCLOAK_CLIENT_ID_GATEWAY}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET_GATEWAY}
+cookie:
+  domain: ${COOKIE_DOMAIN}
+  secure: ${COOKIE_SECURE}
 management:
   endpoints:
     web:

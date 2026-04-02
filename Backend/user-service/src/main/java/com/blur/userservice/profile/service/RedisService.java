@@ -9,8 +9,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +16,6 @@ import java.util.Date;
 @Slf4j
 public class RedisService {
     private static final String ONLINE_KEY_PREFIX = "user:online:";
-    private static final String INVALIDATED_TOKEN_PREFIX = "token:invalidated:";
     private static final Duration ONLINE_TTL = Duration.ofMinutes(30);
     RedisTemplate<String, Object> redisTemplate;
 
@@ -68,39 +65,4 @@ public class RedisService {
         }
     }
 
-    public void invalidateToken(String tokenId, Date expiryTime) {
-        if (tokenId == null || tokenId.isBlank() || expiryTime == null) {
-            return;
-        }
-
-        String key = INVALIDATED_TOKEN_PREFIX + tokenId;
-        try {
-            Duration ttl = Duration.between(Instant.now(), expiryTime.toInstant());
-            if (ttl.isNegative()) {
-                ttl = Duration.ZERO;
-            }
-            redisTemplate.opsForValue().set(key, "1", ttl);
-        } catch (RedisConnectionFailureException e) {
-            log.warn("Redis connection failed for invalidateToken tokenId={}: {}", tokenId, e.getMessage());
-        } catch (Exception e) {
-            log.warn("Failed to invalidate token tokenId={}: {}", tokenId, e.getMessage());
-        }
-    }
-
-    public boolean isTokenInvalidated(String tokenId) {
-        if (tokenId == null || tokenId.isBlank()) {
-            return false;
-        }
-
-        String key = INVALIDATED_TOKEN_PREFIX + tokenId;
-        try {
-            return redisTemplate.hasKey(key);
-        } catch (RedisConnectionFailureException e) {
-            log.warn("Redis connection failed for isTokenInvalidated tokenId={}: {}", tokenId, e.getMessage());
-            return false;
-        } catch (Exception e) {
-            log.warn("Failed to check token invalidated tokenId={}: {}", tokenId, e.getMessage());
-            return false;
-        }
-    }
 }

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.blur.communicationservice.chat.repository.ChatMessageRepository;
 import com.blur.communicationservice.chat.repository.ConversationRepository;
@@ -39,8 +40,16 @@ public class ConversationService {
     ChatMessageRepository chatMessageRepository;
     RedisCacheService redisCacheService;
 
-    public List<ConversationResponse> myConversations() {
+    private String getAuthenticatedUserId() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!StringUtils.hasText(userId)) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        return userId;
+    }
+
+    public List<ConversationResponse> myConversations() {
+        String userId = getAuthenticatedUserId();
         var userResponse = profileClient.getProfile(userId);
 
         List<Conversation> conversations = conversationRepository.findAllByParticipantIdsContains(
@@ -53,7 +62,7 @@ public class ConversationService {
 
     @Transactional
     public ConversationResponse createConversation(ConversationRequest request) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String userId = getAuthenticatedUserId();
         var userInfoResponse = profileClient.getProfile(userId);
         var participantInfoResponse =
                 profileClient.getProfile(request.getParticipantIds().get(0));
@@ -111,8 +120,7 @@ public class ConversationService {
     }
 
     private ConversationResponse toConversationResponseWithLastMessage(Conversation conversation) {
-        String currentUserId =
-                SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUserId = getAuthenticatedUserId();
         var profileResponse = profileClient.getProfile(currentUserId);
 
         ConversationResponse response = conversationMapper.toConversationResponse(conversation);
@@ -144,8 +152,7 @@ public class ConversationService {
     }
 
     private ConversationResponse toConversationResponse(Conversation conversation) {
-        String currentUserId =
-                SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUserId = getAuthenticatedUserId();
         var profileResponse = profileClient.getProfile(currentUserId);
 
         ConversationResponse response = conversationMapper.toConversationResponse(conversation);

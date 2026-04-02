@@ -1,8 +1,11 @@
 package com.blur.userservice.profile.entity;
 
+import com.blur.userservice.profile.crypto.EncryptedLocalDateConverter;
+import com.blur.userservice.profile.crypto.EncryptedStringConverter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.neo4j.core.convert.ConvertWith;
 import org.springframework.data.neo4j.core.schema.*;
 import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
@@ -30,13 +33,19 @@ public class UserProfile {
     String lastName;
     String bio;
     String city;
+    @ConvertWith(converter = EncryptedStringConverter.class)
     String phone;
+    @ConvertWith(converter = EncryptedStringConverter.class)
     String email;
+    String emailIndex; // blind index cho email lockup
+    @ConvertWith(converter = EncryptedStringConverter.class)
     String gender;
     String website;
     String imageUrl;
+    @ConvertWith(converter = EncryptedStringConverter.class)
     String address;
     LocalDate updatedAt;
+    @ConvertWith(converter = EncryptedLocalDateConverter.class)
     LocalDate dob;
     LocalDate createdAt;
     LocalDate lastActiveAt;
