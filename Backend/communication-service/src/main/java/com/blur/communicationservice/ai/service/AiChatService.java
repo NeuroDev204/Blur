@@ -35,7 +35,9 @@ public class AiChatService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, entity, (Class<Map<String, Object>>) (Class<?>) Map.class);
 
             Map<String, Object> responseBody = response.getBody();
             String aiResponse = extractTextFromResponse(responseBody);

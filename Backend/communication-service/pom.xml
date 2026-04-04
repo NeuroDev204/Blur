@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.0</version>
+        <version>3.4.3</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.blur</groupId>
@@ -130,6 +130,20 @@
 
     <build>
         <plugins>
+         <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>0.10.4</version>
+            <extensions>true</extensions>
+            <configuration>
+                <buildArgs>
+                    <!-- Cho phép build không hoàn chỉnh (missing classes → warning thay vì error) -->
+                    <buildArg>--allow-incomplete-classpath</buildArg>
+                    <!-- Giảm memory usage lúc build -->
+                    <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                </buildArgs>
+            </configuration>
+        </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -212,5 +226,26 @@
 
         </plugins>
     </build>
-
+<profiles>
+    <profile>
+        <id>native</id>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.graalvm.buildtools</groupId>
+                    <artifactId>native-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>build-native</id>
+                            <goals>
+                                <goal>compile-no-fork</goal>
+                            </goals>
+                            <phase>package</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+</profiles>
 </project>

@@ -22,6 +22,7 @@ public class FeedProjectionService {
   PostFeedRepository postFeedRepository;
   ObjectMapper objectMapper;
 
+  @SuppressWarnings("unchecked")
   @KafkaListener(topics = "post-events", groupId = "content-feed-projection")
   public void consume(String json) {
     try {

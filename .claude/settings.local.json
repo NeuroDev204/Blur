@@ -71,7 +71,11 @@
       "Bash(find /d/Blur -type d -name *frontend* -o -type d -name *client* -o -type d -name *web*)",
       "Bash(grep -r \"logout\\\\|logoutUser\" /d/Blur/frontend/src --include=*.ts --include=*.tsx)",
       "Bash(find /d/Blur/frontend -name .env* -o -name *.env*)",
-      "Bash(ls -la /d/Blur/frontend/*.env*)"
+      "Bash(ls -la /d/Blur/frontend/*.env*)",
+      "Bash(git check-ignore:*)",
+      "Bash(mvn clean:*)",
+      "Bash(grep -E \"\\(src|pom\\\\.xml|requirements\\\\.txt\\)$\")",
+      "Bash(grep \"\\\\.java$\")"
     ]
   }
 }

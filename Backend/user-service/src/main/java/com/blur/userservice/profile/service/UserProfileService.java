@@ -1,6 +1,5 @@
 package com.blur.userservice.profile.service;
 
-import com.blur.userservice.profile.dto.event.Event;
 import com.blur.userservice.profile.dto.request.ProfileCreationRequest;
 import com.blur.userservice.profile.dto.request.UserProfileUpdateRequest;
 import com.blur.userservice.profile.dto.response.RecommendationPageResponse;
@@ -27,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -146,15 +144,6 @@ public class UserProfileService {
         userProfileRepository.follow(requester.getId(), followingUser.getId());
         userProfileRepository.updateFollowCounts(requester.getId());
         userProfileRepository.updateFollowCounts(followingUser.getId());
-
-        Event event = Event.builder()
-                .senderId(requester.getId())
-                .senderName(requester.getFirstName() + " " + requester.getLastName())
-                .receiverId(followingUser.getId())
-                .receiverName(followingUser.getFirstName() + " " + followingUser.getLastName())
-                .receiverEmail(followingUser.getEmail())
-                .timestamp(LocalDateTime.now())
-                .build();
 
         // Backfill feed: tạo feed items cho bài viết cũ của người được follow
         try {

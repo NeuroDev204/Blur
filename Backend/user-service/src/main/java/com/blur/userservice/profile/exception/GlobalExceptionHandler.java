@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
-    @SuppressWarnings({"null", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     ResponseEntity<ApiResponse> handleMethodArgumentNotValidException(final MethodArgumentNotValidException e) {
         String enumKey = Objects.requireNonNull(e.getFieldError()).getDefaultMessage();

@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
     }
 
     // validation cao cap tu middle tro len
-    @SuppressWarnings({"null", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     ResponseEntity<ApiResponse> handleMethodArgumentNotValidException(final MethodArgumentNotValidException e) {
         String enumKey = Objects.requireNonNull(e.getFieldError()).getDefaultMessage();

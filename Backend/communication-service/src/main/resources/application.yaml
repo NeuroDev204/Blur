@@ -7,6 +7,9 @@ server:
 spring:
   application:
     name: communication-service
+  threads:
+    virtual:
+      enable: true
   security:
     oauth2:
       resourceserver:

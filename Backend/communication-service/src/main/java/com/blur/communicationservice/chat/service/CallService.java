@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -27,7 +26,6 @@ import com.blur.communicationservice.entity.ParticipantInfo;
 import com.blur.communicationservice.enums.CallStatus;
 import com.blur.communicationservice.enums.CallType;
 import com.blur.communicationservice.enums.MessageType;
-import com.blur.communicationservice.notification.service.NotificationService;
 import com.blur.communicationservice.service.RedisCacheService;
 import com.blur.communicationservice.websocket.service.WebSocketNotificationService;
 
@@ -48,8 +46,6 @@ public class CallService {
     ChatMessageRepository chatMessageRepository; // ✅ ADD THIS
     ConversationRepository conversationRepository;
     RedisCacheService redisCacheService;
-    NotificationService notificationService;
-    CacheManager cacheManager;
     WebSocketNotificationService webSocketNotificationService;
 
     @Transactional
@@ -121,6 +117,9 @@ public class CallService {
 
         // Handle status transitions
         switch (newStatus) {
+            case INITIATING:
+                break;
+
             case RINGING:
                 redisCacheService.cacheCallSession(session.getId(), session, RING_TIMEOUT);
                 webSocketNotificationService.sendCallEvent(session.getReceiverId(), session.getCallType());

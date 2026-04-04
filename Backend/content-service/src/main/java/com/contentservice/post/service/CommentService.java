@@ -1,6 +1,5 @@
 package com.contentservice.post.service;
 
-import com.contentservice.kafka.ModerationProducer;
 import com.contentservice.kafka.NotificationEventPublisher;
 import com.contentservice.outbox.service.OutboxService;
 import com.contentservice.post.dto.event.Event;
@@ -35,7 +34,6 @@ import java.util.stream.Collectors;
 public class CommentService {
     CommentRepository commentRepository;
     CommentMapper commentMapper;
-    ModerationProducer moderationProducer;
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
     PostRepository postRepository;

@@ -3,9 +3,6 @@ package com.contentservice.websocket.service;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -13,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 public class ModerationNotificationService {
 
   private final SimpMessagingTemplate messagingTemplate;
-  private final ObjectMapper objectMapper;
 
   /**
    * Send moderation update to user via WebSocket

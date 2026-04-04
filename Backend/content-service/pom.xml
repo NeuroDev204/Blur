@@ -93,6 +93,22 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Resilience4j -->
+<dependency>
+    <groupId>io.github.resilience4j</groupId>
+    <artifactId>resilience4j-spring-boot3</artifactId>
+    <version>2.2.0</version>
+</dependency>
+<dependency>
+    <groupId>io.github.resilience4j</groupId>
+    <artifactId>resilience4j-feign</artifactId>
+    <version>2.2.0</version>
+</dependency>
+<!-- AOP - cần cho annotation @CircuitBreaker, @Retry, ... -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
@@ -180,5 +196,40 @@
             </plugin>
         </plugins>
     </build>
-
+<profiles>
+    <profile>
+        <id>native</id>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.graalvm.buildtools</groupId>
+                    <artifactId>native-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>build-native</id>
+                            <goals>
+                                <goal>compile-no-fork</goal>
+                            </goals>
+                            <phase>package</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                   <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>0.10.4</version>
+            <extensions>true</extensions>
+            <configuration>
+                <buildArgs>
+                    <!-- Cho phép build không hoàn chỉnh (missing classes → warning thay vì error) -->
+                    <buildArg>--allow-incomplete-classpath</buildArg>
+                    <!-- Giảm memory usage lúc build -->
+                    <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                </buildArgs>
+            </configuration>
+        </plugin>
+            </plugins>
+        </build>
+    </profile>
+</profiles>
 </project>

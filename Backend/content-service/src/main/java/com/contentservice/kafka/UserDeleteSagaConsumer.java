@@ -33,6 +33,7 @@ public class UserDeleteSagaConsumer {
   KafkaTemplate<String, String> kafkaTemplate;
   ObjectMapper objectMapper;
 
+  @SuppressWarnings("unchecked")
   @KafkaListener(topics = "user-delete-saga", groupId = "content-service,saga")
   public void handleSagaEvent(String message) {
     try {
@@ -63,6 +64,7 @@ public class UserDeleteSagaConsumer {
     postFeedRepository.deleteAllByAuthorId(userId);
   }
 
+  @SuppressWarnings("unchecked")
   private void publishFailure(String originalMessage, String error) {
     try {
       Map<String, Object> event = objectMapper.readValue(originalMessage, Map.class);

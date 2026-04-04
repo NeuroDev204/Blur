@@ -38,7 +38,6 @@ public class ConversationService {
     ProfileClient profileClient;
     ConversationRepository conversationRepository;
     ChatMessageRepository chatMessageRepository;
-    RedisCacheService redisCacheService;
 
     private String getAuthenticatedUserId() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
