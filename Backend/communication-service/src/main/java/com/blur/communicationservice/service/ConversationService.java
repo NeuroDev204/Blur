@@ -23,7 +23,7 @@ import com.blur.communicationservice.enums.MessageType;
 import com.blur.communicationservice.exception.AppException;
 import com.blur.communicationservice.exception.ErrorCode;
 import com.blur.communicationservice.mapper.ConversationMapper;
-import com.blur.communicationservice.repository.httpclient.ProfileClient;
+import com.blur.communicationservice.resilience.ResilientUserServiceClient;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ import lombok.experimental.FieldDefaults;
 public class ConversationService {
 
     ConversationMapper conversationMapper;
-    ProfileClient profileClient;
+    ResilientUserServiceClient userServiceClient;
     ConversationRepository conversationRepository;
     ChatMessageRepository chatMessageRepository;
 
@@ -49,7 +49,7 @@ public class ConversationService {
 
     public List<ConversationResponse> myConversations() {
         String userId = getAuthenticatedUserId();
-        var userResponse = profileClient.getProfile(userId);
+        var userResponse = userServiceClient.getProfile(userId);
 
         List<Conversation> conversations = conversationRepository.findAllByParticipantIdsContains(
                 userResponse.getResult().getUserId());
@@ -62,9 +62,9 @@ public class ConversationService {
     @Transactional
     public ConversationResponse createConversation(ConversationRequest request) {
         String userId = getAuthenticatedUserId();
-        var userInfoResponse = profileClient.getProfile(userId);
+        var userInfoResponse = userServiceClient.getProfile(userId);
         var participantInfoResponse =
-                profileClient.getProfile(request.getParticipantIds().get(0));
+                userServiceClient.getProfile(request.getParticipantIds().get(0));
 
         if (Objects.isNull(userInfoResponse) || Objects.isNull(participantInfoResponse)) {
             throw new AppException(ErrorCode.USER_PROFILE_NOT_FOUND);
@@ -120,7 +120,7 @@ public class ConversationService {
 
     private ConversationResponse toConversationResponseWithLastMessage(Conversation conversation) {
         String currentUserId = getAuthenticatedUserId();
-        var profileResponse = profileClient.getProfile(currentUserId);
+        var profileResponse = userServiceClient.getProfile(currentUserId);
 
         ConversationResponse response = conversationMapper.toConversationResponse(conversation);
 
@@ -152,7 +152,7 @@ public class ConversationService {
 
     private ConversationResponse toConversationResponse(Conversation conversation) {
         String currentUserId = getAuthenticatedUserId();
-        var profileResponse = profileClient.getProfile(currentUserId);
+        var profileResponse = userServiceClient.getProfile(currentUserId);
 
         ConversationResponse response = conversationMapper.toConversationResponse(conversation);
 

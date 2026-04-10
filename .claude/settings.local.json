@@ -75,7 +75,12 @@
       "Bash(git check-ignore:*)",
       "Bash(mvn clean:*)",
       "Bash(grep -E \"\\(src|pom\\\\.xml|requirements\\\\.txt\\)$\")",
-      "Bash(grep \"\\\\.java$\")"
+      "Bash(grep \"\\\\.java$\")",
+      "Bash(xxd -c 32 \"d:/Blur/Backend/user-service/src/main/resources/application.yaml\")",
+      "Bash(python -c ':*)",
+      "Bash(ls /media/neuro/Data/Blur/Backend/model-service/data/*.csv)",
+      "Bash(/media/neuro/Data/Blur/Backend/model-service/.venv/bin/python -c \"import torch; print\\('PyTorch:', torch.__version__\\); print\\('Compile:', hasattr\\(torch, 'compile'\\)\\)\")",
+      "Bash(/media/neuro/Data/Blur/Backend/model-service/.venv/bin/python -c \"import transformers; print\\(transformers.__version__\\)\")"
     ]
   }
 }

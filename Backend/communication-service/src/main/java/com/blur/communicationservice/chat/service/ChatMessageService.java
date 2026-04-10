@@ -26,7 +26,7 @@ import com.blur.communicationservice.entity.ParticipantInfo;
 import com.blur.communicationservice.enums.MessageType;
 import com.blur.communicationservice.exception.AppException;
 import com.blur.communicationservice.exception.ErrorCode;
-import com.blur.communicationservice.repository.httpclient.ProfileClient;
+import com.blur.communicationservice.resilience.ResilientUserServiceClient;
 import com.blur.communicationservice.service.RedisCacheService;
 import com.blur.communicationservice.websocket.service.WebSocketNotificationService;
 
@@ -40,7 +40,7 @@ import lombok.experimental.FieldDefaults;
 public class ChatMessageService {
 
     ConversationRepository conversationRepository;
-    ProfileClient profileClient;
+    ResilientUserServiceClient userServiceClient;
     ChatMessageRepository chatMessageRepository;
     RedisCacheService redisCacheService;
     AiConversationService aiConversationService;
@@ -73,7 +73,7 @@ public class ChatMessageService {
             }
         }
 
-        var userResponse = profileClient.getProfile(userId);
+        var userResponse = userServiceClient.getProfile(userId);
         if (userResponse == null || userResponse.getResult() == null) {
             throw new AppException(ErrorCode.USER_PROFILE_NOT_FOUND);
         }
@@ -200,7 +200,7 @@ public class ChatMessageService {
 
         ApiResponse<UserProfileResponse> userProfileResponse = null;
         try {
-            userProfileResponse = profileClient.getProfile(userId);
+            userProfileResponse = userServiceClient.getProfile(userId);
         } catch (Exception e) {
             throw new AppException(ErrorCode.USER_PROFILE_NOT_FOUND);
         }
@@ -245,7 +245,7 @@ public class ChatMessageService {
 
         ApiResponse<UserProfileResponse> userResponse = null;
         try {
-            userResponse = profileClient.getProfile(userId);
+            userResponse = userServiceClient.getProfile(userId);
         } catch (Exception e) {
             throw new AppException(ErrorCode.USER_PROFILE_NOT_FOUND);
         }

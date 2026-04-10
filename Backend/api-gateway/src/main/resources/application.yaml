@@ -34,7 +34,10 @@ spring:
             - Path=${app.api-prefix}/users/**
           filters:
             - RewritePath=/api/users/(?<segment>.*), /users/${segment}
-
+            - name: CircuitBreaker
+              args:
+                name: userServiceCB
+                fallbackUri: forward:/fallback/user-service
         # User Service - Test data endpoints
         - id: user_test_data
           uri: ${app.services.user}
@@ -81,6 +84,10 @@ spring:
             - Path=${app.api-prefix}/post/**
           filters:
             - RewritePath=/api/post/(?<segment>.*), /posts/${segment}
+            - name: CircuitBreaker
+              args:
+                name: contentServiceCB
+                fallbackUri: forward:/fallback/content-service
 
         # Content Service - Story endpoints
         - id: content_story
@@ -105,7 +112,10 @@ spring:
             - Path=${app.api-prefix}/chat/**
           filters:
             - StripPrefix=1
-
+            - name: CircuitBreaker
+              args:
+                name: communicationServiceCB
+                fallbackUri: forward:/fallback/communication-service
         # Communication Service - Notification endpoints
         - id: communication_notification
           uri: ${app.services.communication}
@@ -121,6 +131,9 @@ keycloak:
 cookie:
   domain: ${COOKIE_DOMAIN}
   secure: ${COOKIE_SECURE}
+httpclient:
+  connect-timeout: 3000
+  response-timeout: 10s
 management:
   endpoints:
     web:

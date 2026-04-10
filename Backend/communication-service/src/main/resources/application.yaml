@@ -88,7 +88,55 @@ ai:
     chat:
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash}
       completions-path: ${GEMINI_COMPLETIONS_PATH::generateContent}
-
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state:
+          seconds: 30
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.FeignException.InternalServerError
+          - feign.FeignException.ServiceUnavailable
+        ignore-exceptions:
+          - feign.FeignException.BadRequest
+          - feign.FeignException.NotFound
+    instances:
+      userServiceCB:
+        base-config: default
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration:
+          seconds: 0.5
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - feign.RetryableException
+          - feign.FeignException.ServiceUnavailable
+    instances:
+      userServiceRetry:
+        base-config: default
+  bulkhead:
+    instances:
+      userServiceBH:
+        max-concurrent-calls: 20
+        max-wait-duration:
+          seconds: 0.5
+  timelimiter:
+    instances:
+      userServiceTL:
+        timeout-duration:
+          seconds: 5
 management:
   endpoints:
     web:

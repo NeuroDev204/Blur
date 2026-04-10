@@ -12,7 +12,7 @@ import com.blur.communicationservice.dto.event.Event;
 import com.blur.communicationservice.notification.entity.Notification;
 import com.blur.communicationservice.notification.enums.NotificationType;
 import com.blur.communicationservice.notification.service.NotificationService;
-import com.blur.communicationservice.repository.httpclient.ProfileClient;
+import com.blur.communicationservice.resilience.ResilientUserServiceClient;
 import com.blur.communicationservice.service.RedisCacheService;
 import com.blur.communicationservice.websocket.service.WebSocketNotificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,7 +32,7 @@ public class LikePostEventHandler implements EventHandler<Event> {
     WebSocketNotificationService notificationWebSocketService;
     ObjectMapper objectMapper;
     RedisCacheService redisService;
-    ProfileClient profileClient;
+    ResilientUserServiceClient userServiceClient;
 
     @Override
     public boolean canHandle(String topic) {
@@ -43,7 +43,7 @@ public class LikePostEventHandler implements EventHandler<Event> {
     public void handleEvent(String jsonEvent) throws JsonProcessingException {
         Event event = objectMapper.readValue(jsonEvent, Event.class);
         event.setTimestamp(LocalDateTime.now());
-        var profile = profileClient.getProfile(event.getSenderId());
+        var profile = userServiceClient.getProfile(event.getSenderId());
         String senderFullName = String.format(
                         "%s %s",
                         profile.getResult().getFirstName(), profile.getResult().getLastName())

@@ -12,7 +12,7 @@ import com.blur.communicationservice.dto.event.Event;
 import com.blur.communicationservice.notification.entity.Notification;
 import com.blur.communicationservice.notification.enums.NotificationType;
 import com.blur.communicationservice.notification.service.NotificationService;
-import com.blur.communicationservice.repository.httpclient.ProfileClient;
+import com.blur.communicationservice.resilience.ResilientUserServiceClient;
 import com.blur.communicationservice.websocket.service.WebSocketNotificationService;
 import com.blur.communicationservice.websocket.service.WebSocketSessionManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,7 +31,7 @@ public class FollowEventHandler implements EventHandler<Event> {
     WebSocketNotificationService webSocketNotificationService;
     WebSocketSessionManager sessionManager;
     ObjectMapper objectMapper;
-    ProfileClient profileClient;
+    ResilientUserServiceClient userServiceClient;
 
     @Override
     public boolean canHandle(String topic) {
@@ -42,7 +42,7 @@ public class FollowEventHandler implements EventHandler<Event> {
     public void handleEvent(String jsonEvent) throws JsonProcessingException {
         Event event = objectMapper.readValue(jsonEvent, Event.class);
         event.setTimestamp(LocalDateTime.now());
-        var profile = profileClient.getProfile(event.getSenderId());
+        var profile = userServiceClient.getProfile(event.getSenderId());
 
         Notification notification = Notification.builder()
                 .senderId(event.getSenderId())

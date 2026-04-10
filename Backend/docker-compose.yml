@@ -7,7 +7,24 @@ services:
       - "7687:7687"
     environment:
       - NEO4J_AUTH=neo4j/12345678
-
+  mysql:
+    image: mysql:8.0
+    container_name: keycloak-mysql
+    environment:
+      MYSQL_DATABASE: keycloak_db
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: keycloak
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - keycloak_mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
   mongo:
     image: mongo:6.0
     container_name: mongo
@@ -55,12 +72,22 @@ services:
     ports:
       - "8080:8080"
     environment:
-      KC_DB: dev-mem
+      KC_DB: mysql
+      KC_DB_URL_HOST: mysql
+      KC_DB_URL_DATABASE: keycloak_db
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
       KC_HOSTNAME_STRICT: false
       KC_HTTP_ENABLED: true
     depends_on:
-      - redis
+      mysql:
+        condition: service_healthy
+
+volumes:
+  keycloak_mysql_data:

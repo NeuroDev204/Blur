@@ -12,7 +12,7 @@ import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.PostMapper;
 import com.contentservice.post.repository.PostRepository;
-import com.contentservice.post.repository.httpclient.ProfileClient;
+import com.contentservice.resilience.ResilientUserServiceClient;
 import com.contentservice.story.dto.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
@@ -44,7 +44,7 @@ public class PostService {
 
     PostRepository postRepository;
     PostMapper postMapper;
-    ProfileClient profileClient;
+    ResilientUserServiceClient userServiceClient;
     NotificationEventPublisher notificationEventPublisher;
     OutboxService outboxService;
     KafkaTemplate<String, String> kafkaTemplate;
@@ -58,7 +58,7 @@ public class PostService {
     public PostResponse createPost(PostRequest postRequest) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         var userId = authentication.getName();
-        var profileResult = profileClient.getProfile(userId).getResult();
+        var profileResult = userServiceClient.getProfile(userId).getResult();
 
         Post post = Post.builder()
                 .content(postRequest.getContent())
@@ -138,7 +138,7 @@ public class PostService {
             String profileId = post.getProfileId();
 
             try {
-                ApiResponse<UserProfileResponse> response = profileClient.getProfile(post.getUserId());
+                ApiResponse<UserProfileResponse> response = userServiceClient.getProfile(post.getUserId());
                 UserProfileResponse up = response.getResult();
                 if (up != null) {
                     firstName = up.getFirstName();
@@ -210,8 +210,8 @@ public class PostService {
         postRepository.likePost(userId, postId, Instant.now());
 
         try {
-            var senderProfile = profileClient.getProfile(userId).getResult();
-            var receiverProfile = profileClient.getProfile(post.getUserId()).getResult();
+            var senderProfile = userServiceClient.getProfile(userId).getResult();
+            var receiverProfile = userServiceClient.getProfile(post.getUserId()).getResult();
 
             Event event = Event.builder()
                     .postId(postId)
@@ -274,7 +274,7 @@ public class PostService {
     private void publishPostCreatedEvent(Post post) {
         try {
             // lay profile info da co tu create post
-            var profileResponse = profileClient.getProfile(post.getUserId());
+            var profileResponse = userServiceClient.getProfile(post.getUserId());
             String authorUsername = "";
             String authorAvatar = "";
             String authorFirstName = post.getFirstName() != null ? post.getFirstName() : "";
@@ -289,7 +289,7 @@ public class PostService {
             // lay danh sach follower ids
             List<String> followerIds = List.of();
             try {
-                var followerResponse = profileClient.getFollowerIds(post.getUserId());
+                var followerResponse = userServiceClient.getFollowerIds(post.getUserId());
                 if (followerResponse != null && followerResponse.getResult() != null) {
                     followerIds = followerResponse.getResult();
                 }

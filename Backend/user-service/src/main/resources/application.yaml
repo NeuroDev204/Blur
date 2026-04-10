@@ -42,7 +42,7 @@ keycloak:
     server-url: ${KEYCLOAK_URL}
     realm: ${KEYCLOAK_REALM}
     client-id: ${KEYCLOAK_CLIENT_ID_SERVICE}
-    client_secret: ${KEYCLOAK_CLIENT_SECRET_SERVICE}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET_SERVICE}
 encryption:
   field-key: ${FIELD_ENCRYPTION_KEY}
   hmac-key: ${FIELD_ENCRYPTION_HMAC_KEY}
@@ -52,7 +52,61 @@ app:
     profile: ${PROFILE_SERVICE_URL:http://localhost:8081}
     notification: ${NOTIFICATION_SERVICE_URL:http://localhost:8083}
     content: ${CONTENT_SERVICE_URL:http://localhost:8082}
-
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.FeignException.InternalServerError
+          - feign.FeignException.ServiceUnavailable
+        ignore-exceptions:
+          - feign.FeignException.BadRequest
+          - feign.FeignException.NotFound
+    instances:
+      contentServiceCB:
+        base-config: default
+      googleOAuthCB:
+        base-config: default
+        sliding-window-size: 5
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 60s
+      keycloakCB:
+        base-config: default
+        failure-rate-threshold: 30
+        wait-duration-in-open-state: 10s
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - feign.RetryableException
+        ignore-exceptions:
+          - feign.FeignException.BadRequest
+          - feign.FeignException.NotFound
+    instances:
+      contentServiceRetry:
+        base-config: default
+      googleOAuthRetry:
+        base-config: default
+        max-attempts: 2
+        wait-duration: 1s
+      keycloakRetry:
+        base-config: default
+        max-attempts: 3
+        wait-duration: 200ms
 
 management:
   endpoints:

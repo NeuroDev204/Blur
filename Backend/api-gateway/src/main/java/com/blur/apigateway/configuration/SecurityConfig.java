@@ -40,7 +40,8 @@ public class SecurityConfig {
                                 "/api/profile/internal/**",
                                 "/api/notification/email/send*",
                                 "/actuator/**",
-                                "/ws/**"
+                                "/ws/**",
+                                "/fallback/**"
                         ).permitAll()
                         .anyExchange().authenticated()
                 ).oauth2ResourceServer(oauth2 -> oauth2

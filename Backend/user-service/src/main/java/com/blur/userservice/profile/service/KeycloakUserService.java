@@ -1,10 +1,9 @@
 package com.blur.userservice.profile.service;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.core.Response;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
@@ -12,32 +11,19 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class KeycloakUserService {
-    @Value("${keycloak.admin.server-url}")
-    private String serverUrl;
+    private final Keycloak keycloak;
+
     @Value("${keycloak.admin.realm}")
     private String realm;
-    @Value("${keycloak.admin.client-id}")
-    private String clientId;
-    @Value("${keycloak.admin.client_secret}")
-    private String clientSecret;
-    private Keycloak keycloak;
-
-    @PostConstruct
-    public void init() {
-        this.keycloak = KeycloakBuilder.builder()
-                .serverUrl(serverUrl)
-                .realm(realm)
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .grantType("client_credentials")
-                .build();
-    }
 
     public String createUser(String username, String email, String password, String firstName, String lastName, String blurUserId, List<String> roles) {
         RealmResource realmResource = getRealmResource();
@@ -67,11 +53,7 @@ public class KeycloakUserService {
         }
 
         try {
-            CredentialRepresentation credential = new CredentialRepresentation();
-            credential.setType(CredentialRepresentation.PASSWORD);
-            credential.setValue(password);
-            credential.setTemporary(false);
-            usersResource.get(keycloakUserId).resetPassword(credential);
+            resetPassword(usersResource, keycloakUserId, password);
 
             log.info("Created Keycloak user: username={}, blurUserId={}, keycloakId={}", username, blurUserId, keycloakUserId);
             return keycloakUserId;
@@ -80,6 +62,52 @@ public class KeycloakUserService {
             deleteUser(keycloakUserId);
             throw e;
         }
+    }
+
+    public String ensureUser(String username, String email, String password, String firstName, String lastName, String blurUserId, List<String> roles) {
+        RealmResource realmResource = getRealmResource();
+        UsersResource usersResource = realmResource.users();
+        Optional<UserRepresentation> existing = findByUsername(usersResource, username);
+
+        if (existing.isEmpty()) {
+            return createUser(username, email, password, firstName, lastName, blurUserId, roles);
+        }
+
+        UserRepresentation user = existing.get();
+        boolean shouldUpdate = false;
+
+        if (!Boolean.TRUE.equals(user.isEnabled())) {
+            user.setEnabled(true);
+            shouldUpdate = true;
+        }
+        if (!Boolean.TRUE.equals(user.isEmailVerified())) {
+            user.setEmailVerified(true);
+            shouldUpdate = true;
+        }
+        if (email != null && !email.equalsIgnoreCase(user.getEmail())) {
+            user.setEmail(email);
+            shouldUpdate = true;
+        }
+
+        Map<String, List<String>> attributes = user.getAttributes() == null
+                ? new HashMap<>()
+                : new HashMap<>(user.getAttributes());
+        String existingBlurUserId = firstAttributeValue(attributes, "blurUserId").orElse(null);
+        if (!blurUserId.equals(existingBlurUserId)) {
+            attributes.put("blurUserId", List.of(blurUserId));
+            user.setAttributes(attributes);
+            shouldUpdate = true;
+        }
+
+        if (shouldUpdate) {
+            usersResource.get(user.getId()).update(user);
+        }
+
+        // Keep system account credentials deterministic for local/dev login.
+        resetPassword(usersResource, user.getId(), password);
+
+        log.info("Ensured Keycloak user: username={}, blurUserId={}, keycloakId={}", username, blurUserId, user.getId());
+        return user.getId();
     }
 
     public void deleteUser(String keycloakUserId) {
@@ -93,5 +121,27 @@ public class KeycloakUserService {
 
     private RealmResource getRealmResource() {
         return keycloak.realm(realm);
+    }
+
+    private Optional<UserRepresentation> findByUsername(UsersResource usersResource, String username) {
+        return usersResource.searchByUsername(username, true).stream()
+                .filter(user -> user.getUsername() != null && user.getUsername().equalsIgnoreCase(username))
+                .findFirst();
+    }
+
+    private Optional<String> firstAttributeValue(Map<String, List<String>> attributes, String attributeName) {
+        List<String> values = attributes.get(attributeName);
+        if (values == null || values.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(values.get(0));
+    }
+
+    private void resetPassword(UsersResource usersResource, String keycloakUserId, String password) {
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(password);
+        credential.setTemporary(false);
+        usersResource.get(keycloakUserId).resetPassword(credential);
     }
 }
