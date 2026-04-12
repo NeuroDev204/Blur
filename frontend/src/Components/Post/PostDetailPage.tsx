@@ -115,8 +115,8 @@ const PostDetailPage = () => {
 
   // ================== MODERATION LISTENER - REAL-TIME COMMENT HIDING ==================
   const handleModerationUpdate = useCallback((update) => {
-    if (update.status === "REJECTED") {
-      // Remove rejected comment from UI immediately
+    if (update.status === "REJECTED" || update.status === "FLAGGED") {
+      // Remove rejected/flagged comment from UI immediately
       setComments((prev) =>
         prev.filter((comment) => comment.id !== update.commentId)
       );

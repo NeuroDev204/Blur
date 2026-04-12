@@ -19,6 +19,46 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+import re
+
+# ─── Context-aware false positive filter ───
+# Từ có nghĩa kép (vừa danh từ bình thường, vừa từ chửi):
+#   chó, bò, gà, lợn/heo, cặc (cặc kè), đĩ (đĩa)
+# Nếu đi kèm context tích cực/trung tính → giảm toxic score
+
+_AMBIGUOUS_WORDS = re.compile(
+    r'\b(con\s+)?(chó|bò|gà|lợn|heo|mèo|ngựa|khỉ|chuột)\b', re.IGNORECASE
+)
+_POSITIVE_CONTEXT = re.compile(
+    r'(dễ\s*thương|xinh|đẹp|cute|cưng|yêu|thích|nuôi|nhỏ|bé|ăn|thịt|sữa|trứng|'
+    r'giống|phố|cảnh|nhà|hoang|con\s+sen|dắt|chăm|tắm|ốm|tiêm|pet|hamster|'
+    r'vàng|đốm|mập|ú|adorable|lovely)', re.IGNORECASE
+)
+_STRONG_TOXIC = re.compile(
+    r'(đồ\s*(chó|bò|gà|lợn|heo|khỉ)|thằng|con\s*(đĩ|điếm)|'
+    r'mẹ\s*m|đ[ií]t|l[oồ]n|c[aặ][ck]|đ[éè]o|v[ãả]i?\s*l[oồ]n|'
+    r'ngu|óc\s*chó|chó\s*chết|súc\s*sinh|khốn)', re.IGNORECASE
+)
+
+
+def _adjust_context_score(text: str, raw_score: float) -> float:
+    """Điều chỉnh toxic score dựa trên context.
+    Chỉ giảm score khi có từ ambiguous + context tích cực + KHÔNG có strong toxic.
+    """
+    if raw_score < 0.3:
+        return raw_score
+
+    has_ambiguous = _AMBIGUOUS_WORDS.search(text) is not None
+    has_positive = _POSITIVE_CONTEXT.search(text) is not None
+    has_strong_toxic = _STRONG_TOXIC.search(text) is not None
+
+    if has_ambiguous and has_positive and not has_strong_toxic:
+        # "con chó dễ thương" → giảm mạnh
+        return raw_score * 0.2
+
+    return raw_score
+
+
 class ToxicPredictor:
     """
     PhoBERT-based Vietnamese Toxic Comment Predictor.
@@ -99,8 +139,9 @@ class ToxicPredictor:
             outputs = self.model(**inputs)
             probs = torch.softmax(outputs.logits, dim=1)
 
-        toxic_prob = probs[0][1].item()
-        clean_prob = probs[0][0].item()
+        raw_toxic = probs[0][1].item()
+        toxic_prob = _adjust_context_score(text, raw_toxic)
+        clean_prob = 1.0 - toxic_prob
 
         return CommentAnalysis(
             text=text,
@@ -146,8 +187,9 @@ class ToxicPredictor:
                 probs = torch.softmax(outputs.logits, dim=1)
 
             for j, text in enumerate(chunk):
-                toxic_prob = probs[j][1].item()
-                clean_prob = probs[j][0].item()
+                raw_toxic = probs[j][1].item()
+                toxic_prob = _adjust_context_score(text, raw_toxic)
+                clean_prob = 1.0 - toxic_prob
                 results.append(CommentAnalysis(
                     text=text,
                     is_toxic=toxic_prob >= settings.TOXIC_THRESHOLD,

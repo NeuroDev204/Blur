@@ -41,7 +41,7 @@ public class ModerationResultConsumer {
         comment.setModerationConfidence(confidence);
         comment.setModelVersion(modelVersion);
         comment.setModeratedAt(LocalDateTime.now());
-        if ("REJECTED".equals(status)) {
+        if ("REJECTED".equals(status) || "FLAGGED".equals(status)) {
           comment.setContent("[Bình luận đã được ẩn bởi hệ thống kiểm duyệt!]");
         }
         commentRepository.save(comment);

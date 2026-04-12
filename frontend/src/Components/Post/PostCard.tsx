@@ -111,12 +111,12 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     // Only handle updates for this post's comments
     if (update.postId !== post?.id) return;
 
-    if (update.status === "REJECTED") {
+    if (update.status === "REJECTED" || update.status === "FLAGGED") {
       // Replace comment content with hidden message
       setComments((prev) =>
         prev.map((c) =>
           c.id === update.commentId
-            ? { ...c, content: "[Bình luận đã được ẩn bởi hệ thống kiểm duyệt]", moderationStatus: "REJECTED" }
+            ? { ...c, content: "[Bình luận đã được ẩn bởi hệ thống kiểm duyệt]", moderationStatus: update.status }
             : c
         )
       );
