@@ -8,9 +8,13 @@ Khắc phục Catastrophic Forgetting của train_model.py (sequential training)
 """
 
 import os
+import warnings
 import json
 import pandas as pd
 import torch
+
+# Suppress multiprocess ResourceTracker bug on Windows + Python 3.12+
+warnings.filterwarnings("ignore", message=".*_recursion_count.*")
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -253,12 +257,23 @@ class ToxicTrainerV2:
             if total_mem_gb >= 8:
                 safe_batch = 32 if self.max_length <= 256 else 16
             elif total_mem_gb >= 4:
-                safe_batch = 16 if self.max_length <= 256 else 8
+                if self.max_length <= 128:
+                    safe_batch = 32
+                elif self.max_length <= 256:
+                    safe_batch = 16
+                else:
+                    safe_batch = 8
             else:
                 safe_batch = 8
         else:
             safe_batch = min(batch_size, 8)
         grad_accum = max(1, batch_size // safe_batch)
+
+        # Windows CPU: num_workers>0 dùng spawn multiprocessing → overhead lớn, chậm hơn 0
+        # GPU: num_workers=4 để overlap data loading với GPU compute
+        is_gpu = self.device.type == 'cuda'
+        num_workers = 4 if is_gpu else 0
+        prefetch = 2 if is_gpu else None
 
         training_args = TrainingArguments(
             output_dir=model_dir,
@@ -278,14 +293,14 @@ class ToxicTrainerV2:
             fp16=self.use_fp16,
             max_grad_norm=1.0,
             gradient_accumulation_steps=grad_accum,
-            dataloader_num_workers=4,       # load data song song với GPU compute
-            dataloader_prefetch_factor=2,   # prefetch batch tiếp theo
-            dataloader_pin_memory=True,
+            dataloader_num_workers=num_workers,
+            dataloader_prefetch_factor=prefetch,
+            dataloader_pin_memory=is_gpu,
             report_to=[],
             seed=42,
         )
 
-        # Class weights: balanced (không boost)
+        # Class weights: balanced
         train_labels = list(train_dataset['label'])
         n_clean = train_labels.count(0)
         n_toxic = train_labels.count(1)
@@ -432,40 +447,46 @@ class ToxicTrainerV2:
 
 
 # ============================================================================
-# OVERSAMPLE TOXIC
+# BOOST VIHSD SAMPLES
 # ============================================================================
 
-def oversample_toxic(train_split: dict, target_ratio: float = 0.30) -> dict:
-    """Oversample toxic samples trong train set để đạt target_ratio."""
+def boost_vihsd_samples(train_split: dict, vihsd_text_keys: set, repeat: int = 5) -> dict:
+    """Duplicate ViHSD-sourced samples trong train set để tăng influence.
+
+    Phải gọi SAU dedup + split để:
+      - Không bị dedup xóa (bug cũ với VIHSD_REPEAT)
+      - Chỉ boost trong train set (không ảnh hưởng val/test)
+    """
     import random
     texts = train_split['texts']
     labels = train_split['labels']
 
-    clean_texts = [t for t, l in zip(texts, labels) if l == 0]
-    toxic_texts = [t for t, l in zip(texts, labels) if l == 1]
-    n_clean = len(clean_texts)
-    n_toxic = len(toxic_texts)
+    extra_texts = []
+    extra_labels = []
+    vihsd_count = 0
 
-    # Số toxic cần đạt: toxic / (clean + toxic) = target_ratio
-    n_toxic_target = int(target_ratio * n_clean / (1 - target_ratio))
+    for text, label in zip(texts, labels):
+        if text.strip().lower() in vihsd_text_keys:
+            vihsd_count += 1
+            for _ in range(repeat - 1):  # -1 vì bản gốc đã có
+                extra_texts.append(text)
+                extra_labels.append(label)
 
-    if n_toxic_target <= n_toxic:
-        print(f"\n  Oversample: không cần (toxic đã đủ {n_toxic/len(texts)*100:.1f}%)")
+    if not extra_texts:
+        print(f"\n  ViHSD boost: no ViHSD samples found in train set")
         return train_split
 
-    random.seed(42)
-    extra_needed = n_toxic_target - n_toxic
-    extra_texts = random.choices(toxic_texts, k=extra_needed)
-
     all_texts = list(texts) + extra_texts
-    all_labels = list(labels) + [1] * extra_needed
+    all_labels = list(labels) + extra_labels
 
     combined = list(zip(all_texts, all_labels))
+    random.seed(42)
     random.shuffle(combined)
     all_texts, all_labels = zip(*combined)
 
-    print(f"\n  Oversample toxic: {n_toxic:,} → {n_toxic + extra_needed:,}")
-    print(f"  Toxic ratio: {n_toxic/len(texts)*100:.1f}% → {(n_toxic+extra_needed)/len(all_texts)*100:.1f}%")
+    print(f"\n  ViHSD boost: {vihsd_count:,} unique samples x{repeat}")
+    print(f"  Train size: {len(texts):,} -> {len(all_texts):,}")
+
     return {'texts': list(all_texts), 'labels': list(all_labels)}
 
 
@@ -558,18 +579,20 @@ def main():
             if p.stem not in has_vihsd_base and p.stem not in has_relabel_base:
                 json_sources.append({'type': 'json', 'path': str(p)})
 
-    # ViHSD: human-annotated, chất lượng cao → duplicate 5x để tăng ảnh hưởng
-    VIHSD_REPEAT = 5
+    # ViHSD: human-annotated, chất lượng cao
+    # Load ViHSD TRƯỚC JSON → dedup sẽ giữ label ViHSD khi conflict
     vihsd_sources = [
         {'type': 'csv', 'path': str(data_dir / 'test_df.csv'),  'text_col': 'cmt_col',   'label_col': 'labels'},
         {'type': 'csv', 'path': str(data_dir / 'dev.csv'),       'text_col': 'free_text', 'label_col': 'label_id'},
         {'type': 'csv', 'path': str(data_dir / 'test.csv'),      'text_col': 'free_text', 'label_col': 'label_id'},
         {'type': 'csv', 'path': str(data_dir / 'train.csv'),     'text_col': 'free_text', 'label_col': 'label_id'},
     ]
+    vihsd_paths = {src['path'] for src in vihsd_sources}
 
-    DATA_SOURCES = json_sources + vihsd_sources * VIHSD_REPEAT
+    # ViHSD trước → dedup giữ ViHSD label khi trùng với JSON
+    DATA_SOURCES = vihsd_sources + json_sources
     print(f"\n[Auto-scan] Found {len(json_sources)} JSON files in data/")
-    print(f"[ViHSD] Will repeat {VIHSD_REPEAT}x to increase influence of human-annotated data")
+    print(f"[ViHSD] Load first (dedup priority), boost 5x in train after split")
 
     # ── STEP 1: LOAD ALL ──
     print("\n[Step 1] Loading all data sources...")
@@ -601,6 +624,15 @@ def main():
     # ── STEP 3: SPLIT ──
     print("\n[Step 3] Stratified split (90% train / 5% val / 5% test)...")
     train_split, val_split, test_split = split_dataset(unique_data)
+
+    # ── STEP 3.5: BOOST VIHSD ──
+    # Tìm text keys từ ViHSD để boost trong train set
+    vihsd_text_keys = set()
+    for item in unique_data:
+        if item['source'] in vihsd_paths:
+            vihsd_text_keys.add(item['text'].strip().lower())
+    print(f"\n  ViHSD unique texts in dataset: {len(vihsd_text_keys):,}")
+    train_split = boost_vihsd_samples(train_split, vihsd_text_keys, repeat=5)
 
     # ── STEP 4: TRAIN ──
     print("\n[Step 4] Training...")

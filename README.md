@@ -1,6 +1,6 @@
 # Blur — Social Networking Platform
 
-Blur is a modern, full-stack social networking platform built with a microservices architecture. It supports real-time messaging, content creation, social relationships, AI-powered features, and automated toxic comment detection.
+Nền tảng mạng xã hội full-stack theo kiến trúc microservices: realtime chat, video/audio call, feed CQRS, AI chat, và kiểm duyệt bình luận tiếng Việt bằng PhoBERT.
 
 ---
 
@@ -8,16 +8,18 @@ Blur is a modern, full-stack social networking platform built with a microservic
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, TypeScript 5, Vite 5, Redux Toolkit, Chakra UI, Tailwind CSS, React Router v7, Axios, Formik, Framer Motion, WebRTC, Cloudinary |
-| Backend | Java 21, Spring Boot 3.4.3, Spring Cloud 2024.0.0, Spring Security, OpenFeign, MapStruct, Lombok, Maven |
-| API Gateway | Spring Cloud Gateway |
+| Frontend | React 18, TypeScript 5, Vite 5, Redux Toolkit, Chakra UI, Tailwind CSS, React Router v7, Axios, Formik + Yup, Framer Motion, Socket.IO Client, STOMP.js + SockJS, WebRTC, Swiper, Lucide React, Emoji Picker, react-grid-layout, react-hot-toast, jwt-decode |
+| Backend | Java 21, Spring Boot 3.4.3, Spring Cloud 2024.0.0, Spring Security OAuth2 Resource Server, OpenFeign, Resilience4j, MapStruct, Lombok, Maven |
+| Auth (IDP) | **Keycloak 26.1** (JWT issuer, realm import, MySQL-backed) |
+| API Gateway | Spring Cloud Gateway (reactive) + Resilience4j CircuitBreaker |
 | Graph DB | Neo4j (social graph, profiles, posts, relationships) |
 | Document DB | MongoDB 6.0 (chat, notifications, AI conversations) |
-| Cache | Caffeine (L1 in-memory) + Redis (L2 distributed), Redisson (distributed lock), Redis Lua Scripts |
-| Messaging | Apache Kafka 7.7.1 (KRaft mode) |
-| Real-time | WebSocket (Socket.IO + STOMP), WebRTC (video/audio calls) |
-| ML/AI | Python 3.11, FastAPI, PyTorch, PhoBERT (Vietnamese NLP), Google Gemini API |
-| Data Scraping | yt-dlp, TikTok API, Selenium, Playwright |
+| Relational DB | MySQL 8.0 (Keycloak persistence) |
+| Cache | Caffeine (L1) + Redis (L2), Redisson (distributed lock), Redis Pub/Sub, Redis Lua scripts |
+| Messaging | Apache Kafka 7.7.1 (KRaft mode, no ZooKeeper) |
+| Real-time | WebSocket — Socket.IO (chat) + STOMP/SockJS (notifications), WebRTC (video/audio) |
+| ML / AI | Python 3.11, FastAPI, PyTorch, **PhoBERT v2** (merged-dataset training), **ONNX Runtime** (5–10× faster cold start), aiokafka, Google Gemini API |
+| Data Collection | yt-dlp, YouTube Data API, TikTokApi, Playwright, pandas |
 | Infrastructure | Docker (multi-stage), Docker Compose, Nginx, Amazon Corretto 21 |
 
 ---
@@ -26,14 +28,16 @@ Blur is a modern, full-stack social networking platform built with a microservic
 
 | Pattern | Description |
 |---------|-------------|
-| Multi-Level Cache | Caffeine (L1) + Redis (L2) with per-entity TTL |
-| Distributed Lock | Redisson RLock, double-check pattern (cache stampede prevention) |
-| Cache Invalidation | Redis Pub/Sub → L1 eviction across instances |
-| Cache Warming | Hot data preloaded on startup |
-| Outbox Pattern | Reliable event publishing with scheduled outbox + cleanup |
-| Saga Pattern | Multi-service distributed transaction orchestration via Kafka |
-| CQRS | Event-driven feed projection (separate read/write models) |
-| Atomic Counters | Redis Lua scripts for lock-free operations |
+| Multi-Level Cache | Caffeine (L1) + Redis (L2), per-entity TTL |
+| Distributed Lock | Redisson RLock + double-check (chống cache stampede) |
+| Cache Invalidation | Redis Pub/Sub → evict L1 cross-instance |
+| Cache Warming | Hot data preload khi startup |
+| Outbox Pattern | Reliable event publishing (scheduler + cleanup) |
+| Saga | Multi-service distributed transaction qua Kafka |
+| CQRS | Event-driven feed projection (read/write tách biệt) |
+| Circuit Breaker | Resilience4j (Gateway + inter-service Feign) |
+| Atomic Counters | Redis Lua cho lock-free counter |
+| Async ML Pipeline | Kafka → FastAPI → Kafka (non-blocking moderation) |
 
 ---
 
@@ -41,30 +45,29 @@ Blur is a modern, full-stack social networking platform built with a microservic
 
 ```
 ┌─────────────────────────────────────────┐
-│           Frontend (React / Nginx)       │
-│                Port 80                  │
+│        Frontend (React / Nginx)         │
 └──────────────────┬──────────────────────┘
                    │
-       ┌───────────▼───────────┐
-       │   API Gateway (8888)  │
-       │  Spring Cloud Gateway │
-       └───────────┬───────────┘
+       ┌───────────▼───────────┐       ┌──────────────────┐
+       │   API Gateway (8888)  │──────▶│  Keycloak (8080) │
+       │  Spring Cloud Gateway │  JWT  │   MySQL-backed   │
+       └───────────┬───────────┘       └──────────────────┘
                    │
-      ┌────────────┼────────────┬──────────┐
-      ▼            ▼            ▼          ▼
- ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐
- │  User   │ │ Content  │ │  Comm.   │ │ Model  │
- │ Service │ │ Service  │ │ Service  │ │Service │
- │  8081   │ │  8082    │ │  8083    │ │(Python)│
- └────┬────┘ └────┬─────┘ └────┬─────┘ └────────┘
-      │           │             │
-      └───────────┼─────────────┘
-                  │
-     ┌────────────┼────────────┬──────────┐
-     ▼            ▼            ▼          ▼
-  ┌─────┐    ┌─────────┐  ┌────────┐ ┌────────┐
-  │Neo4j│    │ MongoDB │  │ Redis  │ │ Kafka  │
-  └─────┘    └─────────┘  └────────┘ └────────┘
+      ┌────────────┼────────────┬──────────────┐
+      ▼            ▼            ▼              ▼
+ ┌─────────┐ ┌──────────┐ ┌──────────┐  ┌──────────┐
+ │  User   │ │ Content  │ │  Comm.   │  │  Model   │
+ │ Service │ │ Service  │ │ Service  │  │ Service  │
+ │  8081   │ │   8082   │ │   8083   │  │  8000    │
+ └────┬────┘ └────┬─────┘ └────┬─────┘  └────┬─────┘
+      │           │             │             │
+      └───────────┼─────────────┼─────────────┘
+                  │             │
+     ┌──────┬─────┼──────┬──────┼──────┬──────────┐
+     ▼      ▼     ▼      ▼      ▼      ▼          ▼
+  ┌─────┐ ┌────┐ ┌───┐ ┌─────┐ ┌────┐ ┌─────┐ ┌────────┐
+  │Neo4j│ │Mongo│ │SQL│ │Redis│ │Kafka│ │Gemini│ │PhoBERT│
+  └─────┘ └────┘ └───┘ └─────┘ └────┘ └─────┘ └────────┘
 ```
 
 ---
@@ -73,11 +76,12 @@ Blur is a modern, full-stack social networking platform built with a microservic
 
 | Service | Port | Description |
 |---------|------|-------------|
-| **user-service** | 8081 | Auth, profiles, OAuth2, friend recommendations (Neo4j Cypher) |
-| **content-service** | 8082 | Posts, comments, stories, CQRS feed, multi-level cache, Outbox pattern |
-| **communication-service** | 8083 | Chat (Socket.IO), notifications (STOMP), WebRTC calls, Gemini AI chat, email fallback |
-| **api-gateway** | 8888 | Routing, CORS, authentication orchestration |
-| **model-service** | 8000 | PhoBERT toxic detection, async Kafka pipeline, data scraping (YouTube, TikTok) |
+| **keycloak** | 8080 | Identity Provider, JWT issuer, realm `blur-realm` |
+| **api-gateway** | 8888 | Reactive routing, CORS, JWT resource-server validation, CircuitBreaker |
+| **user-service** | 8081 | Profile, social graph (Neo4j Cypher), friend recommendations, Keycloak admin client |
+| **content-service** | 8082 | Posts, comments, stories, CQRS feed, multi-level cache, Outbox, Saga |
+| **communication-service** | 8083 | Socket.IO chat, STOMP notifications, WebRTC signaling, Gemini AI chat, email fallback |
+| **model-service** | 8000 | FastAPI, PhoBERT v2 / ONNX, Kafka consumer+producer, async moderation pipeline, Prometheus metrics |
 
 ---
 
@@ -86,16 +90,20 @@ Blur is a modern, full-stack social networking platform built with a microservic
 ```
 Blur/
 ├── Backend/
-│   ├── user-service/           # Auth, profiles, OAuth2, recommendations
-│   ├── content-service/        # Posts, comments, stories, CQRS feed
-│   ├── communication-service/  # Chat, notifications, calls, AI
-│   ├── api-gateway/            # Request routing
-│   ├── model-service/          # Python FastAPI ML pipeline
-│   ├── docker/                 # Infrastructure setup, deploy scripts
-│   └── docker-compose.yml      # Local dev infrastructure
-├── frontend/                   # React TypeScript SPA
-├── blur-deploy/                # Production deployment
-└── production/                 # Production Docker Compose
+│   ├── user-service/              # Profile + social graph (Neo4j)
+│   ├── content-service/           # Posts, stories, CQRS feed, Outbox
+│   ├── communication-service/     # Chat, notifications, calls, AI
+│   ├── api-gateway/               # Reactive gateway + JWT
+│   ├── model-service/             # FastAPI + PhoBERT/ONNX + Kafka
+│   │   ├── app/                   # predictor, predictor_onnx, kafka, services
+│   │   ├── training/              # train_model_v2.py (merged-dataset)
+│   │   └── scraper/               # yt-dlp, TikTok, Playwright
+│   ├── keycloak/blur-realm.json   # Realm config (import on startup)
+│   ├── docker/                    # Infra scripts
+│   └── docker-compose.yml         # Local dev infra
+├── frontend/                      # React + Vite SPA
+├── blur-deploy/                   # Full-stack compose (deploy)
+└── production/                    # Production compose + Nginx
 ```
 
 ---
@@ -103,65 +111,74 @@ Blur/
 ## Getting Started
 
 ### Prerequisites
-- Docker & Docker Compose
-- Java 21, Node.js 18+, Python 3.11 (for local dev)
+Docker & Docker Compose · Java 21 · Node.js 18+ · Python 3.11
 
 ### Full Stack (Docker)
-
 ```bash
 cd blur-deploy && docker compose up -d
 ```
 
 ### Local Development
-
 ```bash
-# Infrastructure
+# 1. Infrastructure (Neo4j, Mongo, MySQL, Redis, Kafka, Keycloak)
 docker compose -f Backend/docker-compose.yml up -d
 
-# Backend services
-cd Backend/user-service && ./mvnw spring-boot:run
-cd Backend/content-service && ./mvnw spring-boot:run
+# 2. Backend services
+cd Backend/user-service          && ./mvnw spring-boot:run
+cd Backend/content-service       && ./mvnw spring-boot:run
 cd Backend/communication-service && ./mvnw spring-boot:run
-cd Backend/api-gateway && ./mvnw spring-boot:run
+cd Backend/api-gateway           && ./mvnw spring-boot:run
 
-# Frontend
+# 3. Model service (Python)
+cd Backend/model-service
+python -m venv venv && source venv/Scripts/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# 4. Frontend
 cd frontend && npm install && npm run dev
 ```
+
+### Keycloak
+- Admin Console: <http://localhost:8080> · user `admin` / pass `admin`
+- Realm `blur-realm` tự import từ `Backend/keycloak/blur-realm.json`
 
 ---
 
 ## API Overview
 
-All requests go through `http://localhost:8888/api`.
+Tất cả request đi qua Gateway `http://localhost:8888/api`.
 
 | Prefix | Service | Description |
 |--------|---------|-------------|
-| `/auth/**` | user-service | Login, token |
-| `/users/**` | user-service | Account management |
-| `/profile/**` | user-service | Profile CRUD |
+| `/auth/**` | user-service | Login / token (proxy Keycloak) |
+| `/users/**` | user-service | Account |
+| `/profile/**` | user-service | Profile CRUD + recommendations |
 | `/post/**` | content-service | Posts, likes, shares |
 | `/post/comment/**` | content-service | Comments |
 | `/stories/**` | content-service | Stories |
 | `/chat/**` | communication-service | Messaging |
 | `/notification/**` | communication-service | Notifications |
+| `/ai/**` | communication-service | Gemini AI chat |
 
 ---
 
 ## Key Features
 
-- **Authentication** — JWT + Google OAuth2 + Spring Security
-- **Social Graph** — Neo4j-based follow/recommend (mutual, taste, city, popular)
-- **Real-time Chat** — Socket.IO + STOMP notifications
+- **Authentication** — Keycloak 26.1 (OIDC/JWT) + Spring OAuth2 Resource Server
+- **Social Graph** — Neo4j Cypher: follow/recommend (mutual, taste, city, popular)
+- **Realtime Chat** — Socket.IO + STOMP notifications
 - **Video/Audio Calls** — WebRTC peer-to-peer
-- **AI Chat** — Gemini-powered smart replies
-- **Content Moderation** — PhoBERT Vietnamese toxic detection via Kafka pipeline
+- **AI Chat** — Google Gemini với context-aware replies
+- **Toxic Detection** — PhoBERT v2 (Vietnamese), ONNX backend tùy chọn, async Kafka pipeline
 - **Feed** — CQRS event-driven projections
-- **Multi-Level Cache** — Caffeine + Redis + distributed lock + Pub/Sub invalidation + warming
-- **Distributed Transactions** — Outbox + Saga patterns
-- **Media Upload** — Cloudinary integration
+- **Multi-Level Cache** — Caffeine + Redis + Redisson lock + Pub/Sub invalidation + warming
+- **Distributed Transactions** — Outbox + Saga
+- **Resilience** — Resilience4j CircuitBreaker trên Gateway & Feign clients
+- **Media Upload** — Cloudinary
 
 ---
 
-## Authors
+## Author
 
 **NeuroDev204**

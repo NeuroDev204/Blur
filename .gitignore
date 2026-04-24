@@ -1,11 +1,8 @@
-/Backend/.env.shared
-/Backend/ai-service/.env
-/Backend/api-gateway/.env
-/Backend/IdentityService/.env
-/Backend/notification-service/.env
-/Backend/post-service/.env
-/Backend/profile-service/.env
-/Backend/story-service/.env
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
 
 /Backend/docs/FULL_JAVA_IMPLEMENTATION.md
 /Backend/docs/neo4j-follow-recommendation.md
@@ -32,7 +29,12 @@ __pycache__/
 /Backend/model-service/config/*.txt
 /Backend/model-service/legacy/debug_*.html
 
-/Backend/model-service/.venv
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
 /Backend/docs/blur-consolidation-and-upgrade-guide.md
 /frontend/frontend-migration-guide.md
 /Backend/docs/

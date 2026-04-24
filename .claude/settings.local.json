@@ -80,7 +80,16 @@
       "Bash(python -c ':*)",
       "Bash(ls /media/neuro/Data/Blur/Backend/model-service/data/*.csv)",
       "Bash(/media/neuro/Data/Blur/Backend/model-service/.venv/bin/python -c \"import torch; print\\('PyTorch:', torch.__version__\\); print\\('Compile:', hasattr\\(torch, 'compile'\\)\\)\")",
-      "Bash(/media/neuro/Data/Blur/Backend/model-service/.venv/bin/python -c \"import transformers; print\\(transformers.__version__\\)\")"
+      "Bash(/media/neuro/Data/Blur/Backend/model-service/.venv/bin/python -c \"import transformers; print\\(transformers.__version__\\)\")",
+      "Bash(venv/Scripts/python.exe -c \"import torch; print\\('PyTorch:', torch.__version__\\); print\\('CUDA available:', torch.cuda.is_available\\(\\)\\); print\\('CUDA version:', torch.version.cuda\\); print\\('cuDNN:', torch.backends.cudnn.version\\(\\) if torch.cuda.is_available\\(\\) else 'N/A'\\)\")",
+      "Bash(venv/Scripts/pip.exe show:*)",
+      "Bash(nvidia-smi)",
+      "Bash(venv/Scripts/pip.exe uninstall:*)",
+      "Bash(venv/Scripts/pip.exe install:*)",
+      "Bash(venv/Scripts/python.exe -c ':*)",
+      "Bash(venv/Scripts/python.exe -c \"import py_compile; py_compile.compile\\('training/train_model_v2.py', doraise=True\\); print\\('OK'\\)\")",
+      "Bash(grep -E \"\\(\\\\.env\\($|\\\\.\\)|/venv/|/\\\\.venv/\\)\")",
+      "Bash(git rm *)"
     ]
   }
 }
