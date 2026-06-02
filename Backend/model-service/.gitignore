@@ -1,0 +1,9 @@
+models/*
+!models/.gitkeep
+
+__pycache__/
+*.py[cod]
+*.pyc
+.env
+data/
+scraper/config/

@@ -3,7 +3,7 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 COPY . .
 RUN npm run build
@@ -14,7 +14,7 @@ WORKDIR /usr/share/nginx/html
 
 RUN rm -rf ./*
 
-COPY --from=build /app/build .
+COPY --from=build /app/dist .
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
