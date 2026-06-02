@@ -4,8 +4,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -50,8 +53,13 @@ public class RedisConfig {
                 ObjectMapper.DefaultTyping.NON_FINAL,
                 JsonTypeInfo.As.PROPERTY
         );
+        mapper.addMixIn(PageImpl.class, PageImplMixin.class);
         return mapper;
     }
+
+    @JsonDeserialize(as = RestPage.class)
+    @JsonIgnoreProperties(value = {"pageable", "sort"}, ignoreUnknown = true)
+    private abstract static class PageImplMixin {}
 
     @Bean
     @Primary
@@ -150,8 +158,9 @@ public class RedisConfig {
 
     @Bean
     @Primary
-    public CacheManager twoLevelCacheManager(RedisCacheManager redisCacheManager) {
-        return new TwoLevelCacheManager(redisCacheManager);
+    public CacheManager twoLevelCacheManager(RedisCacheManager redisCacheManager,
+                                             CacheInvalidationPublisher cacheInvalidationPublisher) {
+        return new TwoLevelCacheManager(redisCacheManager, cacheInvalidationPublisher);
     }
 
     @Bean

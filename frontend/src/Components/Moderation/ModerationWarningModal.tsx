@@ -39,10 +39,10 @@ const ModerationWarningModal: React.FC<ModerationWarningModalProps> = ({
               </svg>
             </div>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <h2 style={{ color: '#111827', fontWeight: 700, fontSize: '1.25rem', marginBottom: '0.5rem' }}>
             Bình luận đã bị ẩn
           </h2>
-          <p className="text-gray-600 text-sm leading-relaxed">
+          <p style={{ color: '#1f2937', fontSize: '0.875rem', lineHeight: '1.625' }}>
             Bình luận của bạn đã bị ẩn vì vi phạm tiêu chuẩn cộng đồng. Vui
             lòng tuân thủ quy tắc ứng xử để giữ cho cộng đồng an toàn và thân
             thiện.

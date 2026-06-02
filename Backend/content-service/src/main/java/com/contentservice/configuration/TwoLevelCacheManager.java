@@ -19,10 +19,12 @@ public class TwoLevelCacheManager implements CacheManager {
     private static final int L1_MAX_SIZE = 500;
     private static final Duration L1_TTL = Duration.ofSeconds(30);
     private final RedisCacheManager redisCacheManager;
+    private final CacheInvalidationPublisher publisher;
     private final Map<String, Cache> cacheMap = new ConcurrentHashMap<>();
 
-    public TwoLevelCacheManager(RedisCacheManager redisCacheManager) {
+    public TwoLevelCacheManager(RedisCacheManager redisCacheManager, CacheInvalidationPublisher publisher) {
         this.redisCacheManager = redisCacheManager;
+        this.publisher = publisher;
     }
 
     @Override
@@ -39,7 +41,7 @@ public class TwoLevelCacheManager implements CacheManager {
                             .recordStats()
                             .build());
             log.info("Created TwoLevelCache for: {}", n);
-            return new TwoLevelCache(n, caffeineCache, redisCache);
+            return new TwoLevelCache(n, caffeineCache, redisCache, publisher);
         });
     }
 

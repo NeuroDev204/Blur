@@ -11,11 +11,13 @@ public class TwoLevelCache implements Cache {
     private final String name;
     private final Cache l1Cache;
     private final Cache l2Cache;
+    private final CacheInvalidationPublisher publisher;
 
-    public TwoLevelCache(String name, Cache l1Cache, Cache l2Cache) {
+    public TwoLevelCache(String name, Cache l1Cache, Cache l2Cache, CacheInvalidationPublisher publisher) {
         this.name = name;
         this.l1Cache = l1Cache;
         this.l2Cache = l2Cache;
+        this.publisher = publisher;
     }
 
     @Override
@@ -85,12 +87,14 @@ public class TwoLevelCache implements Cache {
     public void put(Object key, @Nullable Object value) {
         l2Cache.put(key, value);
         l1Cache.put(key, value);
+        publisher.publishInvalidation(name, key.toString());
     }
 
     @Override
     public void evict(Object key) {
         l2Cache.evict(key);
         l1Cache.evict(key);
+        publisher.publishInvalidation(name, key.toString());
     }
 
     @Override

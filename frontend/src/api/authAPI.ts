@@ -37,7 +37,6 @@ export const introspectToken = async (): Promise<boolean> => {
         return false
     }
 }
-
 export const refreshToken = async (): Promise<boolean> => {
     const response = await axiosClient.post<ApiResponse<{ authenticated: boolean }>>('/auth/refresh')
     return response.data?.result?.authenticated ?? false

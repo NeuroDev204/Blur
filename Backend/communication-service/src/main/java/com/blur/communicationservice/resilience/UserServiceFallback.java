@@ -20,4 +20,15 @@ public class UserServiceFallback {
                 .result(fallback)
                 .build();
     }
+
+    public ApiResponse<UserProfileResponse> getUserProfileIdFallback(String profileId, Throwable throwable) {
+        UserProfileResponse fallback = UserProfileResponse.builder()
+                .userId(profileId)
+                .username("Người dùng")
+                .build();
+        return ApiResponse.<UserProfileResponse>builder()
+                .code(200)
+                .result(fallback)
+                .build();
+    }
 }

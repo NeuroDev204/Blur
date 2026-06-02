@@ -18,8 +18,8 @@ Nền tảng mạng xã hội full-stack theo kiến trúc microservices: realti
 | Cache | Caffeine (L1) + Redis (L2), Redisson (distributed lock), Redis Pub/Sub, Redis Lua scripts |
 | Messaging | Apache Kafka 7.7.1 (KRaft mode, no ZooKeeper) |
 | Real-time | WebSocket — Socket.IO (chat) + STOMP/SockJS (notifications), WebRTC (video/audio) |
-| ML / AI | Python 3.11, FastAPI, PyTorch, **PhoBERT v2** (merged-dataset training), **ONNX Runtime** (5–10× faster cold start), aiokafka, Google Gemini API |
-| Data Collection | yt-dlp, YouTube Data API, TikTokApi, Playwright, pandas |
+| ML / AI | Python 3.11, FastAPI, PyTorch, **PhoBERT v2** (merged-dataset training), **ONNX Runtime** (5–10× faster cold start), aiokafka, Google Gemini API |docs/multi-level-cache-fix-guide.md
+| Data Collection | yt-dlp, YouTube Data API, TikTokApi, Playdocs/multi-level-cache-fix-guide.mdwright, pandas |
 | Infrastructure | Docker (multi-stage), Docker Compose, Nginx, Amazon Corretto 21 |
 
 ---

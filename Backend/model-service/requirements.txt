@@ -3,8 +3,8 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.25.0
 
 # ==================== ML ====================
-torch>=2.0.0
-transformers>=4.30.0
+torch==2.5.1+cpu
+transformers==5.8.1
 
 # ==================== KAFKA ====================
 aiokafka>=0.10.0

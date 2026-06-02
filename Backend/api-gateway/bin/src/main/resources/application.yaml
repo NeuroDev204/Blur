@@ -1,0 +1,141 @@
+server:
+  port: 8888
+
+app:
+  api-prefix: /api
+  services:
+    user: ${USER_SERVICE_URL:http://localhost:8081}
+    content: ${CONTENT_SERVICE_URL:http://localhost:8082}
+    communication: ${COMMUNICATION_SERVICE_URL:http://localhost:8083}
+
+
+spring:
+  application:
+    name: api-gateway
+  threads:
+    virtual:
+      enable: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI}
+  cloud:
+    gateway:
+    
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_FIRST
+      routes:
+        # User Service - Account endpoints
+        - id: user_users
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /users/${segment}
+            - name: CircuitBreaker
+              args:
+                name: userServiceCB
+                fallbackUri: forward:/fallback/user-service
+        # User Service - Test data endpoints
+        - id: user_test_data
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/test-data/**
+          filters:
+            - RewritePath=/api/test-data/(?<segment>.*), /test-data/${segment}
+
+        # User Service - Recommendation endpoints
+        - id: user_recommendations
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/recommendations/**
+          filters:
+            - RewritePath=/api/recommendations/(?<segment>.*), /recommendations/${segment}
+
+        # User Service - Profile endpoints
+        - id: user_profile_internal
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/profile/internal/**
+          filters:
+            - RewritePath=/api/profile/internal/(?<segment>.*), /internal/${segment}
+
+        - id: user_profile
+          uri: ${app.services.user}
+          predicates:
+            - Path=${app.api-prefix}/profile/**
+          filters:
+            - RewritePath=/api/profile/(?<segment>.*), /profile/${segment}
+
+        # Content Service - Comment endpoints (must be before post route)
+        - id: content_comment
+          uri: ${app.services.content}
+          predicates:
+            - Path=${app.api-prefix}/post/comment/**
+          filters:
+            - RewritePath=/api/post/(?<segment>.*), /${segment}
+
+        # Content Service - Post endpoints
+        - id: content_post
+          uri: ${app.services.content}
+          predicates:
+            - Path=${app.api-prefix}/post/**
+          filters:
+            - RewritePath=/api/post/(?<segment>.*), /posts/${segment}
+            - name: CircuitBreaker
+              args:
+                name: contentServiceCB
+                fallbackUri: forward:/fallback/content-service
+
+        # Content Service - Story endpoints
+        - id: content_story
+          uri: ${app.services.content}
+          predicates:
+            - Path=${app.api-prefix}/stories/**
+          filters:
+            - RewritePath=/api/stories/(?<segment>.*), /stories/${segment}
+
+        # Communication Service - WebSocket endpoint
+        - id: communication_websocket
+          uri: ${app.services.communication}
+          predicates:
+            - Path=/ws/**
+          filters:
+            - RewritePath=/ws(?<segment>/?.*), /chat/ws${segment}
+
+        # Communication Service - Chat endpoints
+        - id: communication_chat
+          uri: ${app.services.communication}
+          predicates:
+            - Path=${app.api-prefix}/chat/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: communicationServiceCB
+                fallbackUri: forward:/fallback/communication-service
+        # Communication Service - Notification endpoints
+        - id: communication_notification
+          uri: ${app.services.communication}
+          predicates:
+            - Path=${app.api-prefix}/notification/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /chat/${segment}
+keycloak:
+  token-uri: ${KEYCLOAK_TOKEN_URI}
+  logout-uri: ${KEYCLOAK_LOGOUT_URI}
+  client-id: ${KEYCLOAK_CLIENT_ID_GATEWAY}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET_GATEWAY}
+cookie:
+  domain: ${COOKIE_DOMAIN}
+  secure: ${COOKIE_SECURE}
+httpclient:
+  connect-timeout: 3000
+  response-timeout: 10s
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

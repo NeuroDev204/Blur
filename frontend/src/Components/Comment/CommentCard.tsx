@@ -91,7 +91,11 @@ const CommentCard: React.FC<CommentCardProps> = ({
                     <div className="flex items-start justify-between gap-3">
                         <p className="text-[13px] leading-[18px]">
                             <span className="font-semibold text-gray-900">{displayName}</span>{" "}
-                            <span className="text-gray-900">{comment.content}</span>
+                            {comment.content.startsWith("[Bình luận") ? (
+                                <span className="text-gray-700 font-medium italic">{comment.content}</span>
+                            ) : (
+                                <span className="text-gray-900">{comment.content}</span>
+                            )}
                         </p>
 
                         {/* Like button */}

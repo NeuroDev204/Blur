@@ -1,0 +1,163 @@
+server:
+  port: ${SERVER_PORT:8082}
+  address: 0.0.0.0
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:content-service}
+  threads:
+    virtual:
+      enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI}
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: neo4j
+      password: ${NEO4J_PASSWORD:12345678}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: 1
+      timeout: ${REDIS_TIME_OUT:60000}
+      lettuce:
+        pool:
+          max-active: ${MAX_ACTIVE:8}
+          max-idle: ${MAX_IDLE:8}
+          min-idle: ${MIN_IDLE:0}
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${TIME_TO_LIVE:600000}
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: ${REDIS_KEY_PREFIX:content-service:}
+      enable-statistics: true
+redisson:
+  single-server-config:
+    address: "redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}"
+    database: 1
+    connection-minimum-idle-size: 2
+    connection-pool=size: 16
+app:
+  service:
+    profile:
+      url: ${PROFILE_SERVICE_URL:http://localhost:8081}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: content-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10 #xet 10 call gan nhat
+        minimum-number-of-calls: 5 # can toi thieu 5 call truoc khi danh gia
+        failure-rate-threshold: 50 # 50% loi -> open
+        wait-duration-in-open-state: #doi 30s truoc khi thu half_open
+          seconds: 30
+        permitted-number-of-calls-in-half-open-state: 3 # thu 3 call trong half_open
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions: #cac exception duoc tinh la failure
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.FeignException.InternalServerError
+          - feign.FeignException.ServiceUnavailable
+          - feign.FeignException.GatewayTimeout
+        ignore-exceptions: #khong tinh la failure (loi business logic)
+          - feign.FeignException.BadRequest
+          - feign.FeignException.NotFound
+          - feign.FeignException.Unauthorized
+          - feign.FeignException.Forbidden
+    instances:
+      userServiceCB:
+        base-config: default
+      communicationServiceCB:
+        base-config: default
+        failure-rate-threshold: 60 # cho phep ti le loi cao hon vi notification khong critical
+        wait-duration-in-open-state:
+          seconds: 15
+  retry:
+    configs:
+      default:
+        max-attempts: 3 # toi da 3 lan ( 1 goc + 2 retry)
+        wait-duration:
+          seconds: 0.5 #doi 0.5s giua cac retry
+        enable-exponential-backoff: true # 0.5s -> 1s -> 2s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - feign.RetryableException
+          - feign.FeignException.ServiceUnavailable
+        ignore-exceptions:
+          - feign.FeignException.BadRequest
+          - feign.FeignException.NotFound
+          - feign.FeignException.Unauthorized
+          - feign.FeignException.Forbidden
+    instances:
+      userServiceRetry:
+        base-config: default
+      communicationServiceRetry:
+        base-config: default
+        max-attempts: 2 # notification chi retry 1 lan
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 20 #toi da 20 call dong thoi
+        max-wait-duration:
+          seconds: 0.5
+    instances:
+      userServiceBH:
+        base-config: default
+        max-concurrent-calls: 25 #user service duoc goi nhieu nhat
+      communicationServiceBH:
+        base-config: default
+        max-concurrent-calls: 10
+  timelimiter:
+    configs:
+      default:
+        timeout-duration:
+          seconds: 3
+        cancel-running-future: true
+    instances:
+      userServiceTL:
+        base-config: default
+        timeout-duration:
+          seconds: 5
+      communicationServiceTL:
+        base-config: default
+        timeout-duration:
+          seconds: 2
+logging:
+  level:
+    com.contentservice.configuration: DEBUG
+    org.springframework.data.neo4j.cypher.deprecation: ERROR
+    org.springframework.data.neo4j.cypher.performance: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,caches,metrics
+  endpoint:
+    health:
+      show-details: always
+    caches:
+      enabled: true

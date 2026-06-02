@@ -33,7 +33,11 @@ public class ResilientUserServiceClient {
         return profileClient.getProfileById(profileId);
     }
 
-    private ApiResponse<UserProfileResponse> getProfileFallBack(String userId, Throwable t) {
+    private ApiResponse<UserProfileResponse> getProfileFallback(String userId, Throwable t) {
         return fallback.getProfileFallback(userId, t);
+    }
+
+    private ApiResponse<UserProfileResponse> getUserProfileIdFallback(String profileId, Throwable t) {
+        return fallback.getUserProfileIdFallback(profileId, t);
     }
 }
