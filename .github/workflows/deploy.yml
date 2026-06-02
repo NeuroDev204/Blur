@@ -1,0 +1,117 @@
+name: Build & Deploy Production
+
+on:
+  push:
+    branches: [production]
+
+jobs:
+  # ============================================================
+  # Build & push tất cả Docker images song song (matrix)
+  # Mỗi service chạy trong 1 GitHub Actions runner riêng
+  # ============================================================
+  build:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false    # Nếu 1 service fail, các service khác vẫn tiếp tục
+      matrix:
+        include:
+          - service: api-gateway
+            context: ./Backend/api-gateway
+            image: vansy1001/api-gateway
+
+          - service: user-service
+            context: ./Backend/user-service
+            image: vansy1001/user-service
+
+          - service: content-service
+            context: ./Backend/content-service
+            image: vansy1001/content-service
+
+          - service: communication-service
+            context: ./Backend/communication-service
+            image: vansy1001/communication-service
+
+          - service: model-service
+            context: ./Backend/model-service
+            image: vansy1001/model-service
+            # Lưu ý: image này KHÔNG có model files (không có trong git)
+            # Models được mount từ /opt/blur/models/ trên server
+
+          - service: frontend
+            context: ./frontend
+            image: vansy1001/blur-frontend
+            # Vite sẽ đọc frontend/.env.production tại build time
+            # → VITE_API_BASE_URL=https://blur.io.vn/api được inline vào bundle
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ matrix.image }}:latest
+            ${{ matrix.image }}:${{ github.sha }}
+          # Layer cache — tránh build lại những gì chưa thay đổi
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # ============================================================
+  # Deploy lên server sau khi TẤT CẢ images build xong
+  # ============================================================
+  deploy:
+    name: Deploy to Production
+    needs: build          # Chờ job build hoàn thành
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy Keycloak realm config lên server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "Backend/keycloak/blur-realm.json"
+          target: "/opt/blur/"
+          strip_components: 2   # Bỏ Backend/keycloak/ prefix → file đến /opt/blur/blur-realm.json
+
+      - name: SSH & Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 15m    # Timeout cho toàn bộ script deploy
+          script: |
+            set -e    # Dừng nếu bất kỳ lệnh nào fail
+            cd /opt/blur
+
+            echo "=== [$(date)] Pulling new Docker images ==="
+            docker compose --env-file .env -f docker-compose.prod.yml pull
+
+            echo "=== [$(date)] Restarting services ==="
+            docker compose --env-file .env -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "=== [$(date)] Removing old unused images ==="
+            docker image prune -f
+
+            echo "=== [$(date)] Service status ==="
+            docker compose --env-file .env -f docker-compose.prod.yml ps
+
+            echo "=== Deploy finished: $(date) ==="
