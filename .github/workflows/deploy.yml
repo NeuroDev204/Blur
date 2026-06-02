@@ -109,22 +109,20 @@ jobs:
             echo "=== [$(date)] Stopping old containers ==="
             $DC down --remove-orphans
 
-            echo "=== [$(date)] Starting infrastructure ==="
-            $DC up -d neo4j keycloak-mysql mongo redis kafka
-
-            echo "=== [$(date)] Waiting for infrastructure to be healthy ==="
-            $DC wait neo4j keycloak-mysql mongo redis
+            echo "=== [$(date)] Starting infrastructure (--wait = chờ healthcheck pass) ==="
+            $DC up -d --wait neo4j keycloak-mysql mongo redis kafka
 
             echo "=== [$(date)] Starting Keycloak ==="
-            $DC up -d keycloak
-            $DC wait keycloak
+            $DC up -d --wait keycloak
 
             echo "=== [$(date)] Starting microservices ==="
-            $DC up -d user-service content-service communication-service model-service
-            $DC wait user-service content-service communication-service
+            $DC up -d --wait user-service content-service communication-service
+
+            echo "=== [$(date)] Starting model-service (không wait — load PhoBERT ~3 phút) ==="
+            $DC up -d model-service
 
             echo "=== [$(date)] Starting gateway and frontend ==="
-            $DC up -d api-gateway frontend
+            $DC up -d --wait api-gateway frontend
 
             echo "=== [$(date)] Cleaning old images ==="
             docker image prune -f
