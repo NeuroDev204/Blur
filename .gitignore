@@ -10,7 +10,8 @@
 /Backend/docs/blur-comprehensive-upgrade-guide.md
 # Large ML model artifacts
 *.safetensors
-/Backend/model-service/models/
+/Backend/model-service/models/*
+!/Backend/model-service/models/.gitkeep
 
 # IDE/editor files
 /.idea/
