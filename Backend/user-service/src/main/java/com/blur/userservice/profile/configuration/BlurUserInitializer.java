@@ -32,6 +32,7 @@ public class BlurUserInitializer implements ApplicationRunner {
     private final KeycloakUserService keycloakUserService;
 
     @Override
+
     public void run(ApplicationArguments args) {
         UserProfile blur = userProfileRepository.findByUsername(BLUR_USERNAME)
                 .orElseGet(this::createBlurUserProfile);
