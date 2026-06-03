@@ -102,8 +102,7 @@ public class BlurUserInitializer implements ApplicationRunner {
                     "Blur",
                     "",
                     blur.getUserId(),
-                    List.of("USER")
-            );
+                    List.of("USER"));
         } catch (Exception e) {
             log.error("Failed to ensure Blur system user in Keycloak: {}", e.getMessage(), e);
         }
