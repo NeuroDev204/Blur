@@ -378,7 +378,7 @@ const ChatArea = ({
     });
 
     try {
-      const response = await fetch('http://localhost:8888/api/chat/ai/chat', {
+      const response = await fetch('/api/chat/ai/chat', {
         method: 'POST',
         credentials: 'include',
         headers: {

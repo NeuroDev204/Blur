@@ -56,7 +56,7 @@ const UserSearchBar = ({ onSelectUser, onConversationCreated }) => {
 
   const createConversation = async (userId) => {
     try {
-      const response = await fetch('http://localhost:8888/api/chat/conversations/create', {
+      const response = await fetch('/api/chat/conversations/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
