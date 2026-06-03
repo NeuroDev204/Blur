@@ -8,31 +8,56 @@ const axiosClient: AxiosInstance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true, // ⭐ QUAN TRỌNG: Cho phép gửi/nhận cookies
+    withCredentials: true,
 })
 
-// Không cần interceptor để gắn token vào header nữa
-// Browser sẽ tự động gửi HttpOnly Cookie
+let isRefreshing = false
+let refreshQueue: Array<{ resolve: () => void; reject: (err: unknown) => void }> = []
 
 axiosClient.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-        // Không cần gắn Authorization header nữa
-        // Cookie sẽ được browser tự động gửi với withCredentials: true
-        return config
-    },
-    (error: AxiosError) => {
-        return Promise.reject(error)
-    }
+    (config: InternalAxiosRequestConfig) => config,
+    (error: AxiosError) => Promise.reject(error)
 )
 
 axiosClient.interceptors.response.use(
-    (response: AxiosResponse) => {
-        return response
-    },
-    (error: AxiosError<{ message?: string; code?: number }>) => {
-        // ⭐ KHÔNG tự động redirect về login khi 401
-        // Để Router xử lý authentication check
-        // Chỉ reject error để caller xử lý
+    (response: AxiosResponse) => response,
+    async (error: AxiosError<{ message?: string; code?: number }>) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            // Refresh endpoint itself returning 401 means session is truly expired
+            if (originalRequest.url?.includes('/auth/refresh')) {
+                window.location.href = '/login'
+                return Promise.reject(error)
+            }
+
+            originalRequest._retry = true
+
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    refreshQueue.push({
+                        resolve: () => resolve(axiosClient(originalRequest)),
+                        reject,
+                    })
+                })
+            }
+
+            isRefreshing = true
+            try {
+                await axiosClient.post('/auth/refresh')
+                isRefreshing = false
+                refreshQueue.forEach(({ resolve }) => resolve())
+                refreshQueue = []
+                return axiosClient(originalRequest)
+            } catch {
+                isRefreshing = false
+                refreshQueue.forEach(({ reject: rej }) => rej(new Error('Session expired')))
+                refreshQueue = []
+                window.location.href = '/login'
+                return Promise.reject(error)
+            }
+        }
+
         return Promise.reject(error)
     }
 )
