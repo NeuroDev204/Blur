@@ -104,13 +104,11 @@ jobs:
             DC="docker compose --env-file .env -f docker-compose.prod.yml"
 
             echo "=== [$(date)] Pulling new images ==="
-            $DC pull
+            $DC pull api-gateway user-service content-service communication-service model-service frontend
 
-            echo "=== [$(date)] Stopping old containers ==="
-            $DC down --remove-orphans
-
-            echo "=== [$(date)] Starting all services ==="
-            $DC up -d
+            echo "=== [$(date)] Rolling restart app services (infra stays up) ==="
+            $DC up -d --no-deps --remove-orphans \
+              api-gateway user-service content-service communication-service model-service frontend
 
             echo "=== [$(date)] Cleaning old images ==="
             docker image prune -f
