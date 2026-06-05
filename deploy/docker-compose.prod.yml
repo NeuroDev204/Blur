@@ -176,8 +176,8 @@ services:
       TIME_TO_LIVE: 600000
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: blur
-      # issuer-uri: dùng internal Docker DNS để Spring Security fetch metadata
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/blur
+      # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
+      KEYCLOAK_ISSUER_URI: https://blur.io.vn/realms/blur
       # jwk-set-uri dùng internal Docker DNS để fetch keys (không qua internet)
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/blur/protocol/openid-connect/certs
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/blur/protocol/openid-connect/token
@@ -229,8 +229,8 @@ services:
       TIME_TO_LIVE: 600000
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9093
       USER_SERVICE_URL: http://user-service:8081
-      # issuer-uri: dùng internal Docker DNS để Spring Security fetch metadata
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/blur
+      # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
+      KEYCLOAK_ISSUER_URI: https://blur.io.vn/realms/blur
       # jwk-set-uri dùng internal Docker DNS để fetch keys (không qua internet)
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/blur/protocol/openid-connect/certs
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
@@ -273,8 +273,8 @@ services:
       TIME_TO_LIVE: 600000
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9093
       USER_SERVICE_URL: http://user-service:8081
-      # issuer-uri: dùng internal Docker DNS để Spring Security fetch metadata
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/blur
+      # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
+      KEYCLOAK_ISSUER_URI: https://blur.io.vn/realms/blur
       # jwk-set-uri dùng internal Docker DNS để fetch keys (không qua internet)
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/blur/protocol/openid-connect/certs
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
@@ -335,8 +335,8 @@ services:
       USER_SERVICE_URL: http://user-service:8081
       CONTENT_SERVICE_URL: http://content-service:8082
       COMMUNICATION_SERVICE_URL: http://communication-service:8083
-      # issuer-uri: dùng internal Docker DNS để Spring Security fetch metadata
-      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/blur
+      # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
+      KEYCLOAK_ISSUER_URI: https://blur.io.vn/realms/blur
       # jwk-set-uri dùng internal Docker DNS để fetch keys (không qua internet)
       KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/blur/protocol/openid-connect/certs
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/blur/protocol/openid-connect/token
