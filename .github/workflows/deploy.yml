@@ -103,12 +103,37 @@ jobs:
             cd /opt/blur
             DC="docker compose --env-file .env -f docker-compose.prod.yml"
 
+            wait_healthy() {
+              local service=$1
+              local timeout=${2:-180}
+              echo "Waiting for $service to be healthy (timeout: ${timeout}s)..."
+              local elapsed=0
+              until [ "$(docker inspect --format '{{.State.Health.Status}}' "$service" 2>/dev/null)" = "healthy" ]; do
+                if [ $elapsed -ge $timeout ]; then
+                  echo "ERROR: $service did not become healthy within ${timeout}s"
+                  docker logs --tail 50 "$service"
+                  exit 1
+                fi
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+              echo "$service is healthy."
+            }
+
             echo "=== [$(date)] Pulling new images ==="
             $DC pull api-gateway user-service content-service communication-service model-service frontend
 
-            echo "=== [$(date)] Rolling restart app services (infra stays up) ==="
-            $DC up -d --no-deps --remove-orphans \
-              api-gateway user-service content-service communication-service model-service frontend
+            echo "=== [$(date)] Tier 1: user-service ==="
+            $DC up -d --no-deps user-service
+            wait_healthy user-service 180
+
+            echo "=== [$(date)] Tier 2: content-service & communication-service ==="
+            $DC up -d --no-deps content-service communication-service
+            wait_healthy content-service 180
+            wait_healthy communication-service 180
+
+            echo "=== [$(date)] Tier 3: api-gateway, model-service, frontend ==="
+            $DC up -d --no-deps --remove-orphans api-gateway model-service frontend
 
             echo "=== [$(date)] Cleaning old images ==="
             docker image prune -f
