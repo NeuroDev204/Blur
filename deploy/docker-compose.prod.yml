@@ -176,6 +176,9 @@ services:
       MAX_IDLE: 8
       MIN_IDLE: 0
       TIME_TO_LIVE: 600000
+      # user-service gọi nội bộ sang content/communication; nếu thiếu sẽ fallback localhost → connection refused
+      CONTENT_SERVICE_URL: http://content-service:8082
+      NOTIFICATION_SERVICE_URL: http://communication-service:8083
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: blur
       # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
