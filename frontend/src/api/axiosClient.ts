@@ -26,8 +26,7 @@ axiosClient.interceptors.response.use(
 
         if (error.response?.status === 401 && !originalRequest._retry) {
             // Refresh endpoint itself returning 401 means session is truly expired
-            if (originalRequest.url?.includes('/auth/refresh')) {
-                window.location.href = '/login'
+            if (originalRequest.url?.includes('/auth/')) {
                 return Promise.reject(error)
             }
 
@@ -45,16 +44,15 @@ axiosClient.interceptors.response.use(
             isRefreshing = true
             try {
                 await axiosClient.post('/auth/refresh')
-                isRefreshing = false
                 refreshQueue.forEach(({ resolve }) => resolve())
                 refreshQueue = []
                 return axiosClient(originalRequest)
             } catch {
-                isRefreshing = false
                 refreshQueue.forEach(({ reject: rej }) => rej(new Error('Session expired')))
                 refreshQueue = []
-                window.location.href = '/login'
                 return Promise.reject(error)
+            } finally {
+                isRefreshing = false
             }
         }
 

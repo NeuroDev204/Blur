@@ -131,6 +131,8 @@ public class AuthProxyController {
                     } else {
                         log.error("Keycloak refresh failed: {}", e.getMessage(), e);
                     }
+                    response.addCookie(createLogoutCookie("access_token", "/"));
+                    response.addCookie(createLogoutCookie("refresh_token", "/api/auth/refresh"));
                     response.setStatusCode(HttpStatus.UNAUTHORIZED);
                     return Mono.just(Map.of("code", 1006, "message", "Refresh failed"));
                 });
@@ -143,9 +145,8 @@ public class AuthProxyController {
             @CookieValue(name = "refresh_token", required = false) String refreshToken,
             ServerHttpResponse response
     ) {
-        // xoa cookies truoc
-        response.addCookie(createLogoutCookie("access_token"));
-        response.addCookie(createLogoutCookie("refresh_token"));
+        response.addCookie(createLogoutCookie("access_token", "/"));
+        response.addCookie(createLogoutCookie("refresh_token", "/api/auth/refresh"));
 
         // goi keycloak logout (neu co refresh token)
         if (refreshToken != null && !refreshToken.isEmpty()) {
@@ -203,11 +204,11 @@ public class AuthProxyController {
                 .build();
     }
 
-    private ResponseCookie createLogoutCookie(String name) {
+    private ResponseCookie createLogoutCookie(String name, String path) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .path("/")
+                .path(path)
                 .maxAge(0)
                 .sameSite("Lax")
                 .domain(cookieDomain)
