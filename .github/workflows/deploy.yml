@@ -124,6 +124,16 @@ jobs:
           target: "/opt/blur/"
           strip_components: 2   # Bỏ Backend/keycloak/ prefix → file đến /opt/blur/blur-realm.json
 
+      - name: Copy docker-compose.prod.yml lên server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/docker-compose.prod.yml"
+          target: "/opt/blur/"
+          strip_components: 1   # Bỏ deploy/ prefix → file đến /opt/blur/docker-compose.prod.yml
+
       - name: SSH & Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -135,6 +145,7 @@ jobs:
             set -e
             cd /opt/blur
             DC="docker compose --env-file .env -f docker-compose.prod.yml"
+            APP_SERVICES="api-gateway user-service content-service communication-service model-service frontend"
 
             wait_healthy() {
               local service=$1
@@ -154,12 +165,29 @@ jobs:
             }
 
             echo "=== [$(date)] Ensuring infra services are running ==="
-            $DC up -d neo4j keycloak-mysql redis kafka mongo keycloak
+            $DC up -d neo4j keycloak-mysql redis kafka mongo
             wait_healthy kafka 120
             wait_healthy redis 60
+            wait_healthy keycloak-mysql 120
+
+            echo "=== [$(date)] Recreating Keycloak (ensure realm import) ==="
+            $DC up -d --force-recreate keycloak
+            wait_healthy keycloak 300
+
+            echo "=== [$(date)] Stopping app containers ==="
+            $DC stop $APP_SERVICES || true
+            $DC rm -f $APP_SERVICES || true
+
+            echo "=== [$(date)] Removing old app images ==="
+            docker rmi vansy1001/api-gateway:latest || true
+            docker rmi vansy1001/user-service:latest || true
+            docker rmi vansy1001/content-service:latest || true
+            docker rmi vansy1001/communication-service:latest || true
+            docker rmi vansy1001/model-service:latest || true
+            docker rmi vansy1001/blur-frontend:latest || true
 
             echo "=== [$(date)] Pulling new images ==="
-            $DC pull api-gateway user-service content-service communication-service model-service frontend
+            $DC pull $APP_SERVICES
 
             echo "=== [$(date)] Tier 1: user-service ==="
             $DC up -d --no-deps user-service
@@ -173,7 +201,7 @@ jobs:
             echo "=== [$(date)] Tier 3: api-gateway, model-service, frontend ==="
             $DC up -d --no-deps --remove-orphans api-gateway model-service frontend
 
-            echo "=== [$(date)] Cleaning old images ==="
+            echo "=== [$(date)] Cleaning dangling images ==="
             docker image prune -f
 
             echo "=== [$(date)] Service status ==="
