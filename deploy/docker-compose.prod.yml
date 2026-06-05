@@ -135,9 +135,10 @@ services:
       KC_DB_PASSWORD: ${MYSQL_KEYCLOAK_PASSWORD}
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      # KC_HOSTNAME_URL ghi đè toàn bộ base URL — buộc issuer trong JWT là https://blur.io.vn/realms/blur
-      KC_HOSTNAME_URL: https://blur.io.vn
-      KC_HOSTNAME_ADMIN_URL: https://blur.io.vn
+      # KC_HOSTNAME_URL bị xóa từ Keycloak 25+ → dùng KC_HOSTNAME
+      # KC_HOSTNAME=blur.io.vn (không có scheme) → Keycloak tự dùng https://
+      # → issuer trong JWT = https://blur.io.vn/realms/blur
+      KC_HOSTNAME: blur.io.vn
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
