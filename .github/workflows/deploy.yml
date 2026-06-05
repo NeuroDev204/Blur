@@ -57,14 +57,47 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Delete all existing tags on Docker Hub
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          NAMESPACE=$(echo "$IMAGE" | cut -d/ -f1)
+          REPO=$(echo "$IMAGE" | cut -d/ -f2)
+
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$DOCKERHUB_USERNAME\",\"password\":\"$DOCKERHUB_TOKEN\"}" \
+            | jq -r .token)
+
+          PAGE=1
+          while true; do
+            RESPONSE=$(curl -s \
+              "https://hub.docker.com/v2/repositories/$NAMESPACE/$REPO/tags/?page_size=100&page=$PAGE" \
+              -H "Authorization: JWT $TOKEN")
+
+            TAGS=$(echo "$RESPONSE" | jq -r '.results[].name // empty')
+            [ -z "$TAGS" ] && break
+
+            for TAG in $TAGS; do
+              echo "Deleting $IMAGE:$TAG"
+              curl -s -X DELETE \
+                "https://hub.docker.com/v2/repositories/$NAMESPACE/$REPO/tags/$TAG/" \
+                -H "Authorization: JWT $TOKEN" -w " -> HTTP %{http_code}\n" -o /dev/null
+            done
+
+            NEXT=$(echo "$RESPONSE" | jq -r '.next // empty')
+            [ -z "$NEXT" ] && break
+            PAGE=$((PAGE + 1))
+          done
+
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           push: true
-          tags: |
-            ${{ matrix.image }}:latest
-            ${{ matrix.image }}:${{ github.sha }}
+          tags: ${{ matrix.image }}:latest
           # Layer cache — tránh build lại những gì chưa thay đổi
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
@@ -119,6 +152,11 @@ jobs:
               done
               echo "$service is healthy."
             }
+
+            echo "=== [$(date)] Ensuring infra services are running ==="
+            $DC up -d neo4j keycloak-mysql redis kafka mongo keycloak
+            wait_healthy kafka 120
+            wait_healthy redis 60
 
             echo "=== [$(date)] Pulling new images ==="
             $DC pull api-gateway user-service content-service communication-service model-service frontend
