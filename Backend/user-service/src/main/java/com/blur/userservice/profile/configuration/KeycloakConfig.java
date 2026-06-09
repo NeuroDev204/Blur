@@ -27,11 +27,11 @@ public class KeycloakConfig {
 
     @Bean
     public Keycloak keycloak() {
-        ResteasyClient httpClient = (ResteasyClient) ResteasyClientBuilder.newBuilder()
-                .connectionPoolSize(10)
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
+        ResteasyClientBuilder builder = (ResteasyClientBuilder) ResteasyClientBuilder.newBuilder();
+        builder.connectionPoolSize(10);
+        builder.connectTimeout(5, TimeUnit.SECONDS);
+        builder.readTimeout(15, TimeUnit.SECONDS);
+        ResteasyClient httpClient = (ResteasyClient) builder.build();
 
         return KeycloakBuilder.builder()
                 .serverUrl(serverUrl)
