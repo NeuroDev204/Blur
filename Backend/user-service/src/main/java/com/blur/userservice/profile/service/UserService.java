@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -99,11 +100,15 @@ public class UserService {
                     userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
                     userProfileRepository.updateFollowCounts(savedProfile.getId());
                     userProfileRepository.updateFollowCounts(blurUser.getId());
-                    try {
-                        contentServiceClient.backfillFeed(savedProfile.getUserId(), blurUser.getUserId());
-                    } catch (Exception e) {
-                        log.warn("Feed backfill failed for new user {}: {}", savedProfile.getUserId(), e.getMessage());
-                    }
+                    String followerUserId = savedProfile.getUserId();
+                    String followedUserId = blurUser.getUserId();
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            contentServiceClient.backfillFeed(followerUserId, followedUserId);
+                        } catch (Exception e) {
+                            log.warn("Feed backfill failed for new user {}: {}", followerUserId, e.getMessage());
+                        }
+                    });
                 }
             });
         } catch (Exception e) {
