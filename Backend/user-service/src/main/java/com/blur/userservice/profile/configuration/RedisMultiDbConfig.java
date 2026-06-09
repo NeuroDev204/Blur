@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachingConfigurer;
@@ -37,6 +38,12 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisMultiDbConfig implements CachingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(RedisMultiDbConfig.class);
+
+    @Value("${spring.data.redis.host:localhost}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port:6379}")
+    private int redisPort;
 
     @Override
     public CacheErrorHandler errorHandler() {
@@ -98,6 +105,8 @@ public class RedisMultiDbConfig implements CachingConfigurer {
     @Primary
     public LettuceConnectionFactory redisDb0Factory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName(redisHost);
+        config.setPort(redisPort);
         config.setDatabase(0);
         return new LettuceConnectionFactory(config);
     }
@@ -105,6 +114,8 @@ public class RedisMultiDbConfig implements CachingConfigurer {
     @Bean("redisDb2Factory")
     public LettuceConnectionFactory redisDb2Factory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName(redisHost);
+        config.setPort(redisPort);
         config.setDatabase(2);
         return new LettuceConnectionFactory(config);
     }
