@@ -147,7 +147,6 @@ resilience4j:
           seconds: 2
 logging:
   level:
-    com.contentservice.configuration: DEBUG
     org.springframework.data.neo4j.cypher.deprecation: ERROR
     org.springframework.data.neo4j.cypher.performance: WARN
 
