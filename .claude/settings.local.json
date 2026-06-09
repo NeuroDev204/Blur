@@ -177,7 +177,10 @@
       "Bash(find \"d:\\\\\\\\Blur\" -name \"*.sh\" -type f)",
       "Bash(find \"d:\\\\\\\\Blur\\\\\\\\Backend\" -name \"Dockerfile\" -type f)",
       "Bash(grep -r \"SERVER_PORT\\\\|server.port\\\\|port:\" \"d:\\\\\\\\Blur\\\\\\\\Backend\" --include=\"*.yaml\" --include=\"*.yml\" --include=\"*.properties\")",
-      "Bash(ls -la \"d:\\\\\\\\Blur\\\\\\\\blur-deploy\")"
+      "Bash(ls -la \"d:\\\\\\\\Blur\\\\\\\\blur-deploy\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",
