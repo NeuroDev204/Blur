@@ -43,7 +43,6 @@ public class UserService {
     KeycloakUserService keycloakUserService;
     FieldEncryptionService fieldEncryptionService;
 
-    @Transactional
     public UserResponse createUser(UserCreationRequest request) {
         if (userProfileRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new AppException(ErrorCode.USER_EXISTED);
