@@ -97,6 +97,16 @@ public class TwoLevelCache implements Cache {
         publisher.publishInvalidation(name, key.toString());
     }
 
+    // Called by CacheInvalidationSubscriber to evict only the local L1 cache
+    // without re-publishing to Redis (which would cause an infinite pub/sub loop).
+    public void evictLocalOnly(Object key) {
+        l1Cache.evict(key);
+    }
+
+    public void clearLocalOnly() {
+        l1Cache.clear();
+    }
+
     @Override
     public void clear() {
         l2Cache.clear();

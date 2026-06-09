@@ -25,13 +25,16 @@ public class CacheInvalidationSubscriber implements MessageListener {
                 String cacheName = parts[0];
                 String key = parts[1];
                 Cache cache = cacheManager.getCache(cacheName);
-                if (cache != null) {
+                // Must call evictLocalOnly/clearLocalOnly — NOT cache.evict()/cache.clear().
+                // cache.evict() on TwoLevelCache re-publishes to Redis, which triggers this
+                // listener again, creating an infinite pub/sub loop that exhausts heap.
+                if (cache instanceof TwoLevelCache twoLevel) {
                     if ("*".equals(key)) {
-                        cache.clear();
+                        twoLevel.clearLocalOnly();
                         log.debug("L1 cache cleared via pub/sub: {}", cacheName);
                     } else {
-                        cache.evict(key);
-                        log.debug("L1 cache evicted via pub/sub: {}:: {}", cacheName, key);
+                        twoLevel.evictLocalOnly(key);
+                        log.debug("L1 cache evicted via pub/sub: {}::{}", cacheName, key);
                     }
                 }
             }
