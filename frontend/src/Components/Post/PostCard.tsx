@@ -431,6 +431,8 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   const handleClickUserName = () => {
     if (post?.profileId && post.profileId !== "null") {
       navigate(`/profile/user/?profileId=${post.profileId}`);
+    } else if (post?.userId) {
+      navigate(`/profile/user/?userId=${post.userId}`);
     }
   };
   const isCurrentUserPostOwner = post?.userId === (user?.userId || user?.id);

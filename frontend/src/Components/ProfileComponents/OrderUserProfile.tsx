@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   fetchUserInfo,
   fetchUserProfileById,
+  fetchUserByUserId,
   getFollowers,
   getFollowings,
   followUser,
@@ -28,6 +29,7 @@ const ProfileUserDetails = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [params] = useSearchParams();
   const profileId = params.get("profileId");
+  const userId = params.get("userId");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,7 +39,10 @@ const ProfileUserDetails = () => {
         const loggedInUser = await fetchUserInfo();
         setCurrentUser(loggedInUser);
 
-        const profileData = await fetchUserProfileById(profileId);
+        // Support both profileId (Neo4j ID) and userId (Keycloak ID, from feed items)
+        const profileData = userId
+          ? await fetchUserByUserId(userId)
+          : await fetchUserProfileById(profileId);
         setUser(profileData);
 
         if (profileData?.id) {
@@ -62,10 +67,10 @@ const ProfileUserDetails = () => {
       }
     };
 
-    if (profileId && profileId !== "null") {
+    if ((profileId && profileId !== "null") || userId) {
       fetchData();
     }
-  }, [profileId]);
+  }, [profileId, userId]);
 
   const handleFollowToggle = async () => {
     if (!currentUser) return;
