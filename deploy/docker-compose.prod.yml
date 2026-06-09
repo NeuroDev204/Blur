@@ -237,6 +237,9 @@ services:
       # content-service Feign ProfileClient đọc PROFILE_SERVICE_URL (không phải USER_SERVICE_URL).
       # Thiếu biến này → fallback localhost:8081 → connection refused → getProfile null → tạo post lỗi.
       PROFILE_SERVICE_URL: http://user-service:8081
+      # content-service ModerationResultConsumer gọi communication-service qua Feign để gửi WebSocket update.
+      # Thiếu biến này → fallback localhost:8083/chat → connection refused.
+      COMMUNICATION_SERVICE_URL: http://communication-service:8083/chat
       # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
       KEYCLOAK_ISSUER_URI: https://blur.io.vn/realms/blur
       # jwk-set-uri dùng internal Docker DNS để fetch keys (không qua internet)
@@ -253,6 +256,8 @@ services:
       kafka:
         condition: service_healthy
       user-service:
+        condition: service_healthy
+      communication-service:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:

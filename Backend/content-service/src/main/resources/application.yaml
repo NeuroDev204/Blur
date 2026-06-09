@@ -52,6 +52,8 @@ app:
   service:
     profile:
       url: ${PROFILE_SERVICE_URL:http://localhost:8081}
+  services:
+    communication: ${COMMUNICATION_SERVICE_URL:http://localhost:8083/chat}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
@@ -149,6 +151,7 @@ logging:
   level:
     org.springframework.data.neo4j.cypher.deprecation: ERROR
     org.springframework.data.neo4j.cypher.performance: WARN
+    org.springframework.data.neo4j.cypher.generic: ERROR
 
 management:
   endpoints:
