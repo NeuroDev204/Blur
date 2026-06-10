@@ -49,7 +49,7 @@ const ProfileUserDetails = () => {
   if (isLoading) {
     return (
       <div className="py-10 w-full px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 animate-pulse">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8 animate-pulse">
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="w-32 h-32 rounded-full bg-gradient-to-br from-sky-100 to-blue-100"></div>
             <div className="flex-1 space-y-4 w-full">
@@ -65,7 +65,7 @@ const ProfileUserDetails = () => {
 
   return (
     <div className="py-10 w-full px-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 hover:shadow-md transition-shadow duration-300">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8 hover:shadow-md transition-shadow duration-300">
         <div className="flex flex-col md:flex-row items-center gap-8">
           {/* Profile Image with gradient ring */}
           <div className="relative group">

@@ -180,7 +180,10 @@
       "Bash(ls -la \"d:\\\\\\\\Blur\\\\\\\\blur-deploy\")",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Blur\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(ssh -o StrictHostKeyChecking=no root@blur.io.vn \"docker logs user-service --tail=80 2>&1\")"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",

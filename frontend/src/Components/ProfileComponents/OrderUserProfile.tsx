@@ -123,7 +123,7 @@ const ProfileUserDetails = () => {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-10 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 animate-pulse">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8 animate-pulse">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="w-32 h-32 rounded-full bg-gradient-to-br from-sky-100 to-blue-100"></div>
               <div className="flex-1 space-y-4 w-full">
@@ -142,7 +142,7 @@ const ProfileUserDetails = () => {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-10 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Profile Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6 hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8 mb-6 hover:shadow-md transition-shadow duration-300">
           <div className="flex flex-col md:flex-row items-center gap-8">
             {/* Avatar */}
             <div className="relative group">
@@ -181,7 +181,7 @@ const ProfileUserDetails = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       onClick={handleFollowToggle}
                       disabled={isActionLoading}
@@ -263,7 +263,7 @@ const ProfileUserDetails = () => {
         </div>
 
         {/* Posts Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
           <div className="flex items-center gap-3 mb-6">
             <MdGridOn className="w-6 h-6 text-sky-500" />
             <h3 className="text-xl font-bold text-gray-800">Posts</h3>

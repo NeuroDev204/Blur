@@ -4,7 +4,7 @@ import ReqUserPostPart from '../../Components/ProfileComponents/ReqUserPostPart'
 
 const Profile: React.FC = () => {
     return (
-        <div className='px-20'>
+        <div className='md:px-20'>
             <div>
                 <ProfileUserDetails />
             </div>
