@@ -163,7 +163,16 @@ const CreatePostModal = ({
     <>
       <Modal isOpen={isOpen} onClose={handleCloseAttempt} size={{ base: "full", md: "4xl" }} isCentered>
         <ModalOverlay backdropFilter="blur(4px)" bg="blackAlpha.400" />
-        <ModalContent borderRadius={{ base: "none", md: "2xl" }} overflow="hidden" shadow="2xl" bg={isDark ? "#1e293b" : "white"}>
+        <ModalContent
+          borderRadius={{ base: "none", md: "2xl" }}
+          overflow="hidden"
+          shadow="2xl"
+          bg={isDark ? "#1e293b" : "white"}
+          height={{ base: "100dvh", md: "auto" }}
+          maxH={{ base: "100dvh", md: "90vh" }}
+          display="flex"
+          flexDir="column"
+        >
           {/* Header */}
           <ModalHeader
             textAlign="center"
@@ -190,10 +199,11 @@ const CreatePostModal = ({
             _hover={{ bg: isDark ? "#334155" : "gray.100" }}
           />
 
-          <ModalBody px={0} py={0} overflowY="auto">
+          <ModalBody px={0} py={0} overflowY="auto" flex="1" display="flex" flexDir="column">
             <Box
               display="flex"
               flexDir={{ base: "column", md: "row" }}
+              flex="1"
               minH={{ base: "0", md: "500px" }}
               maxH={{ base: "none", md: "600px" }}
             >
