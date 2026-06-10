@@ -95,10 +95,13 @@ public class UserService {
 
         // Auto-follow "blur" on registration: blur follows back, backfill feed, welcome notification
         // Uses user_id (Keycloak UUID) — always explicitly set, no SDN generated-id mapping risk
+        // Capture finals before lambdas (userProfile was reassigned above so is not effectively final)
         final String newUserId = userProfile.getUserId();
+        final String newUserName = (trimmed(userProfile.getFirstName()) + " " + trimmed(userProfile.getLastName())).trim();
+        final String newUserEmail = userProfile.getEmail();
         try {
             userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
-                String blurUserId = blurUser.getUserId();
+                final String blurUserId = blurUser.getUserId();
                 if (blurUserId == null || newUserId == null || newUserId.equals(blurUserId)) {
                     log.warn("Skipping blur auto-follow: newUserId={}, blurUserId={}", newUserId, blurUserId);
                     return;
@@ -124,23 +127,19 @@ public class UserService {
                     log.warn("Follow count update failed for {}: {}", newUserId, e.getMessage());
                 }
 
-                String blurUserIdFinal = blurUserId;
-                String newUserName = trimmed(userProfile.getFirstName()) + " " + trimmed(userProfile.getLastName());
-                String newUserEmail = userProfile.getEmail();
-
                 CompletableFuture.runAsync(() -> {
                     try {
-                        contentServiceClient.backfillFeed(newUserId, blurUserIdFinal);
+                        contentServiceClient.backfillFeed(newUserId, blurUserId);
                     } catch (Exception e) {
                         log.warn("Feed backfill failed for new user {}: {}", newUserId, e.getMessage());
                     }
                     try {
                         notificationServiceClient.sendFollowNotification(
                                 FollowNotificationRequest.builder()
-                                        .senderId(blurUserIdFinal)
+                                        .senderId(blurUserId)
                                         .senderName("Blur")
                                         .receiverId(newUserId)
-                                        .receiverName(newUserName.trim())
+                                        .receiverName(newUserName)
                                         .receiverEmail(newUserEmail)
                                         .build());
                     } catch (Exception e) {
