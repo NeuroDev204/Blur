@@ -148,6 +148,22 @@ export const savePost = async (postId: string): Promise<unknown> => {
     return response.data?.result
 }
 
+export const unsavePost = async (postId: string): Promise<unknown> => {
+    const response = await axiosClient.post<ApiResponse<unknown>>(`/post/unsave/${postId}`, {})
+    if (response.data?.code !== 1000) {
+        throw new Error(response.data?.message || 'Unsave post failed')
+    }
+    return response.data?.result
+}
+
+export const getAllSavedPosts = async (): Promise<Post[]> => {
+    const response = await axiosClient.get<ApiResponse<Post[]>>('/post/all-saved')
+    if (response.data?.code !== 1000) {
+        throw new Error(`Fetch saved posts error: ${response.data?.code}`)
+    }
+    return response.data?.result || []
+}
+
 export const fetchAllComments = async (postId: string): Promise<Comment[]> => {
     const response = await axiosClient.get<ApiResponse<Comment[]>>(`/post/comment/${postId}/comments`)
     if (response.data?.code !== 1000) {

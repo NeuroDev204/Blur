@@ -2,27 +2,35 @@ import React, { useEffect, useState } from "react";
 import { BsFillBookmarkFill } from "react-icons/bs";
 import { MdGridOn } from "react-icons/md";
 import ReqUserPostCard from "./ReqUserPostCard";
-import { fetchUserPosts } from "../../api/postApi";
+import { fetchUserPosts, getAllSavedPosts } from "../../api/postApi";
 
 const ReqUserPostPart = () => {
   const [activeTab, setActiveTab] = useState("Post");
   const [posts, setPosts] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const getUserPosts = async () => {
+    const loadPosts = async () => {
       try {
         setIsLoading(true);
-        const result = await fetchUserPosts();
-        setPosts(result);
+        if (activeTab === "Saved") {
+          const result = await getAllSavedPosts();
+          setSavedPosts(result);
+        } else {
+          const result = await fetchUserPosts();
+          setPosts(result);
+        }
       } catch (error) {
       } finally {
         setIsLoading(false);
       }
     };
 
-    getUserPosts();
-  }, []);
+    loadPosts();
+  }, [activeTab]);
+
+  const displayedPosts = activeTab === "Saved" ? savedPosts : posts;
 
   const tabs = [
     { tab: "Post", icon: <MdGridOn className="w-5 h-5" />, label: "Posts" },
@@ -101,11 +109,11 @@ const ReqUserPostPart = () => {
       <div className="px-4 pt-8">
         {isLoading ? (
           <LoadingSkeleton />
-        ) : posts.length === 0 ? (
+        ) : displayedPosts.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 animate-fadeIn">
-            {posts.map((post) => (
+            {displayedPosts.map((post) => (
               <ReqUserPostCard key={post.id} post={post} />
             ))}
           </div>

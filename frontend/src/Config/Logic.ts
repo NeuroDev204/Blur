@@ -1,5 +1,20 @@
+// Backend serializes some timestamps as Instant (with trailing "Z") and others as
+// LocalDateTime (no timezone, e.g. "2026-06-10T14:00:00"). The server clock is UTC, so a
+// timezone-less ISO string must be read as UTC — otherwise new Date() treats it as local
+// time and shows a wrong offset (e.g. "7 hours ago" for a brand-new post in UTC+7).
+export const parseTimestamp = (timestamp: string | number | Date): Date => {
+    if (typeof timestamp === "string") {
+        const isIsoDateTime = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(timestamp)
+        const hasTimezone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(timestamp)
+        if (isIsoDateTime && !hasTimezone) {
+            return new Date(timestamp.replace(" ", "T") + "Z")
+        }
+    }
+    return new Date(timestamp)
+}
+
 export const timeDifference = (timestamp: string | number | Date): string | undefined => {
-    const date = new Date(timestamp)
+    const date = parseTimestamp(timestamp)
     const diff = Date.now() - date.getTime()
     const seconds = Math.floor(diff / 1000)
     const minutes = Math.floor(seconds / 60)

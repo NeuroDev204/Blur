@@ -183,7 +183,11 @@
       "Bash(git push *)",
       "Bash(Get-ChildItem -Path \"D:\\\\Blur\" -Directory)",
       "Bash(Select-Object Name)",
-      "Bash(ssh -o StrictHostKeyChecking=no root@blur.io.vn \"docker logs user-service --tail=80 2>&1\")"
+      "Bash(ssh -o StrictHostKeyChecking=no root@blur.io.vn \"docker logs user-service --tail=80 2>&1\")",
+      "Bash(git commit -m 'fix\\(user-service\\): atomic auto-follow via single Cypher query on registration *)",
+      "Bash(git commit -m 'fix\\(user-service\\): match blur case-insensitively in autoFollowBlur + log result *)",
+      "Bash(git commit -m 'fix\\(user-service\\): stop partial updates nulling fields; repair blur username *)",
+      "Bash(npx tsc *)"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",

@@ -19,8 +19,12 @@ interface NotificationPayload {
     read?: boolean
 }
 
+interface StompSubscription {
+    unsubscribe: () => void
+}
+
 interface StompClient {
-    subscribe: (destination: string, callback: (message: { body: string }) => void) => void
+    subscribe: (destination: string, callback: (message: { body: string }) => void) => StompSubscription
     activate: () => void
     deactivate: () => void
 }

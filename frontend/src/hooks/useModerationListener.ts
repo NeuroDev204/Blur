@@ -26,10 +26,16 @@ export const useModerationListener = (onModerationUpdate: ModerationCallback) =>
     }
 
     // Subscribe to moderation updates from communication-service WebSocket
-    stompClient.subscribe(`/user/queue/moderation`, handleModerationMessage)
+    const subscription = stompClient.subscribe(`/user/queue/moderation`, handleModerationMessage)
 
     return () => {
-      // Note: STOMP client unsubscribe is handled by the context
+      // Unsubscribe so handlers don't accumulate across re-renders/remounts
+      // (accumulated handlers caused one moderation event to fire many duplicate warnings).
+      try {
+        subscription?.unsubscribe?.()
+      } catch (e) {
+        // no-op: client may already be deactivated
+      }
     }
   }, [stompClient, onModerationUpdate])
 }

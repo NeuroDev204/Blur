@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { Modal, ModalBody, ModalContent, ModalOverlay, useToast } from "@chakra-ui/react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { Modal, ModalBody, ModalContent, ModalOverlay } from "@chakra-ui/react";
 import {
   BsBookmark,
   BsBookmarkFill,
@@ -20,7 +20,6 @@ import "swiper/css/pagination";
 import { timeDifference } from "../../Config/Logic";
 import EmojiPicker from "emoji-picker-react";
 import { fetchUserByUserId } from "../../api/userApi";
-import { useModerationListener } from "../../hooks/useModerationListener";
 
 const CommentModal = ({
   user,
@@ -45,26 +44,10 @@ const CommentModal = ({
   const [replyingTo, setReplyingTo] = useState(null); // { id, isReply }
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const toast = useToast();
 
-  // ================== MODERATION LISTENER - REAL-TIME IN MODAL ==================
-  const handleModerationUpdate = useCallback((update) => {
-    if (update.postId !== post?.id) return;
-
-    if (update.status === "REJECTED" || update.status === "FLAGGED") {
-      // Update comment in parent (comments prop) won't auto-update modal,
-      // so we show toast to inform user
-      toast({
-        title: "Bình luận bị ẩn",
-        description: "Một bình luận đã bị ẩn vì vi phạm tiêu chuẩn cộng đồng",
-        status: "warning",
-        duration: 3000,
-        position: "top-right",
-      });
-    }
-  }, [post?.id, toast]);
-
-  useModerationListener(handleModerationUpdate);
+  // Moderation warnings are handled centrally by the parent PostCard (single
+  // ModerationWarningModal). Hidden comments arrive via the `comments` prop, so
+  // no per-modal listener/toast is needed here — that caused duplicate toasts.
 
   // ====== PHÂN TÁCH COMMENT GỐC & REPLY ======
   const { rootComments, repliesMap } = useMemo(() => {

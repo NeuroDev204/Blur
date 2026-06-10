@@ -26,6 +26,7 @@ import {
   getAllComments,
   replyToComment,
   savePost,
+  unsavePost,
 } from "../../api/postApi";
 import { useModerationListener } from "../../hooks/useModerationListener";
 import { IoSend } from "react-icons/io5";
@@ -404,22 +405,35 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     }
   };
 
-  // 💾 Save post
+  // 💾 Save / unsave post (toggle)
   const handleSavePost = async () => {
+    const previousSaved = isSaved;
     try {
-      await savePost(post.id);
+      // Optimistic toggle
+      setIsSaved(!previousSaved);
 
-      setIsSaved(true);
-
-      toast({
-        title: "Post saved successfully",
-        status: "success",
-        duration: 3000,
-        position: "top-right",
-      });
+      if (previousSaved) {
+        await unsavePost(post.id);
+        toast({
+          title: "Post removed from saved",
+          status: "success",
+          duration: 3000,
+          position: "top-right",
+        });
+      } else {
+        await savePost(post.id);
+        toast({
+          title: "Post saved successfully",
+          status: "success",
+          duration: 3000,
+          position: "top-right",
+        });
+      }
     } catch (error) {
+      // Rollback on failure
+      setIsSaved(previousSaved);
       toast({
-        title: "Failed to save post",
+        title: previousSaved ? "Failed to remove saved post" : "Failed to save post",
         status: "error",
         duration: 3000,
         position: "top-right",

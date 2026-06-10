@@ -11,6 +11,7 @@ import com.contentservice.post.entity.PostLike;
 import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.mapper.PostMapper;
+import com.contentservice.post.repository.PostFeedRepository;
 import com.contentservice.post.repository.PostRepository;
 import com.contentservice.resilience.ResilientUserServiceClient;
 import com.contentservice.story.dto.response.ApiResponse;
@@ -43,6 +44,7 @@ import java.util.stream.Collectors;
 public class PostService {
 
     PostRepository postRepository;
+    PostFeedRepository postFeedRepository;
     PostMapper postMapper;
     ResilientUserServiceClient userServiceClient;
     NotificationEventPublisher notificationEventPublisher;
@@ -122,6 +124,11 @@ public class PostService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
         postRepository.deleteById(postId);
+        // Remove fan-out feed items too, otherwise the post lingers as an orphaned (un-interactable)
+        // entry in followers' feeds after reload. Done synchronously so it can't be lost to Kafka lag.
+        postFeedRepository.deleteAllByPostId(postId);
+        // Also notify other consumers (e.g. for any downstream projections) of the deletion.
+        publishPostDeletedEvent(postId, userId);
         return "Post deleted successfully";
     }
 
@@ -314,6 +321,19 @@ public class PostService {
             kafkaTemplate.send("post-events", post.getId(), json);
         } catch (Exception e) {
             log.error("Failed to publish POST_CREATED event for post {}", post.getId(), e);
+        }
+    }
+
+    private void publishPostDeletedEvent(String postId, String authorId) {
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("eventType", "POST_DELETED");
+            event.put("postId", postId);
+            event.put("authorId", authorId);
+            String json = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("post-events", postId, json);
+        } catch (Exception e) {
+            log.error("Failed to publish POST_DELETED event for post {}", postId, e);
         }
     }
 }
