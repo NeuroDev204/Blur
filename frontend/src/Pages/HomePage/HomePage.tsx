@@ -259,7 +259,7 @@ const HomePage: React.FC = () => {
         });
 
         return (
-            <div className="storyDiv bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="storyDiv bg-white sm:rounded-2xl shadow-sm sm:border sm:border-gray-100 p-4 mb-4 sm:mb-6">
                 <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide">
                     <StoryCircle isAddNew={true} onStoryCreated={handleStoryCreated} story={null} user={user} />
 
@@ -301,7 +301,7 @@ const HomePage: React.FC = () => {
                     <div ref={sentinelRef} style={{ height: 1 }} />
                 </>
             ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+                <div className="bg-white sm:rounded-2xl shadow-sm sm:border sm:border-gray-100 p-8 sm:p-12 text-center">
                     <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center">
                         <svg className="w-12 h-12 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -330,7 +330,7 @@ const HomePage: React.FC = () => {
                     <div className="w-full max-w-[620px]">
                         {renderStories()}
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+                        <div className="bg-white sm:rounded-2xl shadow-sm sm:border sm:border-gray-100 p-4 mb-4 sm:mb-6">
                             <div className="flex items-center gap-3">
                                 <img
                                     src={user?.imageUrl || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"}

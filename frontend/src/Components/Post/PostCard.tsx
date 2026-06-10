@@ -500,7 +500,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
   // 🎨 UI
   return (
-    <div className="bg-white shadow-lg hover:shadow-2xl rounded-3xl overflow-hidden mb-8 border-2 border-sky-100 hover:border-sky-300 transition-all duration-300 transform hover:-translate-y-1">
+    <div className="bg-white sm:shadow-lg sm:hover:shadow-2xl sm:rounded-3xl overflow-hidden mb-4 sm:mb-8 sm:border-2 sm:border-sky-100 sm:hover:border-sky-300 transition-all duration-300 sm:hover:-translate-y-1">
       {/* Header */}
       <div className="flex justify-between items-center py-5 px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50 dark:bg-none dark:bg-[#1e293b]">
         <div className="flex items-center gap-4">

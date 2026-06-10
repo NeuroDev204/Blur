@@ -160,7 +160,7 @@ const Router: React.FC = () => {
             <div
                 className={`
                     flex-1 min-h-screen w-full max-w-full overflow-x-clip
-                    ${isMobile ? 'pt-16 px-4' : 'pl-3'}
+                    ${isMobile ? `pt-16 ${location.pathname === '/message' ? '' : 'px-4'}` : 'pl-3'}
                 `}
             >
                 <div className="w-full max-w-full">
