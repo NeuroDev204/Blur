@@ -161,9 +161,9 @@ const CreatePostModal = ({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={handleCloseAttempt} size="4xl" isCentered>
+      <Modal isOpen={isOpen} onClose={handleCloseAttempt} size={{ base: "full", md: "4xl" }} isCentered>
         <ModalOverlay backdropFilter="blur(4px)" bg="blackAlpha.400" />
-        <ModalContent borderRadius="2xl" overflow="hidden" shadow="2xl" bg={isDark ? "#1e293b" : "white"}>
+        <ModalContent borderRadius={{ base: "none", md: "2xl" }} overflow="hidden" shadow="2xl" bg={isDark ? "#1e293b" : "white"}>
           {/* Header */}
           <ModalHeader
             textAlign="center"
@@ -190,12 +190,12 @@ const CreatePostModal = ({
             _hover={{ bg: isDark ? "#334155" : "gray.100" }}
           />
 
-          <ModalBody px={0} py={0}>
+          <ModalBody px={0} py={0} overflowY="auto">
             <Box
               display="flex"
               flexDir={{ base: "column", md: "row" }}
-              minH="500px"
-              maxH="600px"
+              minH={{ base: "0", md: "500px" }}
+              maxH={{ base: "none", md: "600px" }}
             >
               {/* Left side - Media Preview */}
               <Box
@@ -204,8 +204,8 @@ const CreatePostModal = ({
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                minH={{ base: "300px", md: "500px" }}
-                maxH="600px"
+                minH={{ base: "180px", md: "500px" }}
+                maxH={{ base: "220px", md: "600px" }}
                 p={4}
                 position="relative"
                 overflow="auto"
@@ -336,7 +336,7 @@ const CreatePostModal = ({
                 gap={4}
                 bg={isDark ? "#1e293b" : "white"}
                 overflowY="auto"
-                maxH="600px"
+                maxH={{ base: "none", md: "600px" }}
               >
                 {/* Caption textarea with emoji */}
                 <Box position="relative" flexShrink={0}>
