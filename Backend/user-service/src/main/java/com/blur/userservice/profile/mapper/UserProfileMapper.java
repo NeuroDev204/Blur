@@ -6,10 +6,14 @@ import com.blur.userservice.profile.dto.response.UserProfileResponse;
 import com.blur.userservice.profile.entity.UserProfile;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 import java.time.LocalDate;
 
-@Mapper(componentModel = "spring")
+// IGNORE null source values on update so a partial update (e.g. only imageUrl) does NOT
+// overwrite existing fields (username, firstName, ...) with null. Without this, editing
+// one field wipes all others — which corrupted the blur user's username and broke auto-follow.
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface UserProfileMapper {
 
     //    @Mapping(target = "dob", expression = "java(stringToLocalDate(request.getDob()))")

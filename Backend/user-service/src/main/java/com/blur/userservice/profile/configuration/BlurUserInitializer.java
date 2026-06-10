@@ -34,7 +34,11 @@ public class BlurUserInitializer implements ApplicationRunner {
     @Override
 
     public void run(ApplicationArguments args) {
+        // Find blur by username first; fall back to the stable emailIndex (blind index of BLUR_EMAIL)
+        // in case the username was previously corrupted (e.g. nulled by a partial profile update).
+        // This avoids creating duplicate blur nodes on every restart.
         UserProfile blur = userProfileRepository.findByUsername(BLUR_USERNAME)
+                .or(() -> userProfileRepository.findByEmailIndex(fieldEncryptionService.blindIndex(BLUR_EMAIL)))
                 .orElseGet(this::createBlurUserProfile);
         blur = normalizeBlurProfile(blur);
 
@@ -73,6 +77,15 @@ public class BlurUserInitializer implements ApplicationRunner {
     private UserProfile normalizeBlurProfile(UserProfile blur) {
         boolean shouldUpdate = false;
 
+        // Repair username if it was lost/changed — it's the key auto-follow matches blur by.
+        if (!BLUR_USERNAME.equals(blur.getUsername())) {
+            blur.setUsername(BLUR_USERNAME);
+            shouldUpdate = true;
+        }
+        if (!"Blur".equals(blur.getFirstName())) {
+            blur.setFirstName("Blur");
+            shouldUpdate = true;
+        }
         if (!StringUtils.hasText(blur.getUserId())) {
             blur.setUserId(UUID.randomUUID().toString());
             shouldUpdate = true;
