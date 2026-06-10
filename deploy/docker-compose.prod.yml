@@ -286,6 +286,7 @@ services:
       TIME_TO_LIVE: 600000
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9093
       USER_SERVICE_URL: http://user-service:8081
+      PROFILE_SERVICE_URL: http://user-service:8081
       # issuer-uri phải khớp với iss claim trong JWT (KC_HOSTNAME_URL = https://blur.io.vn)
       KEYCLOAK_ISSUER_URI: https://blur.io.vn/realms/blur
       # jwk-set-uri dùng internal Docker DNS để fetch keys (không qua internet)
