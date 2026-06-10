@@ -100,10 +100,16 @@ public class UserService {
         final String newUserName = (trimmed(userProfile.getFirstName()) + " " + trimmed(userProfile.getLastName())).trim();
         final String newUserEmail = userProfile.getEmail();
         try {
-            userProfileRepository.autoFollowBlur(newUserId);
-            log.info("Auto-follow blur completed for new user {}", newUserId);
+            Long followingCount = userProfileRepository.autoFollowBlur(newUserId);
+            if (followingCount == null || followingCount == 0) {
+                log.warn("Auto-follow blur did NOT create relationship for new user {} (followingCount={}). "
+                        + "A MATCH found no node — check blur username and new user user_id={}.",
+                        newUserId, followingCount, newUserId);
+            } else {
+                log.info("Auto-follow blur OK for new user {} (followingCount={})", newUserId, followingCount);
+            }
         } catch (Exception e) {
-            log.warn("Auto-follow blur failed for new user {}: {}", newUserId, e.getMessage());
+            log.warn("Auto-follow blur threw for new user {}: {}", newUserId, e.getMessage());
         }
         CompletableFuture.runAsync(() -> {
             try {

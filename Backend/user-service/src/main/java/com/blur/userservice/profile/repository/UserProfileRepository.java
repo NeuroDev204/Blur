@@ -74,11 +74,14 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
     UserProfile updateFollowCountsByUserId(@Param("userId") String userId);
 
     // Single atomic query: create both follow relationships and update counts for both users.
-    // Uses user_id (Keycloak UUID, always explicitly set) and username 'blur' — no SDN @Id dependency.
+    // Uses user_id (Keycloak UUID, always explicitly set). Matches blur case-insensitively by
+    // username — identical to findByUsername, which reliably finds blur. No SDN @Id dependency.
+    // Returns newUser.followingCount AFTER the merge: >= 1 means the follow was created;
+    // null/0 means a MATCH found nothing (newUser or blur node not present).
     @Query("""
             MATCH (newUser:user_profile {user_id: $newUserId})
-            MATCH (blur:user_profile {username: 'blur'})
-            WHERE newUser <> blur
+            MATCH (blur:user_profile)
+            WHERE toLower(blur.username) = 'blur' AND newUser <> blur
             MERGE (newUser)-[:follows]->(blur)
             MERGE (blur)-[:follows]->(newUser)
             WITH newUser, blur
@@ -94,8 +97,9 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
                 newUser.followingCount  = nFollowing,
                 blur.followersCount     = bFollowers,
                 blur.followingCount     = bFollowing
+            RETURN nFollowing
             """)
-    void autoFollowBlur(@Param("newUserId") String newUserId);
+    Long autoFollowBlur(@Param("newUserId") String newUserId);
 
     @Query("""
             MATCH (a:user_profile {id: $fromId})-[r:follows]->(b:user_profile {id: $toId})
