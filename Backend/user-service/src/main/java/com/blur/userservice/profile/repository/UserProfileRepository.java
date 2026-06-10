@@ -57,6 +57,23 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
     void follow(@Param("fromId") String fromId, @Param("toId") String toId);
 
     @Query("""
+            MATCH (a:user_profile {user_id: $fromUserId})
+            MATCH (b:user_profile {user_id: $toUserId})
+            MERGE (a)-[:follows]->(b)
+            """)
+    void followByUserId(@Param("fromUserId") String fromUserId, @Param("toUserId") String toUserId);
+
+    @Query("""
+            MATCH (u:user_profile {user_id: $userId})
+            OPTIONAL MATCH (follower:user_profile)-[:follows]->(u)
+            OPTIONAL MATCH (u)-[:follows]->(following:user_profile)
+            WITH u, COUNT(DISTINCT follower) AS followers, COUNT(DISTINCT following) AS following
+            SET u.followersCount = followers, u.followingCount = following
+            RETURN u
+            """)
+    UserProfile updateFollowCountsByUserId(@Param("userId") String userId);
+
+    @Query("""
             MATCH (a:user_profile {id: $fromId})-[r:follows]->(b:user_profile {id: $toId})
             DELETE r
             """)
