@@ -41,6 +41,13 @@ public class BlurUserInitializer implements ApplicationRunner {
         ensureBlurUserInKeycloak(blur);
     }
 
+    private static final String BLUR_BIO =
+            "Tài khoản chính thức của Blur – mạng xã hội kết nối mọi người. "
+            + "Theo dõi để nhận tin tức và cập nhật mới nhất từ chúng tôi!";
+    private static final String BLUR_IMAGE_URL =
+            "https://res.cloudinary.com/dqg5pghlu/image/upload/v1/blur-official-avatar";
+    private static final String BLUR_WEBSITE = "https://blur.io.vn";
+
     private UserProfile createBlurUserProfile() {
         UserProfile blur = new UserProfile();
         blur.setUserId(UUID.randomUUID().toString());
@@ -49,6 +56,9 @@ public class BlurUserInitializer implements ApplicationRunner {
         blur.setEmailIndex(fieldEncryptionService.blindIndex(BLUR_EMAIL));
         blur.setFirstName("Blur");
         blur.setLastName("");
+        blur.setBio(BLUR_BIO);
+        blur.setWebsite(BLUR_WEBSITE);
+        blur.setImageUrl(BLUR_IMAGE_URL);
         blur.setPasswordHash(passwordEncoder.encode(BLUR_PASSWORD));
         blur.setRoles(List.of("USER"));
         blur.setEmailVerified(true);
@@ -82,6 +92,18 @@ public class BlurUserInitializer implements ApplicationRunner {
         }
         if (!Boolean.TRUE.equals(blur.getVerified())) {
             blur.setVerified(true);
+            shouldUpdate = true;
+        }
+        if (!StringUtils.hasText(blur.getBio())) {
+            blur.setBio(BLUR_BIO);
+            shouldUpdate = true;
+        }
+        if (!StringUtils.hasText(blur.getWebsite())) {
+            blur.setWebsite(BLUR_WEBSITE);
+            shouldUpdate = true;
+        }
+        if (!StringUtils.hasText(blur.getImageUrl())) {
+            blur.setImageUrl(BLUR_IMAGE_URL);
             shouldUpdate = true;
         }
 

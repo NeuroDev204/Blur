@@ -10,7 +10,9 @@ import com.blur.userservice.profile.exception.AppException;
 import com.blur.userservice.profile.exception.ErrorCode;
 import com.blur.userservice.profile.mapper.UserMapper;
 import com.blur.userservice.profile.repository.UserProfileRepository;
+import com.blur.userservice.profile.dto.request.FollowNotificationRequest;
 import com.blur.userservice.profile.repository.httpclient.ContentServiceClient;
+import com.blur.userservice.profile.repository.httpclient.NotificationServiceClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -40,6 +42,7 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     ContentServiceClient contentServiceClient;
+    NotificationServiceClient notificationServiceClient;
     KeycloakUserService keycloakUserService;
     FieldEncryptionService fieldEncryptionService;
 
@@ -90,22 +93,43 @@ public class UserService {
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
 
-        // tu dong follow user "blur" khi dang ky + backfill feed
+        // Auto-follow "blur" on registration, blur follows back, backfill feed, welcome notification
         final UserProfile savedProfile = userProfile;
         final String finalKeycloakUserId = keycloakUserId;
         try {
             userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
                 if (!savedProfile.getId().equals(blurUser.getId())) {
+                    // New user follows blur
                     userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
+                    // Blur follows new user back
+                    userProfileRepository.follow(blurUser.getId(), savedProfile.getId());
                     userProfileRepository.updateFollowCounts(savedProfile.getId());
                     userProfileRepository.updateFollowCounts(blurUser.getId());
-                    String followerUserId = savedProfile.getUserId();
-                    String followedUserId = blurUser.getUserId();
+
+                    String newUserId = savedProfile.getUserId();
+                    String blurUserId = blurUser.getUserId();
+                    String newUserName = trimmed(savedProfile.getFirstName()) + " " + trimmed(savedProfile.getLastName());
+                    String newUserEmail = savedProfile.getEmail();
+
                     CompletableFuture.runAsync(() -> {
+                        // Backfill feed with blur's existing posts
                         try {
-                            contentServiceClient.backfillFeed(followerUserId, followedUserId);
+                            contentServiceClient.backfillFeed(newUserId, blurUserId);
                         } catch (Exception e) {
-                            log.warn("Feed backfill failed for new user {}: {}", followerUserId, e.getMessage());
+                            log.warn("Feed backfill failed for new user {}: {}", newUserId, e.getMessage());
+                        }
+                        // Send "Blur followed you" welcome notification to new user
+                        try {
+                            notificationServiceClient.sendFollowNotification(
+                                    FollowNotificationRequest.builder()
+                                            .senderId(blurUserId)
+                                            .senderName("Blur")
+                                            .receiverId(newUserId)
+                                            .receiverName(newUserName.trim())
+                                            .receiverEmail(newUserEmail)
+                                            .build());
+                        } catch (Exception e) {
+                            log.warn("Welcome notification failed for new user {}: {}", newUserId, e.getMessage());
                         }
                     });
                 }
@@ -198,5 +222,9 @@ public class UserService {
 
     public String getCurrentUsername() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    private String trimmed(String value) {
+        return value != null ? value.trim() : "";
     }
 }
