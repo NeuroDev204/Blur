@@ -7,6 +7,7 @@ volumes:
   mysql_data:
   mongo_data:
   redis_data:
+  kafka_data:
 
 services:
 
@@ -47,7 +48,7 @@ services:
       --max-connections=100
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pBlur@Phamvansy2004"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD 2>/dev/null"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -110,6 +111,9 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
       KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "(echo > /dev/tcp/localhost/9093) 2>/dev/null && exit 0 || exit 1"]

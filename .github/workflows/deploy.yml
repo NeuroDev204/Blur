@@ -164,14 +164,14 @@ jobs:
               echo "$service is healthy."
             }
 
-            echo "=== [$(date)] Ensuring infra services are running ==="
-            $DC up -d neo4j keycloak-mysql redis kafka mongo
+            echo "=== [$(date)] Ensuring infra/data services are running (--no-recreate preserves volumes) ==="
+            $DC up -d --no-recreate neo4j keycloak-mysql redis kafka mongo
             wait_healthy kafka 120
             wait_healthy redis 60
             wait_healthy keycloak-mysql 120
 
-            echo "=== [$(date)] Recreating Keycloak (ensure realm import) ==="
-            $DC up -d --force-recreate keycloak
+            echo "=== [$(date)] Recreating Keycloak app only (DB data stays in keycloak-mysql) ==="
+            $DC up -d --no-deps --force-recreate keycloak
             wait_healthy keycloak 300
 
             echo "=== [$(date)] Stopping app containers ==="
@@ -201,8 +201,8 @@ jobs:
             echo "=== [$(date)] Tier 3: api-gateway, model-service, frontend ==="
             $DC up -d --no-deps --remove-orphans api-gateway model-service frontend
 
-            echo "=== [$(date)] Cleaning dangling images ==="
-            docker image prune -f
+            echo "=== [$(date)] Cleaning dangling images (volumes kept) ==="
+            docker image prune -f --filter "until=24h"
 
             echo "=== [$(date)] Service status ==="
             $DC ps
