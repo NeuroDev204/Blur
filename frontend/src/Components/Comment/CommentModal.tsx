@@ -213,13 +213,13 @@ const CommentModal = ({
 
   // ================== RENDER ==================
   return (
-    <Modal size={"4xl"} onClose={onClose} isOpen={isOpen} isCentered>
+    <Modal size={{ base: "full", md: "4xl" }} onClose={onClose} isOpen={isOpen} isCentered>
       <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(4px)" />
-      <ModalContent borderRadius="2xl" overflow="hidden" shadow="2xl">
+      <ModalContent borderRadius={{ base: "none", md: "2xl" }} overflow="hidden" shadow="2xl">
         <ModalBody p={0}>
-          <div className="flex h-[85vh] bg-white">
+          <div className="flex flex-col md:flex-row h-full md:h-[85vh] bg-white">
             {/* Media Section - INSTAGRAM STYLE */}
-            <div className="w-[55%] bg-black relative overflow-hidden">
+            <div className="w-full md:w-[55%] h-[45vh] md:h-full flex-shrink-0 bg-black relative overflow-hidden">
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm flex items-center justify-center transition-all group"
@@ -278,7 +278,7 @@ const CommentModal = ({
             </div>
 
             {/* Comments Section */}
-            <div className="w-[45%] flex flex-col bg-white">
+            <div className="w-full md:w-[45%] flex-1 flex flex-col bg-white min-h-0">
               {/* Header */}
               <div className="flex justify-between items-center px-4 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
