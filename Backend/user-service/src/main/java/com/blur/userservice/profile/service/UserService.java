@@ -95,50 +95,61 @@ public class UserService {
 
         // Auto-follow "blur" on registration, blur follows back, backfill feed, welcome notification
         final UserProfile savedProfile = userProfile;
-        final String finalKeycloakUserId = keycloakUserId;
         try {
             userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
-                if (!savedProfile.getId().equals(blurUser.getId())) {
-                    // New user follows blur
-                    userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
-                    // Blur follows new user back
-                    userProfileRepository.follow(blurUser.getId(), savedProfile.getId());
-                    userProfileRepository.updateFollowCounts(savedProfile.getId());
-                    userProfileRepository.updateFollowCounts(blurUser.getId());
-
-                    String newUserId = savedProfile.getUserId();
-                    String blurUserId = blurUser.getUserId();
-                    String newUserName = trimmed(savedProfile.getFirstName()) + " " + trimmed(savedProfile.getLastName());
-                    String newUserEmail = savedProfile.getEmail();
-
-                    CompletableFuture.runAsync(() -> {
-                        // Backfill feed with blur's existing posts
-                        try {
-                            contentServiceClient.backfillFeed(newUserId, blurUserId);
-                        } catch (Exception e) {
-                            log.warn("Feed backfill failed for new user {}: {}", newUserId, e.getMessage());
-                        }
-                        // Send "Blur followed you" welcome notification to new user
-                        try {
-                            notificationServiceClient.sendFollowNotification(
-                                    FollowNotificationRequest.builder()
-                                            .senderId(blurUserId)
-                                            .senderName("Blur")
-                                            .receiverId(newUserId)
-                                            .receiverName(newUserName.trim())
-                                            .receiverEmail(newUserEmail)
-                                            .build());
-                        } catch (Exception e) {
-                            log.warn("Welcome notification failed for new user {}: {}", newUserId, e.getMessage());
-                        }
-                    });
+                String newProfileId = savedProfile.getId();
+                String blurProfileId = blurUser.getId();
+                if (newProfileId == null || blurProfileId == null || newProfileId.equals(blurProfileId)) {
+                    log.warn("Skipping blur auto-follow: newProfileId={}, blurProfileId={}", newProfileId, blurProfileId);
+                    return;
                 }
+
+                try {
+                    // New user follows blur
+                    userProfileRepository.follow(newProfileId, blurProfileId);
+                } catch (Exception e) {
+                    log.warn("New user→blur follow failed for {}: {}", userId, e.getMessage());
+                }
+                try {
+                    // Blur follows new user back
+                    userProfileRepository.follow(blurProfileId, newProfileId);
+                } catch (Exception e) {
+                    log.warn("Blur→new user follow-back failed for {}: {}", userId, e.getMessage());
+                }
+                try {
+                    userProfileRepository.updateFollowCounts(newProfileId);
+                    userProfileRepository.updateFollowCounts(blurProfileId);
+                } catch (Exception e) {
+                    log.warn("Follow count update failed for {}: {}", userId, e.getMessage());
+                }
+
+                String newUserId = savedProfile.getUserId();
+                String blurUserId = blurUser.getUserId();
+                String newUserName = trimmed(savedProfile.getFirstName()) + " " + trimmed(savedProfile.getLastName());
+                String newUserEmail = savedProfile.getEmail();
+
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        contentServiceClient.backfillFeed(newUserId, blurUserId);
+                    } catch (Exception e) {
+                        log.warn("Feed backfill failed for new user {}: {}", newUserId, e.getMessage());
+                    }
+                    try {
+                        notificationServiceClient.sendFollowNotification(
+                                FollowNotificationRequest.builder()
+                                        .senderId(blurUserId)
+                                        .senderName("Blur")
+                                        .receiverId(newUserId)
+                                        .receiverName(newUserName.trim())
+                                        .receiverEmail(newUserEmail)
+                                        .build());
+                    } catch (Exception e) {
+                        log.warn("Welcome notification failed for new user {}: {}", newUserId, e.getMessage());
+                    }
+                });
             });
         } catch (Exception e) {
-            log.error("Follow/backfill failed for new user {}, rolling back: {}", userId, e.getMessage());
-            userProfileRepository.deleteByUserId(userId);
-            keycloakUserService.deleteUser(finalKeycloakUserId);
-            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+            log.warn("Blur auto-follow block threw for new user {}: {}", userId, e.getMessage());
         }
 
         return userMapper.toUserResponse(userProfile);
