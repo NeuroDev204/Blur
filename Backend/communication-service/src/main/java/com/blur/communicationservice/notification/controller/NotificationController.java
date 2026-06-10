@@ -34,6 +34,13 @@ public class NotificationController {
         return ApiResponse.builder().build();
     }
 
+    @PostMapping("/internal/follow")
+    public ApiResponse<?> sendInternalFollowNotification(@RequestBody Event event) throws Exception {
+        String message = objectMapper.writeValueAsString(event);
+        kafkaTemplate.send("user-follow-events", message);
+        return ApiResponse.builder().build();
+    }
+
     @PutMapping("/like-post")
     public ApiResponse<?> sendLikePostNotification(@RequestBody Event event) throws Exception {
         String message = objectMapper.writeValueAsString(event);
