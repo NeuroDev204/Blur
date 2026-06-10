@@ -94,37 +94,40 @@ public class UserService {
         }
 
         // Auto-follow "blur" on registration: blur follows back, backfill feed, welcome notification
-        // Uses user_id (Keycloak UUID) — always explicitly set, no SDN generated-id mapping risk
-        // Capture finals before lambdas (userProfile was reassigned above so is not effectively final)
-        final String newUserId = userProfile.getUserId();
+        // Capture finals before lambdas — userProfile was reassigned (line 73) so is not effectively final.
+        // Graph ops use SDN @Id field (getId) — same as the proven followUser() path.
+        // Notification/feed ops use user_id (Keycloak UUID) since those services identify users that way.
+        final String newProfileId = userProfile.getId();      // SDN @Id — for graph follow/unfollow
+        final String newUserId = userProfile.getUserId();     // Keycloak UUID — for notifications/feed
         final String newUserName = (trimmed(userProfile.getFirstName()) + " " + trimmed(userProfile.getLastName())).trim();
         final String newUserEmail = userProfile.getEmail();
         try {
             userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
+                final String blurProfileId = blurUser.getId();
                 final String blurUserId = blurUser.getUserId();
-                if (blurUserId == null || newUserId == null || newUserId.equals(blurUserId)) {
-                    log.warn("Skipping blur auto-follow: newUserId={}, blurUserId={}", newUserId, blurUserId);
+                if (blurProfileId == null || newProfileId == null || newProfileId.equals(blurProfileId)) {
+                    log.warn("Skipping blur auto-follow: newProfileId={}, blurProfileId={}", newProfileId, blurProfileId);
                     return;
                 }
-                log.info("Auto-following blur for new user {}", newUserId);
+                log.info("Auto-following blur for new user profileId={} userId={}", newProfileId, newUserId);
 
                 try {
-                    userProfileRepository.followByUserId(newUserId, blurUserId);
-                    log.info("New user {} → blur follow created", newUserId);
+                    userProfileRepository.follow(newProfileId, blurProfileId);
+                    log.info("New user {} → blur follow created", newProfileId);
                 } catch (Exception e) {
-                    log.warn("New user→blur follow failed for {}: {}", newUserId, e.getMessage());
+                    log.warn("New user→blur follow failed for {}: {}", newProfileId, e.getMessage());
                 }
                 try {
-                    userProfileRepository.followByUserId(blurUserId, newUserId);
-                    log.info("Blur → new user {} follow-back created", newUserId);
+                    userProfileRepository.follow(blurProfileId, newProfileId);
+                    log.info("Blur → new user {} follow-back created", newProfileId);
                 } catch (Exception e) {
-                    log.warn("Blur→new user follow-back failed for {}: {}", newUserId, e.getMessage());
+                    log.warn("Blur→new user follow-back failed for {}: {}", newProfileId, e.getMessage());
                 }
                 try {
-                    userProfileRepository.updateFollowCountsByUserId(newUserId);
-                    userProfileRepository.updateFollowCountsByUserId(blurUserId);
+                    userProfileRepository.updateFollowCounts(newProfileId);
+                    userProfileRepository.updateFollowCounts(blurProfileId);
                 } catch (Exception e) {
-                    log.warn("Follow count update failed for {}: {}", newUserId, e.getMessage());
+                    log.warn("Follow count update failed for {}: {}", newProfileId, e.getMessage());
                 }
 
                 CompletableFuture.runAsync(() -> {
@@ -148,7 +151,7 @@ public class UserService {
                 });
             });
         } catch (Exception e) {
-            log.warn("Blur auto-follow block threw for new user {}: {}", newUserId, e.getMessage());
+            log.warn("Blur auto-follow block threw for new user {}: {}", newProfileId, e.getMessage());
         }
 
         return userMapper.toUserResponse(userProfile);
