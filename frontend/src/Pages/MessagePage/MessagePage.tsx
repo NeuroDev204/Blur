@@ -669,7 +669,7 @@ const MessagePage: React.FC = () => {
             <ConnectionStatus error={error} />
 
             {/* Conversation List - Hidden on mobile when chat selected */}
-            <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} w-full md:w-80`}>
+            <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} w-full md:w-80 min-w-0`}>
                 <ConversationList
                     conversations={sortedConversations}
                     selected={selectedChat}
@@ -681,7 +681,7 @@ const MessagePage: React.FC = () => {
             </div>
 
             {/* Chat Area - Hidden on mobile when no chat selected */}
-            <div className={`${!selectedChat ? 'hidden md:flex' : 'flex'} flex-1`}>
+            <div className={`${!selectedChat ? 'hidden md:flex' : 'flex'} flex-1 min-w-0`}>
                 <ChatArea
                     conversation={selectedChat}
                     messages={messages}

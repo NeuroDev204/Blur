@@ -438,7 +438,7 @@ const ChatArea = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full relative">
+    <div className="flex-1 flex flex-col bg-white h-full relative min-w-0 w-full overflow-x-hidden">
       <Toaster position="bottom-center" />
 
       {/* Header - Instagram Style */}

@@ -159,7 +159,8 @@ const Router: React.FC = () => {
 
             <div
                 className={`
-                    flex-1 min-h-screen w-full max-w-full overflow-x-clip
+                    flex-1 w-full max-w-full overflow-x-clip
+                    ${location.pathname === '/message' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'}
                     ${isMobile ? `pt-16 ${location.pathname === '/message' ? '' : 'px-4'}` : 'pl-3'}
                 `}
             >
