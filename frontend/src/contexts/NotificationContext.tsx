@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, ReactNode } from "react"
 import { X } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { parseTimestamp } from "../Config/Logic"
 
 // ===== TYPES =====
 export interface NotificationData {
@@ -299,7 +300,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 // ===== Helpers =====
 const formatTime = (dateString?: string): string => {
     if (!dateString) return "Vừa xong"
-    const date = new Date(dateString)
+    // parseTimestamp treats timezone-less backend timestamps (LocalDateTime) as UTC
+    const date = parseTimestamp(dateString)
     const now = new Date()
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
     if (diff < 60) return "Vừa xong"

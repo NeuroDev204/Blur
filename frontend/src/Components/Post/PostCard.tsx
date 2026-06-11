@@ -312,7 +312,15 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
   // Toggle like/unlike with optimistic update
   const handlePostLike = async () => {
-    if (post?.userId === (user?.userId || user?.id)) return;
+    if (post?.userId === (user?.userId || user?.id)) {
+      toast({
+        title: "Không thể thích bài viết của chính mình",
+        status: "info",
+        duration: 3000,
+        position: "top-right",
+      });
+      return;
+    }
 
     const previousLiked = isPostLiked;
     const previousLikes = [...likes];
@@ -407,6 +415,15 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
   // 💾 Save / unsave post (toggle)
   const handleSavePost = async () => {
+    if (post?.userId === (user?.userId || user?.id)) {
+      toast({
+        title: "Không thể lưu bài viết của chính mình",
+        status: "info",
+        duration: 3000,
+        position: "top-right",
+      });
+      return;
+    }
     const previousSaved = isSaved;
     try {
       // Optimistic toggle
@@ -633,8 +650,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
         <div className="flex items-center gap-5">
           <button
             onClick={handlePostLike}
-            disabled={post?.userId === (user?.userId || user?.id)}
-            className="group transition-transform hover:scale-110 active:scale-95 duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="group transition-transform hover:scale-110 active:scale-95 duration-200"
           >
             {isPostLiked ? (
               <AiFillHeart className="text-2xl text-red-500 animate-pulse" />

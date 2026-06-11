@@ -270,8 +270,27 @@ public class PostService {
 
     @Cacheable(value = "post", key = "#postId", sync = true)
     public PostResponse getPostById(String postId) {
-        return postMapper.toPostResponse(postRepository.findById(postId)
-                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND)));
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_FOUND));
+        PostResponse response = postMapper.toPostResponse(post);
+
+        // Post entity does not store the author's avatar, so enrich it live from the profile
+        // service (same as getAllPots). Without this, the post-detail page shows a blank avatar.
+        try {
+            UserProfileResponse profile = userServiceClient.getProfile(post.getUserId()).getResult();
+            if (profile != null) {
+                response.setUserImageUrl(profile.getImageUrl());
+                if (profile.getId() != null) response.setProfileId(profile.getId());
+                if (profile.getFirstName() != null) response.setFirstName(profile.getFirstName());
+                if (profile.getLastName() != null) response.setLastName(profile.getLastName());
+                String fullName = ((profile.getFirstName() != null ? profile.getFirstName() : "")
+                        + " " + (profile.getLastName() != null ? profile.getLastName() : "")).trim();
+                if (!fullName.isEmpty()) response.setUserName(fullName);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to enrich post {} with author profile: {}", postId, e.getMessage());
+        }
+        return response;
     }
 
     public String getCurrentUserId() {

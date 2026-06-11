@@ -664,7 +664,7 @@ const MessagePage: React.FC = () => {
     const sortedConversations = useMemo(() => conversations, [conversations]);
 
     return (
-        <div className="flex h-[calc(100vh-64px)] md:h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-hidden">
+        <div className="flex h-[calc(100dvh-64px)] md:h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-hidden">
             <Toaster position="top-center" />
             <ConnectionStatus error={error} />
 
