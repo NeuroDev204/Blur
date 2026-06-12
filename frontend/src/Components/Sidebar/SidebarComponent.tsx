@@ -117,7 +117,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
   };
 
   return (
-    <div className="flex flex-col justify-between h-full w-full overflow-hidden px-4 py-6 bg-white dark:bg-gray-900 shadow-sm">
+    <div className="flex flex-col justify-between h-[100dvh] w-full overflow-hidden px-4 py-6 bg-white dark:bg-gray-900 shadow-sm">
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <div className="relative group">
