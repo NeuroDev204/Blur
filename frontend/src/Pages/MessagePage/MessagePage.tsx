@@ -6,7 +6,6 @@ import { apiCall, profileApiCall } from "../../service/api";
 import { useSocket } from "../../contexts/SocketContext";
 import { useNotification, requestNotificationPermission } from "../../contexts/NotificationContext";
 import { markConversationAsRead } from "../../service/chatApi";
-import ConnectionStatus from "../../Components/Message/ConnectionStatus";
 import ConversationList from "../../Components/Message/ConversationList";
 import ChatArea from "../../Components/Message/ChatArea";
 
@@ -115,7 +114,7 @@ const MessagePage: React.FC = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { sendMessage, isConnected, error, registerMessageCallbacks } = useSocket();
+    const { sendMessage, isConnected, registerMessageCallbacks } = useSocket();
     const { addNotification } = useNotification();
     const conversationIdFromQuery = useMemo(
         () => new URLSearchParams(location.search).get("conversationId"),
@@ -666,7 +665,6 @@ const MessagePage: React.FC = () => {
     return (
         <div className="flex h-[calc(100dvh-64px)] md:h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-hidden">
             <Toaster position="top-center" />
-            <ConnectionStatus error={error} />
 
             {/* Conversation List - Hidden on mobile when chat selected */}
             <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} w-full md:w-80 min-w-0`}>
@@ -680,8 +678,13 @@ const MessagePage: React.FC = () => {
                 />
             </div>
 
-            {/* Chat Area - Hidden on mobile when no chat selected */}
-            <div className={`${!selectedChat ? 'hidden md:flex' : 'flex'} flex-1 min-w-0`}>
+            {/* Chat Area - Full-screen overlay on mobile, inline panel on desktop */}
+            <div
+                className={`${!selectedChat
+                    ? 'hidden md:flex'
+                    : 'flex fixed inset-0 z-[70] h-[100dvh] w-full bg-white md:static md:z-auto md:h-auto md:w-auto'
+                    } flex-1 min-w-0`}
+            >
                 <ChatArea
                     conversation={selectedChat}
                     messages={messages}
