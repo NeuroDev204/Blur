@@ -1,6 +1,6 @@
 // src/components/Chat/ChatArea.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Image, Send, Loader, Smile, Plus, Phone, Video, Info, Sparkles } from 'lucide-react';
+import { Image, Send, Loader, Smile, Plus, Phone, Video, Info, Sparkles, ArrowLeft } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import MessageBubble from './MessageBubble';
 import MediaPreview from './MediaPreview';
@@ -68,7 +68,8 @@ const ChatArea = ({
   currentUserId,
   currentUser,
   loadingMessages = false,
-  messagesError = null
+  messagesError = null,
+  onBack = null
 }) => {
   const [input, setInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -442,9 +443,18 @@ const ChatArea = ({
       <Toaster position="bottom-center" />
 
       {/* Header - Instagram Style */}
-      <div className="bg-white border-b border-gray-200 px-5 py-3 sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-5 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between max-w-full">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="md:hidden w-9 h-9 flex items-center justify-center text-black hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                aria-label="Quay lại"
+              >
+                <ArrowLeft size={22} strokeWidth={2} />
+              </button>
+            )}
             <div className="relative flex-shrink-0">
               <div className="w-10 h-10 rounded-full overflow-hidden">
                 <img
@@ -532,7 +542,7 @@ const ChatArea = ({
             </p>
           </div>
         ) : (
-          <div className="py-4 px-5">
+          <div className="py-4 px-3 sm:px-5">
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -546,7 +556,7 @@ const ChatArea = ({
       </div>
 
       {/* Input Area - Instagram Style */}
-      <div className="bg-white border-t border-gray-200 p-5">
+      <div className="bg-white border-t border-gray-200 p-3 sm:p-5">
         {/* File Preview */}
         {selectedFiles.length > 0 && (
           <div className="mb-4">
@@ -570,7 +580,7 @@ const ChatArea = ({
         )}
 
         {/* Input Box */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Actions Button */}
           <div className="relative actions-menu">
             <button

@@ -138,10 +138,10 @@ const AddStoryModal: React.FC<AddStoryModalProps> = ({ onClose, onStoryCreated }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-3xl h-[500px] rounded-2xl flex overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white w-full max-w-3xl h-[100dvh] sm:h-[500px] rounded-none sm:rounded-2xl flex flex-col sm:flex-row overflow-hidden shadow-2xl">
         {/* Left side – Preview */}
-        <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 relative">
+        <div className="flex-1 min-h-[180px] flex items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 relative">
           {media ? (
             media.type.startsWith("video") ? (
               <video ref={videoRef} controls className="max-h-full max-w-full object-contain rounded-lg shadow-lg">
@@ -161,7 +161,7 @@ const AddStoryModal: React.FC<AddStoryModalProps> = ({ onClose, onStoryCreated }
         </div>
 
         {/* Right side – Form */}
-        <div className="w-80 p-6 flex flex-col justify-between relative bg-white">
+        <div className="w-full sm:w-80 p-4 sm:p-6 flex flex-col justify-between relative bg-white overflow-y-auto">
           {/* Close button */}
           <button
             onClick={onClose}

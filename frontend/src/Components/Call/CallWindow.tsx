@@ -147,7 +147,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
             className={`fixed z-50 bg-[#1e293b] shadow-2xl transition-all
                   ${isFullscreen
                     ? 'inset-0'
-                    : 'bottom-6 right-6 w-[420px] h-[620px] rounded-3xl overflow-hidden'
+                    : 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[420px] sm:h-[620px] sm:rounded-3xl overflow-hidden'
                 }`}
             onMouseMove={() => setShowControls(true)}
         >
@@ -166,7 +166,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
                         />
 
                         {/* Local Video (Picture-in-Picture) */}
-                        <div className="absolute top-5 right-5 w-36 h-44 rounded-2xl 
+                        <div className="absolute top-16 right-4 w-24 h-32 sm:top-5 sm:right-5 sm:w-36 sm:h-44 rounded-2xl
                             overflow-hidden shadow-2xl border-2 border-white/10
                             transition-all hover:scale-105 bg-[#1e293b]">
                             <video
@@ -281,10 +281,10 @@ const CallWindow: React.FC<CallWindowProps> = ({
                 <div
                     className={`absolute bottom-0 left-0 right-0 
                       bg-black/80 backdrop-blur-md
-                      p-10 transition-opacity duration-300
+                      p-6 pb-8 sm:p-10 transition-opacity duration-300
                       ${showControls || !isFullscreen ? 'opacity-100' : 'opacity-0'}`}
                 >
-                    <div className="flex justify-center items-center gap-8">
+                    <div className="flex justify-center items-center gap-6 sm:gap-8">
 
                         {/* Mute Button */}
                         <button

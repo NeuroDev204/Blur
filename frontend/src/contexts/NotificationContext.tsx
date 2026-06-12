@@ -110,7 +110,7 @@ const MessageToast: React.FC<MessageToastProps> = ({ notification, onClose, onCl
     return (
         <div
             onClick={handleClick}
-            className="w-[320px] bg-white rounded-xl shadow-lg border border-sky-100 p-3 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+            className="w-[min(320px,calc(100vw-2rem))] bg-white rounded-xl shadow-lg border border-sky-100 p-3 cursor-pointer hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
         >
             <div className="flex items-start gap-3">
                 {/* Avatar */}

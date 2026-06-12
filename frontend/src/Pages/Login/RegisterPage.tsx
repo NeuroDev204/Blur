@@ -3,7 +3,7 @@ import RegisterCard from './RegisterCard'
 
 const RegisterPage: React.FC = () => {
     return (
-        <div className="flex justify-center items-center h-screen bg-gradient-to-r from-[#0062E6] to-[#33AEFF]">
+        <div className="flex justify-center items-center min-h-screen w-full bg-gradient-to-r from-[#0062E6] to-[#33AEFF]">
             <RegisterCard />
         </div>
     )

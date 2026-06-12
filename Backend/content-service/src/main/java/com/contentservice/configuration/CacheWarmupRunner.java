@@ -36,3 +36,5 @@ public class CacheWarmupRunner implements ApplicationRunner {
         log.info("Cache warmup completed in {}ms", elapsed);
     }
 }
+
+

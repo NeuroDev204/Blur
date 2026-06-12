@@ -116,7 +116,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
 
     return (
       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-0.5 group`}>
-        <div className={`flex items-end gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
           {!isMe && (
             <div className="w-7 h-7 rounded-full flex-shrink-0 mb-0.5 overflow-hidden">
               <img
@@ -168,7 +168,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
   if (isAiMessage) {
     return (
       <div className="flex justify-start mb-2 group">
-        <div className="flex items-end gap-2 max-w-[75%]">
+        <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%]">
           {/* AI Avatar with gradient */}
           <div className="w-8 h-8 rounded-full flex-shrink-0 mb-0.5 overflow-hidden bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
             <Sparkles size={18} className="text-white" strokeWidth={2} />
@@ -232,7 +232,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
   // ✅ RENDER NORMAL MESSAGE (TEXT/IMAGE/VIDEO/FILE)
   return (
     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-0.5 group`}>
-      <div className={`flex items-end gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
         {!isMe && (
           <div className="w-7 h-7 rounded-full flex-shrink-0 mb-0.5 overflow-hidden">
             <img

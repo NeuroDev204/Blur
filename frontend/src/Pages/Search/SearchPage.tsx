@@ -37,7 +37,7 @@ const SearchPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-            <div className="flex flex-col items-center px-6 py-8 max-w-2xl mx-auto">
+            <div className="flex flex-col items-center px-4 py-6 sm:px-6 sm:py-8 max-w-2xl mx-auto">
                 {/* Header */}
                 <div className="w-full mb-8 text-center">
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent mb-2">

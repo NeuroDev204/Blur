@@ -38,7 +38,7 @@ const ReqUserPostPart = () => {
   ];
 
   const LoadingSkeleton = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
       {[...Array(6)].map((_, index) => (
         <div
           key={index}
@@ -73,7 +73,7 @@ const ReqUserPostPart = () => {
     <div className="mt-8 pb-10">
       {/* Tabs Navigation */}
       <div className="border-t border-gray-200">
-        <div className="flex justify-center gap-12 py-4">
+        <div className="flex justify-center gap-6 sm:gap-12 py-4">
           {tabs.map((item) => (
             <button
               key={item.tab}
@@ -112,7 +112,7 @@ const ReqUserPostPart = () => {
         ) : displayedPosts.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 animate-fadeIn">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4 animate-fadeIn">
             {displayedPosts.map((post) => (
               <ReqUserPostCard key={post.id} post={post} />
             ))}

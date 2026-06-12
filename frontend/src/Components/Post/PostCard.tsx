@@ -501,7 +501,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   const getMediaContainerStyle = () => {
     if (primaryAspectRatio === null) {
       return {
-        height: "400px",
+        height: "min(400px, 55vh)",
         width: "100%",
       };
     }
@@ -511,19 +511,19 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     if (aspectRatio < 0.8) {
       return {
         aspectRatio: aspectRatio.toString(),
-        maxHeight: "600px",
+        maxHeight: "min(600px, 75vh)",
         width: "100%",
       };
     } else if (aspectRatio > 1.3) {
       return {
         aspectRatio: aspectRatio.toString(),
-        maxHeight: "500px",
+        maxHeight: "min(500px, 65vh)",
         width: "100%",
       };
     } else {
       return {
         aspectRatio: aspectRatio.toString(),
-        maxHeight: "600px",
+        maxHeight: "min(600px, 75vh)",
         width: "100%",
       };
     }
@@ -533,14 +533,14 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   return (
     <div className="bg-white sm:shadow-lg sm:hover:shadow-2xl sm:rounded-3xl overflow-hidden mb-4 sm:mb-8 sm:border-2 sm:border-sky-100 sm:hover:border-sky-300 transition-all duration-300 sm:hover:-translate-y-1">
       {/* Header */}
-      <div className="flex justify-between items-center py-5 px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50 dark:bg-none dark:bg-[#1e293b]">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between items-center py-3 px-4 sm:py-5 sm:px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50 dark:bg-none dark:bg-[#1e293b]">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div
             className="relative group cursor-pointer"
             onClick={handleClickUserName}
           >
             <img
-              className="relative h-14 w-14 rounded-full object-cover border-3 border-white shadow-lg ring-2 ring-sky-200"
+              className="relative h-11 w-11 sm:h-14 sm:w-14 rounded-full object-cover border-3 border-white shadow-lg ring-2 ring-sky-200"
               src={
                 post?.userImageUrl ||
                 "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"
@@ -592,7 +592,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
       {/* Caption */}
       {post?.content && (
-        <div className="px-6 pb-4 text-sm text-gray-800 leading-relaxed">
+        <div className="px-4 pb-3 sm:px-6 sm:pb-4 text-sm text-gray-800 leading-relaxed break-words">
           {post.content}
         </div>
       )}
@@ -646,7 +646,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       )}
 
       {/* Actions */}
-      <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-white to-sky-50/30 dark:bg-none dark:bg-[#1e293b]">
+      <div className="flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-white to-sky-50/30 dark:bg-none dark:bg-[#1e293b]">
         <div className="flex items-center gap-5">
           <button
             onClick={handlePostLike}
@@ -679,7 +679,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       </div>
 
       {/* Likes & Comments */}
-      <div className="px-6 pb-4">
+      <div className="px-4 pb-3 sm:px-6 sm:pb-4">
         <p className="text-sm font-semibold text-gray-800">
           {likes.length} {likes.length === 1 ? "like" : "likes"}
         </p>
@@ -693,7 +693,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       </div>
 
       {/* Add Comment */}
-      <div className="border-t border-sky-100 px-6 py-4 flex items-center gap-3 bg-gradient-to-r from-sky-50/50 to-white dark:bg-none dark:bg-[#1e293b]">
+      <div className="border-t border-sky-100 px-4 py-3 sm:px-6 sm:py-4 flex items-center gap-3 bg-gradient-to-r from-sky-50/50 to-white dark:bg-none dark:bg-[#1e293b]">
         <BsEmojiSmile className="text-xl text-gray-400" />
         <input
           className="flex-1 outline-none text-sm placeholder-gray-400 bg-transparent py-2 px-1"

@@ -79,16 +79,16 @@ const ReqUserPostCard = ({ post }) => {
         </div>
       ) : (
         // Text-only post
-        <div className="relative w-full h-full bg-gradient-to-br from-sky-50 via-white to-blue-50 p-6 flex flex-col justify-between">
+        <div className="relative w-full h-full bg-gradient-to-br from-sky-50 via-white to-blue-50 p-3 sm:p-6 flex flex-col justify-between">
           {/* Content */}
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-800 text-base leading-relaxed text-center line-clamp-6">
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
+            <p className="text-gray-800 text-sm sm:text-base leading-relaxed text-center line-clamp-4 sm:line-clamp-6 break-words">
               {post?.content}
             </p>
           </div>
 
           {/* Stats footer */}
-          <div className="pt-4 border-t border-gray-200 flex gap-6 justify-center">
+          <div className="pt-2 sm:pt-4 border-t border-gray-200 flex gap-4 sm:gap-6 justify-center">
             <div className="flex items-center gap-2 text-gray-600 group/like hover:text-red-500 transition-colors">
               <AiFillHeart className="w-5 h-5" />
               <span className="text-sm font-semibold">{likesCount}</span>

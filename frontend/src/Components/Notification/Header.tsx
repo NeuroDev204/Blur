@@ -11,16 +11,16 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ unreadCount, onMarkAllRead, searchTerm, setSearchTerm }) => {
     return (
-        <div className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+        <div className="bg-white border-b border-gray-100 sticky top-16 md:top-0 z-10 shadow-sm">
             {/* Top section */}
-            <div className="px-6 py-5">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
                             Notifications
                         </h1>
                         {unreadCount > 0 && (
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-gray-500 mt-1 truncate">
                                 You have {unreadCount} unread {unreadCount === 1 ? 'notification' : 'notifications'}
                             </p>
                         )}
@@ -29,17 +29,18 @@ const Header: React.FC<HeaderProps> = ({ unreadCount, onMarkAllRead, searchTerm,
                     {unreadCount > 0 && (
                         <button
                             onClick={onMarkAllRead}
-                            className="flex items-center gap-2 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95"
+                            className="flex items-center gap-2 flex-shrink-0 bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 text-white px-3 py-2.5 sm:px-5 rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95"
                         >
                             <CheckCircle2 size={18} />
-                            <span>Mark all read</span>
+                            <span className="hidden sm:inline">Mark all read</span>
+                            <span className="sm:hidden">Read all</span>
                         </button>
                     )}
                 </div>
             </div>
 
             {/* Search section */}
-            <div className="px-6 pb-4">
+            <div className="px-4 sm:px-6 pb-4">
                 <div className="relative">
                     <Search
                         size={18}

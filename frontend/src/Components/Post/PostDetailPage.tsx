@@ -160,11 +160,11 @@ const PostDetailPage = () => {
 
   const getMediaContainerStyle = () => {
     if (primaryAspectRatio === null) {
-      return { height: "400px", width: "100%" };
+      return { height: "min(400px, 55vh)", width: "100%" };
     }
     return {
       aspectRatio: primaryAspectRatio.toString(),
-      maxHeight: "600px",
+      maxHeight: "min(600px, 75vh)",
       width: "100%",
     };
   };
@@ -391,7 +391,7 @@ const PostDetailPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+      <div className="bg-white border-b sticky top-16 md:top-0 z-10 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -514,7 +514,7 @@ const PostDetailPage = () => {
         </div>
 
         {/* Comments */}
-        <div className="mt-4 bg-white rounded-2xl shadow-sm border p-6">
+        <div className="mt-4 bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
           <h2 className="font-semibold text-lg mb-4">
             Bình luận ({comments.length})
           </h2>

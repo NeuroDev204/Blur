@@ -691,6 +691,7 @@ const MessagePage: React.FC = () => {
                     currentUser={currentUser}
                     loadingMessages={loadingMessages}
                     messagesError={messagesError}
+                    onBack={handleBack}
                 />
             </div>
         </div>

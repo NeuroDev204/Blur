@@ -190,11 +190,24 @@
       "Bash(npx tsc *)",
       "Bash(Get-ChildItem -Path \"d:\\\\Blur\" -Directory)",
       "Bash(Select-Object -First 20)",
-      "Bash(Format-Table Name)"
+      "Bash(Format-Table Name)",
+      "Bash(grep -nE \"^  [a-z].*:$|image:|build:|container_name:\" d:/Blur/Backend/docker-compose.yml)",
+      "Bash(grep -vE \"^\\\\s*\\(import|package|//|\\\\*|/\\\\*\\)\")",
+      "Bash(grep -oE \"[A-Z_]{3,}\")",
+      "PowerShell($tools=@{}; foreach\\($c in 'node','npx','python','py','dot','pip'\\){ $p=\\(Get-Command $c -ErrorAction SilentlyContinue\\); if\\($p\\){\"$c -> $\\($p.Source\\)\"} else {\"$c -> MISSING\"} })",
+      "Bash(mkdir -p d:/Blur/docs/db-design && echo created)",
+      "PowerShell(python -c \"import matplotlib; print\\('matplotlib', matplotlib.__version__\\)\" 2>&1)",
+      "PowerShell(python -c \"import PIL; print\\('PIL ok'\\)\" 2>&1)",
+      "PowerShell(python -m pip install --quiet matplotlib 2>&1)",
+      "PowerShell(python -c \"import matplotlib; print\\('matplotlib', matplotlib.__version__\\)\")",
+      "PowerShell(python d:/Blur/docs/db-design/draw_db.py)",
+      "Bash(grep -ivE \"import|//\")",
+      "Bash(npm run *)"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",
-      "/home/neuro/.m2/repository/com/diffplug/spotless/spotless-maven-plugin/2.43.0"
+      "/home/neuro/.m2/repository/com/diffplug/spotless/spotless-maven-plugin/2.43.0",
+      "d:\\Blur\\docs"
     ]
   }
 }
