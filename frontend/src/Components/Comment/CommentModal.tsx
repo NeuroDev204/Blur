@@ -50,18 +50,30 @@ const CommentModal = ({
   // no per-modal listener/toast is needed here — that caused duplicate toasts.
 
   // ====== PHÂN TÁCH COMMENT GỐC & REPLY ======
+  // Kiểu Facebook: mọi reply (kể cả reply của reply) đều gom về comment gốc
   const { rootComments, repliesMap } = useMemo(() => {
     const roots = [];
     const map = {};
+    const byId = {};
+
+    (comments || []).forEach((c) => {
+      byId[c.id] = c;
+    });
 
     (comments || []).forEach((c) => {
       if (!c.parentReplyId) {
         // comment gốc (bình luận bài viết)
         roots.push(c);
       } else {
-        // reply -> đưa vào map theo parentReplyId
-        if (!map[c.parentReplyId]) map[c.parentReplyId] = [];
-        map[c.parentReplyId].push(c);
+        // tìm comment gốc tổ tiên (đề phòng reply lồng nhiều cấp)
+        let rootId = c.parentReplyId;
+        let guard = 0;
+        while (byId[rootId]?.parentReplyId && guard < 20) {
+          rootId = byId[rootId].parentReplyId;
+          guard += 1;
+        }
+        if (!map[rootId]) map[rootId] = [];
+        map[rootId].push(c);
       }
     });
 

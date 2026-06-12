@@ -263,7 +263,11 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
             position: "top-right",
           });
         } else {
-          setComments((prev) => [...prev, newReply]);
+          // Đảm bảo reply luôn có parentReplyId để hiển thị đúng dạng cây
+          setComments((prev) => [
+            ...prev,
+            { ...newReply, parentReplyId: newReply?.parentReplyId || parentCommentId },
+          ]);
           toast({
             title: "Reply created successfully.",
             status: "success",
