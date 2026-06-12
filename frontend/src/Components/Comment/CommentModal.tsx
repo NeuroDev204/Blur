@@ -203,6 +203,7 @@ const CommentModal = ({
         overflow="hidden"
         shadow="2xl"
         height={{ base: "100dvh", md: "85vh" }}
+        minH={{ base: "100dvh", md: "85vh" }}
         maxH={{ base: "100dvh", md: "85vh" }}
         display="flex"
         flexDir="column"

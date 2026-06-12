@@ -207,7 +207,7 @@ const StoryModal: React.FC<StoryModalProps> = ({
       <div
         ref={modalContentRef}
         className="relative bg-black rounded-3xl overflow-hidden shadow-2xl"
-        style={{ width: "min(400px, 95vw)", height: "min(710px, 92vh)" }}
+        style={{ width: "min(400px, 95vw)", height: "min(710px, 92dvh)" }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={handlePressStart}
         onMouseUp={handlePressEnd}

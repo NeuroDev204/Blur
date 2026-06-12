@@ -169,6 +169,7 @@ const CreatePostModal = ({
           shadow="2xl"
           bg={isDark ? "#1e293b" : "white"}
           height={{ base: "100dvh", md: "auto" }}
+          minH={{ base: "100dvh", md: "auto" }}
           maxH={{ base: "100dvh", md: "90vh" }}
           display="flex"
           flexDir="column"

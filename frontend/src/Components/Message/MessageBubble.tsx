@@ -136,17 +136,17 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
             )}
 
             <div className={`relative ${msg.isPending ? 'opacity-60' : ''}`}>
-              <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-[20px] ${isMe
+              <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-[20px] max-w-full ${isMe
                   ? 'bg-blue-500 text-white rounded-br-md'
                   : 'bg-gray-100 text-gray-700 rounded-bl-md border border-gray-200'
                 }`}>
                 {isVideoCall ? (
-                  <Video size={18} className={isMe ? 'text-white' : 'text-gray-600'} />
+                  <Video size={18} className={`flex-shrink-0 ${isMe ? 'text-white' : 'text-gray-600'}`} />
                 ) : (
-                  <Phone size={18} className={isMe ? 'text-white' : 'text-gray-600'} />
+                  <Phone size={18} className={`flex-shrink-0 ${isMe ? 'text-white' : 'text-gray-600'}`} />
                 )}
 
-                <span className="text-[15px] font-normal whitespace-nowrap">
+                <span className="text-[15px] font-normal break-words min-w-0">
                   {msg.message}
                 </span>
               </div>

@@ -625,11 +625,11 @@ const ChatArea = ({
           />
 
           {/* Text Input */}
-          <div className="flex-1 flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2 border border-gray-200 focus-within:border-gray-300 transition-colors">
+          <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 bg-gray-100 rounded-full px-3 sm:px-4 py-2 border border-gray-200 focus-within:border-gray-300 transition-colors">
             <input
               ref={inputRef}
               type="text"
-              className="flex-1 bg-transparent focus:outline-none text-sm text-black placeholder-gray-500 font-normal"
+              className="flex-1 w-full min-w-0 bg-transparent focus:outline-none text-sm text-black placeholder-gray-500 font-normal"
               placeholder="Nhắn tin..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -644,27 +644,26 @@ const ChatArea = ({
               <Sparkles size={22} strokeWidth={1.5} />
             </button>
             <button
-              className="text-black hover:opacity-60 transition-opacity flex-shrink-0"
+              className="text-black hover:opacity-60 transition-opacity flex-shrink-0 hidden sm:block"
               aria-label="Emoji"
             >
               <Smile size={22} strokeWidth={1.5} />
             </button>
           </div>
 
-          {/* Send Button */}
-          {canSend && (
-            <button
-              onClick={handleSend}
-              disabled={isUploading}
-              className="text-blue-500 font-semibold text-sm hover:text-blue-700 disabled:text-blue-300 transition-colors flex-shrink-0 px-1"
-            >
-              {isUploading ? (
-                <Loader size={20} className="animate-spin" strokeWidth={2} />
-              ) : (
-                'Gửi'
-              )}
-            </button>
-          )}
+          {/* Send Button - luôn hiển thị, disable khi chưa có nội dung */}
+          <button
+            onClick={handleSend}
+            disabled={!canSend || isUploading}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+            aria-label="Gửi"
+          >
+            {isUploading ? (
+              <Loader size={20} className="animate-spin" strokeWidth={2} />
+            ) : (
+              <Send size={22} strokeWidth={2} />
+            )}
+          </button>
         </div>
       </div>
 
