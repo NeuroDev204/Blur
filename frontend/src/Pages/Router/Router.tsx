@@ -155,7 +155,7 @@ const Router: React.FC = () => {
                 />
             )}
 
-            <div className="hidden md:block w-64 h-screen sticky top-0 self-start bg-white border-r flex-shrink-0">
+            <div className="hidden md:block fixed top-0 left-0 w-64 h-screen z-40 bg-white border-r flex-shrink-0">
                 <SidebarComponent />
             </div>
 
@@ -171,9 +171,9 @@ const Router: React.FC = () => {
 
             <div
                 className={`
-                    flex-1 w-full max-w-full overflow-x-clip
+                    flex-1 w-full max-w-full overflow-x-clip md:ml-64
                     ${location.pathname === '/message' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'}
-                    ${isMobile ? 'pt-16' : 'pl-3'}
+                    ${isMobile ? 'pt-16' : 'md:pl-3'}
                 `}
             >
                 <div className="w-full max-w-full">
