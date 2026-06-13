@@ -140,6 +140,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
                         client?.subscribe("/user/queue/call", (message: IMessage) => {
                             const data = JSON.parse(message.body) as { event?: string; [key: string]: unknown }
                             const event = data.event
+                            // [CALL-DEBUG] tam thoi: log su kien cuoc goi nhan duoc tu server tren tung thiet bi
+                            console.log("[CALL-DEBUG] socket recv call event =", event, data)
                             switch (event) {
                                 case "call:initiated":
                                     callCallbacksRef.current.onCallInitiated?.(data)

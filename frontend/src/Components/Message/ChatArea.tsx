@@ -91,6 +91,11 @@ const ChatArea = ({
       p => p.userId !== currentUserId
     );
 
+    // [CALL-DEBUG] tam thoi: kiem tra currentUserId co dung khong va receiver co bi trung voi nguoi goi khong
+    console.log("[CALL-DEBUG] ChatArea VOICE initiating. currentUserId(prop)=", currentUserId,
+      "receiverId=", receiver?.userId,
+      "participants=", conversation.participants?.map(p => p.userId));
+
     if (!receiver || !receiver.userId) {
 
       toast.error('Không tìm thấy thông tin người nhận', {

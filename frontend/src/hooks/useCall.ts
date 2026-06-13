@@ -577,6 +577,8 @@ export const useCall = (currentUserId: string) => {
     const handleCallInitiated = useCallback((data: unknown) => {
         const eventData = data as CallEventData
         const callInfo = pendingCallInfoRef.current
+        // [CALL-DEBUG] tam thoi
+        console.log("[CALL-DEBUG] handleCallInitiated fired. currentUserId=", currentUserId, "hasPendingCallInfo=", !!callInfo)
 
         if (!callInfo) {
             return
@@ -614,6 +616,8 @@ export const useCall = (currentUserId: string) => {
 
     const handleIncomingCall = useCallback((data: unknown) => {
         const eventData = data as CallEventData
+        // [CALL-DEBUG] tam thoi
+        console.log("[CALL-DEBUG] handleIncomingCall fired. currentUserId=", currentUserId, "callerId=", eventData.callerId, "callId=", eventData.callId)
         remoteUserIdRef.current = eventData.callerId || null
         hasAnsweredRef.current = false
 
