@@ -144,7 +144,7 @@ const CallWindow: React.FC<CallWindowProps> = ({
 
     return (
         <div
-            className={`fixed z-50 bg-[#1e293b] shadow-2xl transition-all
+            className={`fixed z-[9999] bg-[#1e293b] shadow-2xl transition-all
                   ${isFullscreen
                     ? 'inset-0'
                     : 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[420px] sm:h-[620px] sm:rounded-3xl overflow-hidden'

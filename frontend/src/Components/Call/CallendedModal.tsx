@@ -128,7 +128,7 @@ const CallEndedModal: React.FC<CallEndedModalProps> = ({
     const StatusIcon = statusInfo.icon;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center 
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center
                     bg-black/50 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 w-full max-w-[380px]
                       animate-scaleIn mx-4">
