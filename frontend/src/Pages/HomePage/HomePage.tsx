@@ -7,6 +7,7 @@ import { fetchAllStories } from '../../api/storyApi';
 import CreatePostModal from '../../Components/Post/CreatePostModal';
 import { PostSkeleton, StorySkeleton } from '../../Components/Skeleton/Skeletons';
 import PopularSuggestions from '../../Components/Recommendations/PopularSuggestions';
+import { useRequestMediaPermissions } from '../../hooks/useRequestMediaPermissions';
 
 interface Post {
     id?: string;
@@ -62,6 +63,9 @@ const mergeUniqueById = (prev: Post[], incoming: Post[]): Post[] => {
 };
 
 const HomePage: React.FC = () => {
+    // Xin quyen camera + micro sau khi dang nhap vao homepage (PC & dien thoai), khong doi den luc goi.
+    useRequestMediaPermissions();
+
     const [posts, setPosts] = useState<Post[]>([]);
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);

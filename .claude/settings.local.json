@@ -206,7 +206,9 @@
       "Bash(curl -s -H \"Cache-Control: no-cache\" https://blur.io.vn/)",
       "Bash(curl -sI https://blur.io.vn/)",
       "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q -o compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
-      "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")"
+      "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
+      "PowerShell(Push-Location frontend; npx tsc --noEmit; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
+      "PowerShell(Set-Location D:\\\\Blur\\\\frontend; npx tsc --noEmit; \"exit=$LASTEXITCODE\")"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",
