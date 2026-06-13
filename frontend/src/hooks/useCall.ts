@@ -4,7 +4,7 @@ import { useSocket } from '../contexts/SocketContext'
 import webRTCService from '../service/WebRTCService'
 
 // ============ TYPES ============
-interface CallState {
+export interface CallState {
     isInCall: boolean
     isIncoming: boolean
     callId: string | null
@@ -32,7 +32,7 @@ interface CallEndedInfo {
     errorMessage?: string
 }
 
-interface ReceiverData {
+export interface ReceiverData {
     userId: string
     name: string
     avatar?: string

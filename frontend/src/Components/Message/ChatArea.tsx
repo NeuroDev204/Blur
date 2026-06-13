@@ -4,10 +4,7 @@ import { Image, Send, Loader, Smile, Plus, Phone, Video, Info, Sparkles, ArrowLe
 import toast, { Toaster } from 'react-hot-toast';
 import MessageBubble from './MessageBubble';
 import MediaPreview from './MediaPreview';
-import { useCall } from '../../hooks/useCall';
-import IncomingCallModal from '../Call/IncommingCallModal';
-import CallWindow from '../Call/CallWindow';
-import CallEndedModal from '../Call/CallendedModal';
+import { useCallContext } from '../../contexts/CallContext';
 
 
 export const uploadToCloudnary = async (file) => {
@@ -78,22 +75,9 @@ const ChatArea = ({
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
-  const {
-    callState,
-    mediaState,
-    connectionState,
-    callDuration,
-    localVideoRef,
-    remoteVideoRef,
-    initiateCall,
-    answerCall,
-    rejectCall,
-    endCall,
-    toggleAudio,
-    toggleVideo,
-    callEndedInfo,
-    closeCallEndedModal
-  } = useCall(currentUserId);
+  // Call duoc xu ly o tang app (CallProvider) de nhan cuoc goi o moi trang.
+  // ChatArea chi can khoi tao cuoc goi va biet trang thai dang goi de disable nut.
+  const { callState, initiateCall } = useCallContext();
 
   const handleVoiceCall = useCallback(() => {
     if (!conversation || callState.isInCall) {
@@ -666,46 +650,7 @@ const ChatArea = ({
           </button>
         </div>
       </div>
-
-      {/* ============ CALL MODALS ============ */}
-
-      {/* Incoming Call Modal */}
-      {callState.isIncoming && (
-        <IncomingCallModal
-          callerName={callState.callerName}
-          callerAvatar={callState.callerAvatar}
-          callType={callState.callType}
-          onAnswer={answerCall}
-          onReject={rejectCall}
-        />
-      )}
-
-      {/* Active Call Window */}
-      {callState.isInCall && !callState.isIncoming && (
-        <CallWindow
-          callState={callState}
-          mediaState={mediaState}
-          connectionState={connectionState}
-          callDuration={callDuration}
-          localVideoRef={localVideoRef}
-          remoteVideoRef={remoteVideoRef}
-          onEndCall={endCall}
-          onToggleAudio={toggleAudio}
-          onToggleVideo={toggleVideo}
-        />
-      )}
-
-      {/* Call Ended Modal */}
-      {callEndedInfo && (
-        <CallEndedModal
-          callerName={callEndedInfo.callerName}
-          callerAvatar={callEndedInfo.callerAvatar}
-          callType={callEndedInfo.callType}
-          duration={callEndedInfo.duration}
-          endReason={callEndedInfo.endReason as any}
-          onClose={closeCallEndedModal}
-        />
-      )}
+      {/* Call modals (incoming / active / ended) duoc render o CallProvider tang app. */}
     </div>
   );
 };

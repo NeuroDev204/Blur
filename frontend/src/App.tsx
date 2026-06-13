@@ -4,6 +4,7 @@ import { SocketProvider } from "./contexts/SocketContext"
 import { NotificationProvider } from "./contexts/NotificationContext"
 import { NotificationSocketProvider } from "./contexts/NotificationSocketContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
+import { CallProvider } from "./contexts/CallContext"
 
 const App: React.FC = () => {
     return (
@@ -11,7 +12,10 @@ const App: React.FC = () => {
             <SocketProvider>
                 <NotificationProvider>
                     <NotificationSocketProvider>
-                        <Router />
+                        {/* CallProvider o tang app -> nhan cuoc goi den o BAT KY trang nao (home, profile, message...) */}
+                        <CallProvider>
+                            <Router />
+                        </CallProvider>
                     </NotificationSocketProvider>
                 </NotificationProvider>
             </SocketProvider>
