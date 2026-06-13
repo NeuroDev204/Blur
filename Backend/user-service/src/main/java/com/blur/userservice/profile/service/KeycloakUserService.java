@@ -119,6 +119,24 @@ public class KeycloakUserService {
         }
     }
 
+    /**
+     * Xoa user trong Keycloak theo username (UserProfile khong luu keycloakId, chi co username/blurUserId).
+     * - Khong tim thay -> coi nhu da xoa (idempotent), log warn va return.
+     * - Loi that su tu Keycloak -> nem ra ngoai de saga giu trang thai nhat quan (khong xoa profile khi
+     *   chua xoa duoc identity, tranh tinh trang "van login duoc nhung moi endpoint chet").
+     */
+    public void deleteByUsername(String username) {
+        UsersResource usersResource = getRealmResource().users();
+        Optional<UserRepresentation> existing = findByUsername(usersResource, username);
+        if (existing.isEmpty()) {
+            log.warn("No Keycloak user found to delete for username={} (already removed?)", username);
+            return;
+        }
+        String keycloakUserId = existing.get().getId();
+        usersResource.get(keycloakUserId).remove();
+        log.info("Deleted Keycloak user by username={}, keycloakId={}", username, keycloakUserId);
+    }
+
     private RealmResource getRealmResource() {
         return keycloak.realm(realm);
     }

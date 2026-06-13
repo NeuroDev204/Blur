@@ -204,7 +204,9 @@
       "Bash(grep -ivE \"import|//\")",
       "Bash(npm run *)",
       "Bash(curl -s -H \"Cache-Control: no-cache\" https://blur.io.vn/)",
-      "Bash(curl -sI https://blur.io.vn/)"
+      "Bash(curl -sI https://blur.io.vn/)",
+      "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q -o compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
+      "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",
