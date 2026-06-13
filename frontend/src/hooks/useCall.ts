@@ -216,7 +216,9 @@ export const useCall = (currentUserId: string) => {
         }
     }, [])
 
-    const cleanup = useCallback(() => {
+    // notifyServer=false khi cleanup do NHAN duoc su kien ket thuc/tu choi tu server
+    // (cuoc goi da ket thuc phia server roi) -> tranh vong lap cleanup -> endCall -> server gui ended -> cleanup...
+    const cleanup = useCallback((notifyServer: boolean = true) => {
         if (isCleaningUpRef.current) {
             return
         }
@@ -226,7 +228,7 @@ export const useCall = (currentUserId: string) => {
         ringtoneManagerRef.current?.stop()
 
         const currentState = callStateRef.current
-        if (currentState.callId && socketAPI.isConnected) {
+        if (notifyServer && currentState.callId && socketAPI.isConnected) {
             socketAPI.endCall(currentState.callId)
         }
 
@@ -523,7 +525,7 @@ export const useCall = (currentUserId: string) => {
             socketAPI.rejectCall(currentState.callId)
         }
 
-        cleanup()
+        cleanup(false)
     }, [socketAPI, cleanup])
 
     const endCall = useCallback(() => {
@@ -535,7 +537,7 @@ export const useCall = (currentUserId: string) => {
             socketAPI.endCall(currentState.callId)
         }
 
-        cleanup()
+        cleanup(false)
     }, [socketAPI, cleanup])
 
     const toggleAudio = useCallback(() => {
@@ -638,7 +640,12 @@ export const useCall = (currentUserId: string) => {
         ringtoneManagerRef.current?.play()
     }, [currentUserId])
 
-    const handleCallAnswered = useCallback(() => {
+    const handleCallAnswered = useCallback((data: unknown) => {
+        const eventData = data as CallEventData
+        // Bo qua su kien cua cuoc goi khac (stale/duplicate)
+        if (eventData.callId && callStateRef.current.callId !== eventData.callId) {
+            return
+        }
         ringtoneManagerRef.current?.stop()
 
         setCallState(prev => {
@@ -653,7 +660,12 @@ export const useCall = (currentUserId: string) => {
         })
     }, [])
 
-    const handleCallRejected = useCallback(() => {
+    const handleCallRejected = useCallback((data: unknown) => {
+        const eventData = data as CallEventData
+        // Bo qua su kien cua cuoc goi khac (stale/duplicate) -> tranh xoa cuoc goi dang dien ra
+        if (eventData.callId && callStateRef.current.callId !== eventData.callId) {
+            return
+        }
         ringtoneManagerRef.current?.stop()
 
         const currentState = callStateRef.current
@@ -667,11 +679,16 @@ export const useCall = (currentUserId: string) => {
             endReason: 'REJECTED'
         })
 
-        cleanup()
+        cleanup(false)
     }, [cleanup])
 
     const handleCallEnded = useCallback((data: unknown) => {
         const eventData = data as CallEventData
+        // Bo qua su kien cua cuoc goi khac (stale/duplicate/loop) -> nguyen nhan chinh khien cua so goi
+        // cua cuoc goi DANG dien ra bi xoa sach.
+        if (eventData.callId && callStateRef.current.callId !== eventData.callId) {
+            return
+        }
         ringtoneManagerRef.current?.stop()
 
         const currentState = callStateRef.current
@@ -686,11 +703,15 @@ export const useCall = (currentUserId: string) => {
             endReason: 'ENDED'
         })
 
-        cleanup()
+        cleanup(false)
     }, [cleanup, callDuration])
 
     const handleCallFailed = useCallback((data: unknown) => {
         const eventData = data as CallEventData
+        // Khong co cuoc goi nao dang dien ra -> bo qua (su kien stale)
+        if (!callStateRef.current.isInCall) {
+            return
+        }
         ringtoneManagerRef.current?.stop()
 
         const currentState = callStateRef.current
@@ -724,7 +745,7 @@ export const useCall = (currentUserId: string) => {
             errorMessage: errorMessage
         })
 
-        cleanup()
+        cleanup(false)
     }, [cleanup, socketAPI])
 
     const handleWebRTCOffer = useCallback(async (data: unknown) => {
