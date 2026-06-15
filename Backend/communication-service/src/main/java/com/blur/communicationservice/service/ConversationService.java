@@ -145,10 +145,12 @@ public class ConversationService {
                                     resolvedAvatar = live.getResult().getImageUrl();
                                 }
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
 
-                    response.setConversationName(buildDisplayName(resolvedFirst, resolvedLast, participantInfo.getUsername()));
+                    response.setConversationName(
+                            buildDisplayName(resolvedFirst, resolvedLast, participantInfo.getUsername()));
                     response.setConversationAvatar(resolvedAvatar);
                 });
 
@@ -196,10 +198,12 @@ public class ConversationService {
                                     resolvedAvatar = live.getResult().getImageUrl();
                                 }
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
 
-                    response.setConversationName(buildDisplayName(resolvedFirst, resolvedLast, participantInfo.getUsername()));
+                    response.setConversationName(
+                            buildDisplayName(resolvedFirst, resolvedLast, participantInfo.getUsername()));
                     response.setConversationAvatar(resolvedAvatar);
                 });
 

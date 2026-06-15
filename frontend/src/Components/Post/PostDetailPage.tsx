@@ -115,6 +115,19 @@ const PostDetailPage = () => {
 
   // ================== MODERATION LISTENER - REAL-TIME COMMENT HIDING ==================
   const handleModerationUpdate = useCallback((update) => {
+    if (update.status === "COMMENT_LOCKED") {
+      toast({
+        title: "Bạn đã bị tạm khóa bình luận",
+        description:
+          update.message ||
+          "Bạn đã bị tạm khóa bình luận 10 phút do nhiều bình luận tiêu cực.",
+        status: "error",
+        duration: 6000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
     if (update.status === "REJECTED" || update.status === "FLAGGED") {
       // Remove rejected/flagged comment from UI immediately
       setComments((prev) =>
@@ -345,10 +358,11 @@ const PostDetailPage = () => {
       setReplyingTo(null);
       setReplyParentId(null);
     } catch (error) {
+      const apiMessage = (error as any)?.response?.data?.message;
       toast({
-        title: "Không thể gửi bình luận",
-        status: "error",
-        duration: 2000,
+        title: apiMessage || "Không thể gửi bình luận",
+        status: apiMessage ? "warning" : "error",
+        duration: apiMessage ? 5000 : 2000,
         position: "top-right",
       });
     } finally {

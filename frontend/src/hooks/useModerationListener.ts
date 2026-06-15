@@ -4,7 +4,9 @@ import { useNotificationSocket } from "../contexts/NotificationSocketContext"
 interface ModerationUpdate {
   commentId: string
   postId: string
-  status: "APPROVED" | "REJECTED" | "FLAGGED" | "PENDING_MODERATION"
+  status: "APPROVED" | "REJECTED" | "FLAGGED" | "PENDING_MODERATION" | "COMMENT_LOCKED"
+  message?: string
+  lockedUntil?: number
   timestamp?: number
 }
 

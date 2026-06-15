@@ -101,6 +101,13 @@ public class NotificationController {
         moderationData.put("commentId", commentId);
         moderationData.put("postId", postId);
         moderationData.put("status", status);
+        // Các trường tùy chọn cho thông báo khóa bình luận (COMMENT_LOCKED).
+        if (request.get("message") != null) {
+            moderationData.put("message", request.get("message"));
+        }
+        if (request.get("lockedUntil") != null) {
+            moderationData.put("lockedUntil", request.get("lockedUntil"));
+        }
         moderationData.put("timestamp", System.currentTimeMillis());
 
         webSocketNotificationService.sendModerationUpdate(userId, moderationData);

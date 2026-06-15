@@ -4,6 +4,7 @@ import com.contentservice.client.CommunicationServiceClient;
 import com.contentservice.post.exception.AppException;
 import com.contentservice.post.exception.ErrorCode;
 import com.contentservice.post.repository.CommentRepository;
+import com.contentservice.post.service.CommentLockService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class ModerationResultConsumer {
   private final CommentRepository commentRepository;
   private final CacheManager cacheManager;
   private final CommunicationServiceClient communicationServiceClient;
+  private final CommentLockService commentLockService;
 
   @KafkaListener(topics = "comment-moderation-results", groupId = "content-service")
   public void consume(String json) {
@@ -65,6 +67,27 @@ public class ModerationResultConsumer {
           communicationServiceClient.sendModerationUpdate(notificationRequest);
         } catch (Exception e) {
           System.err.println("Failed to send moderation update via WebSocket: " + e.getMessage());
+        }
+
+        // Anti-spam: đếm số lần bị FLAGGED (toxic cao). Nếu vượt ngưỡng trong cửa sổ thời gian
+        // thì khóa bình luận của user và thông báo cho họ.
+        if ("FLAGGED".equals(status)) {
+          long lockedUntil = commentLockService.registerFlag(comment.getUserId());
+          if (lockedUntil > 0) {
+            try {
+              Map<String, String> lockNotification = new HashMap<>();
+              lockNotification.put("userId", comment.getUserId());
+              lockNotification.put("commentId", commentId);
+              lockNotification.put("postId", postId);
+              lockNotification.put("status", "COMMENT_LOCKED");
+              lockNotification.put("lockedUntil", String.valueOf(lockedUntil));
+              lockNotification.put("message",
+                  "Bạn đã bị tạm khóa bình luận 10 phút do nhiều bình luận tiêu cực.");
+              communicationServiceClient.sendModerationUpdate(lockNotification);
+            } catch (Exception e) {
+              System.err.println("Failed to send comment-lock notification: " + e.getMessage());
+            }
+          }
         }
       });
     } catch (AppException | JsonProcessingException e) {

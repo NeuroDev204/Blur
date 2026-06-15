@@ -38,12 +38,18 @@ public class CommentService {
     NotificationEventPublisher notificationEventPublisher;
     PostRepository postRepository;
     OutboxService outboxService;
+    CommentLockService commentLockService;
 
     @CacheEvict(value = "comments", key = "#postId")
     @Transactional
     public CommentResponse createComment(CreateCommentRequest request, String postId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
+
+        // Chặn nếu user đang bị tạm khóa bình luận do nhiều bình luận tiêu cực.
+        if (commentLockService.isLocked(userId)) {
+            throw new AppException(ErrorCode.COMMENT_LOCKED);
+        }
 
         var profile = profileClient.getProfile(userId).getResult();
         var post = postRepository.findById(postId)

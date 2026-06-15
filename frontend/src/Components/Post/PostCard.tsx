@@ -112,6 +112,20 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     // Only handle updates for this post's comments
     if (update.postId !== post?.id) return;
 
+    if (update.status === "COMMENT_LOCKED") {
+      toast({
+        title: "Bạn đã bị tạm khóa bình luận",
+        description:
+          update.message ||
+          "Bạn đã bị tạm khóa bình luận 10 phút do nhiều bình luận tiêu cực.",
+        status: "error",
+        duration: 6000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
+
     if (update.status === "REJECTED" || update.status === "FLAGGED") {
       // Replace comment content with hidden message
       setComments((prev) =>
@@ -125,7 +139,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       // Show modal warning
       onModerationModalOpen();
     }
-  }, [onModerationModalOpen, post?.id]);
+  }, [onModerationModalOpen, post?.id, toast]);
 
   useModerationListener(handleModerationUpdate);
 

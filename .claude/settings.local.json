@@ -208,7 +208,12 @@
       "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q -o compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
       "PowerShell(Push-Location Backend\\\\user-service; .\\\\mvnw.cmd -q compile -DskipTests; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
       "PowerShell(Push-Location frontend; npx tsc --noEmit; $code=$LASTEXITCODE; Pop-Location; \"exit=$code\")",
-      "PowerShell(Set-Location D:\\\\Blur\\\\frontend; npx tsc --noEmit; \"exit=$LASTEXITCODE\")"
+      "PowerShell(Set-Location D:\\\\Blur\\\\frontend; npx tsc --noEmit; \"exit=$LASTEXITCODE\")",
+      "Bash(./mvnw -q -o compile)",
+      "Bash(./mvnw -o compile)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(cd /d/Blur/frontend && cat package.json | grep -A15 '\"scripts\"')",
+      "Read(//d/d/Blur/frontend/**)"
     ],
     "additionalDirectories": [
       "/home/neuro/.m2/repository/org/projectlombok/lombok-mapstruct-binding",
