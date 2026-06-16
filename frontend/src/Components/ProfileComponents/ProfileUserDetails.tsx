@@ -48,10 +48,10 @@ const ProfileUserDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="py-10 w-full px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 animate-pulse">
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-sky-100 to-blue-100"></div>
+      <div className="py-4 md:py-10 w-full px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8 animate-pulse">
+          <div className="flex flex-col md:flex-row items-center gap-5 md:gap-8">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-br from-sky-100 to-blue-100"></div>
             <div className="flex-1 space-y-4 w-full">
               <div className="h-6 bg-gray-200 rounded-lg w-48"></div>
               <div className="h-4 bg-gray-100 rounded-lg w-64"></div>
@@ -64,14 +64,14 @@ const ProfileUserDetails = () => {
   }
 
   return (
-    <div className="py-10 w-full px-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 hover:shadow-md transition-shadow duration-300">
-        <div className="flex flex-col md:flex-row items-center gap-8">
+    <div className="py-4 md:py-10 w-full px-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8 hover:shadow-md transition-shadow duration-300">
+        <div className="flex flex-col md:flex-row items-center gap-5 md:gap-8">
           {/* Profile Image with gradient ring */}
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-br from-sky-400 to-blue-500 rounded-full blur-md opacity-20 group-hover:opacity-30 transition-opacity"></div>
             <img
-              className="relative w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+              className="relative w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-lg"
               src={
                 user?.imageUrl ||
                 "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"
@@ -108,7 +108,7 @@ const ProfileUserDetails = () => {
             </div>
 
             {/* Stats */}
-            <div className="flex justify-center md:justify-start gap-8">
+            <div className="flex justify-center md:justify-start gap-6 md:gap-8">
               <div className="text-center">
                 <div className="text-2xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
                   {posts?.length || 0}

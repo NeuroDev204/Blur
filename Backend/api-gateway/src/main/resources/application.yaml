@@ -38,6 +38,9 @@ spring:
               args:
                 name: userServiceCB
                 fallbackUri: forward:/fallback/user-service
+          metadata:
+            response-timeout: 30000
+            connect-timeout: 5000
         # User Service - Test data endpoints
         - id: user_test_data
           uri: ${app.services.user}

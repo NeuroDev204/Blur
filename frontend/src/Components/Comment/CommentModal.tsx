@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { Modal, ModalBody, ModalContent, ModalOverlay, useToast } from "@chakra-ui/react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { Modal, ModalBody, ModalContent, ModalOverlay } from "@chakra-ui/react";
 import {
   BsBookmark,
   BsBookmarkFill,
@@ -20,7 +20,6 @@ import "swiper/css/pagination";
 import { timeDifference } from "../../Config/Logic";
 import EmojiPicker from "emoji-picker-react";
 import { fetchUserByUserId } from "../../api/userApi";
-import { useModerationListener } from "../../hooks/useModerationListener";
 
 const CommentModal = ({
   user,
@@ -45,40 +44,36 @@ const CommentModal = ({
   const [replyingTo, setReplyingTo] = useState(null); // { id, isReply }
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const toast = useToast();
 
-  // ================== MODERATION LISTENER - REAL-TIME IN MODAL ==================
-  const handleModerationUpdate = useCallback((update) => {
-    if (update.postId !== post?.id) return;
-
-    if (update.status === "REJECTED" || update.status === "FLAGGED") {
-      // Update comment in parent (comments prop) won't auto-update modal,
-      // so we show toast to inform user
-      toast({
-        title: "Bình luận bị ẩn",
-        description: "Một bình luận đã bị ẩn vì vi phạm tiêu chuẩn cộng đồng",
-        status: "warning",
-        duration: 3000,
-        position: "top-right",
-      });
-    }
-  }, [post?.id, toast]);
-
-  useModerationListener(handleModerationUpdate);
+  // Moderation warnings are handled centrally by the parent PostCard (single
+  // ModerationWarningModal). Hidden comments arrive via the `comments` prop, so
+  // no per-modal listener/toast is needed here — that caused duplicate toasts.
 
   // ====== PHÂN TÁCH COMMENT GỐC & REPLY ======
+  // Kiểu Facebook: mọi reply (kể cả reply của reply) đều gom về comment gốc
   const { rootComments, repliesMap } = useMemo(() => {
     const roots = [];
     const map = {};
+    const byId = {};
+
+    (comments || []).forEach((c) => {
+      byId[c.id] = c;
+    });
 
     (comments || []).forEach((c) => {
       if (!c.parentReplyId) {
         // comment gốc (bình luận bài viết)
         roots.push(c);
       } else {
-        // reply -> đưa vào map theo parentReplyId
-        if (!map[c.parentReplyId]) map[c.parentReplyId] = [];
-        map[c.parentReplyId].push(c);
+        // tìm comment gốc tổ tiên (đề phòng reply lồng nhiều cấp)
+        let rootId = c.parentReplyId;
+        let guard = 0;
+        while (byId[rootId]?.parentReplyId && guard < 20) {
+          rootId = byId[rootId].parentReplyId;
+          guard += 1;
+        }
+        if (!map[rootId]) map[rootId] = [];
+        map[rootId].push(c);
       }
     });
 
@@ -213,13 +208,22 @@ const CommentModal = ({
 
   // ================== RENDER ==================
   return (
-    <Modal size={"4xl"} onClose={onClose} isOpen={isOpen} isCentered>
+    <Modal size={{ base: "full", md: "4xl" }} onClose={onClose} isOpen={isOpen} isCentered>
       <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(4px)" />
-      <ModalContent borderRadius="2xl" overflow="hidden" shadow="2xl">
-        <ModalBody p={0}>
-          <div className="flex h-[85vh] bg-white">
+      <ModalContent
+        borderRadius={{ base: "none", md: "2xl" }}
+        overflow="hidden"
+        shadow="2xl"
+        height={{ base: "100dvh", md: "85vh" }}
+        minH={{ base: "100dvh", md: "85vh" }}
+        maxH={{ base: "100dvh", md: "85vh" }}
+        display="flex"
+        flexDir="column"
+      >
+        <ModalBody p={0} flex="1" overflow="hidden" display="flex" flexDir="column">
+          <div className="flex flex-col md:flex-row h-full bg-white">
             {/* Media Section - INSTAGRAM STYLE */}
-            <div className="w-[55%] bg-black relative overflow-hidden">
+            <div className="w-full md:w-[55%] h-[42%] md:h-full flex-shrink-0 bg-black relative overflow-hidden">
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm flex items-center justify-center transition-all group"
@@ -278,7 +282,7 @@ const CommentModal = ({
             </div>
 
             {/* Comments Section */}
-            <div className="w-[45%] flex flex-col bg-white">
+            <div className="w-full md:w-[45%] flex-1 flex flex-col bg-white min-h-0">
               {/* Header */}
               <div className="flex justify-between items-center px-4 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">

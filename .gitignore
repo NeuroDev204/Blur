@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 !.env.*.example
+# Frontend production env được commit vì chỉ chứa URL, không có secret
+!frontend/.env.production
 
 /Backend/docs/FULL_JAVA_IMPLEMENTATION.md
 /Backend/docs/neo4j-follow-recommendation.md
@@ -10,7 +12,8 @@
 /Backend/docs/blur-comprehensive-upgrade-guide.md
 # Large ML model artifacts
 *.safetensors
-/Backend/model-service/models/
+/Backend/model-service/models/*
+!/Backend/model-service/models/.gitkeep
 
 # IDE/editor files
 /.idea/
@@ -41,3 +44,5 @@ ENV/
 /mobile
 Blur_Project_Report.docx
 DEPLOYMENT.md
+/deploy/*
+!/deploy/docker-compose.prod.yml

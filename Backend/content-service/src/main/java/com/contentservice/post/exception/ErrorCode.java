@@ -27,7 +27,8 @@ public enum ErrorCode {
     STORY_LIKE_NOT_FOUND(1023, "Story like not found", HttpStatus.NOT_FOUND),
     COMMENT_NOT_FOUND(1030, "Comment not found", HttpStatus.NOT_FOUND),
     COMMENT_REPLY_NOT_FOUND(1031, "Comment reply not found", HttpStatus.NOT_FOUND),
-    COMMENT_PROCESS_MODERATION_FAILED(1032, "Failed to process moderation", HttpStatus.BAD_REQUEST);
+    COMMENT_PROCESS_MODERATION_FAILED(1032, "Failed to process moderation", HttpStatus.BAD_REQUEST),
+    COMMENT_LOCKED(1033, "Bạn đã bị tạm khóa bình luận 10 phút do nhiều bình luận tiêu cực. Vui lòng thử lại sau.", HttpStatus.TOO_MANY_REQUESTS);
 
     private final int code;
     private final String message;

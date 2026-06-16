@@ -1,5 +1,6 @@
 package com.blur.userservice.profile.service;
 
+import com.blur.userservice.profile.dto.request.FollowNotificationRequest;
 import com.blur.userservice.profile.dto.request.ProfileCreationRequest;
 import com.blur.userservice.profile.dto.request.UserProfileUpdateRequest;
 import com.blur.userservice.profile.dto.response.RecommendationPageResponse;
@@ -12,9 +13,11 @@ import com.blur.userservice.profile.exception.ErrorCode;
 import com.blur.userservice.profile.mapper.UserProfileMapper;
 import com.blur.userservice.profile.repository.UserProfileRepository;
 import com.blur.userservice.profile.repository.httpclient.ContentServiceClient;
+import com.blur.userservice.profile.repository.httpclient.NotificationServiceClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -39,6 +43,7 @@ public class UserProfileService {
     UserProfileRepository userProfileRepository;
     UserProfileMapper userProfileMapper;
     ContentServiceClient contentServiceClient;
+    NotificationServiceClient notificationServiceClient;
 
     @Caching(evict = {
             @CacheEvict(value = "profileByUserId", key = "#request.userId")
@@ -149,7 +154,21 @@ public class UserProfileService {
         try {
             contentServiceClient.backfillFeed(reqUserId, followerId);
         } catch (Exception e) {
-            // non-blocking: feed backfill thất bại không ảnh hưởng follow
+            log.warn("Feed backfill failed for follower={} followedUser={}: {}", reqUserId, followerId, e.getMessage());
+        }
+
+        // Send follow notification to the followed user
+        try {
+            notificationServiceClient.sendFollowNotification(
+                    FollowNotificationRequest.builder()
+                            .senderId(reqUserId)
+                            .senderName(buildFullName(requester.getFirstName(), requester.getLastName()))
+                            .receiverId(followerId)
+                            .receiverName(buildFullName(followingUser.getFirstName(), followingUser.getLastName()))
+                            .receiverEmail(followingUser.getEmail())
+                            .build());
+        } catch (Exception e) {
+            log.warn("Follow notification failed for follower={} followedUser={}: {}", reqUserId, followerId, e.getMessage());
         }
 
         return "You are following " + followingUser.getFirstName();
@@ -390,6 +409,12 @@ public class UserProfileService {
                 .mutualConnections(0)
                 .recommendationType(type)
                 .build();
+    }
+
+    private String buildFullName(String firstName, String lastName) {
+        String first = firstName != null ? firstName.trim() : "";
+        String last = lastName != null ? lastName.trim() : "";
+        return (first + " " + last).trim();
     }
 
     private RecommendationPageResponse buildPageResponse(

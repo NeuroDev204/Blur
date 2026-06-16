@@ -10,7 +10,9 @@ import com.blur.userservice.profile.exception.AppException;
 import com.blur.userservice.profile.exception.ErrorCode;
 import com.blur.userservice.profile.mapper.UserMapper;
 import com.blur.userservice.profile.repository.UserProfileRepository;
+import com.blur.userservice.profile.dto.request.FollowNotificationRequest;
 import com.blur.userservice.profile.repository.httpclient.ContentServiceClient;
+import com.blur.userservice.profile.repository.httpclient.NotificationServiceClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -29,6 +31,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -39,10 +42,10 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     ContentServiceClient contentServiceClient;
+    NotificationServiceClient notificationServiceClient;
     KeycloakUserService keycloakUserService;
     FieldEncryptionService fieldEncryptionService;
 
-    @Transactional
     public UserResponse createUser(UserCreationRequest request) {
         if (userProfileRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new AppException(ErrorCode.USER_EXISTED);
@@ -90,28 +93,50 @@ public class UserService {
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
 
-        // tu dong follow user "blur" khi dang ky + backfill feed
-        final UserProfile savedProfile = userProfile;
-        final String finalKeycloakUserId = keycloakUserId;
+        // Auto-follow "blur" on registration (new user ↔ blur, both directions).
+        // Uses user_id (Keycloak UUID — always explicitly set by us) so there is no SDN @Id dependency.
+        // Single atomic Cypher: creates both follows + updates counts in one roundtrip.
+        final String newUserId = userProfile.getUserId();
+        final String newUserName = (trimmed(userProfile.getFirstName()) + " " + trimmed(userProfile.getLastName())).trim();
+        final String newUserEmail = userProfile.getEmail();
         try {
-            userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
-                if (!savedProfile.getId().equals(blurUser.getId())) {
-                    userProfileRepository.follow(savedProfile.getId(), blurUser.getId());
-                    userProfileRepository.updateFollowCounts(savedProfile.getId());
-                    userProfileRepository.updateFollowCounts(blurUser.getId());
-                    try {
-                        contentServiceClient.backfillFeed(savedProfile.getUserId(), blurUser.getUserId());
-                    } catch (Exception e) {
-                        log.warn("Feed backfill failed for new user {}: {}", savedProfile.getUserId(), e.getMessage());
-                    }
-                }
-            });
+            Long followingCount = userProfileRepository.autoFollowBlur(newUserId);
+            if (followingCount == null || followingCount == 0) {
+                log.warn("Auto-follow blur did NOT create relationship for new user {} (followingCount={}). "
+                        + "A MATCH found no node — check blur username and new user user_id={}.",
+                        newUserId, followingCount, newUserId);
+            } else {
+                log.info("Auto-follow blur OK for new user {} (followingCount={})", newUserId, followingCount);
+            }
         } catch (Exception e) {
-            log.error("Follow/backfill failed for new user {}, rolling back: {}", userId, e.getMessage());
-            userProfileRepository.deleteByUserId(userId);
-            keycloakUserService.deleteUser(finalKeycloakUserId);
-            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+            log.warn("Auto-follow blur threw for new user {}: {}", newUserId, e.getMessage());
         }
+        CompletableFuture.runAsync(() -> {
+            try {
+                userProfileRepository.findByUsername("blur").ifPresent(blurUser -> {
+                    final String blurUserId = blurUser.getUserId();
+                    try {
+                        contentServiceClient.backfillFeed(newUserId, blurUserId);
+                    } catch (Exception e) {
+                        log.warn("Feed backfill failed for new user {}: {}", newUserId, e.getMessage());
+                    }
+                    try {
+                        notificationServiceClient.sendFollowNotification(
+                                FollowNotificationRequest.builder()
+                                        .senderId(blurUserId)
+                                        .senderName("Blur")
+                                        .receiverId(newUserId)
+                                        .receiverName(newUserName)
+                                        .receiverEmail(newUserEmail)
+                                        .build());
+                    } catch (Exception e) {
+                        log.warn("Welcome notification failed for new user {}: {}", newUserId, e.getMessage());
+                    }
+                });
+            } catch (Exception e) {
+                log.warn("Async follow actions failed for new user {}: {}", newUserId, e.getMessage());
+            }
+        });
 
         return userMapper.toUserResponse(userProfile);
     }
@@ -194,5 +219,9 @@ public class UserService {
 
     public String getCurrentUsername() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    private String trimmed(String value) {
+        return value != null ? value.trim() : "";
     }
 }

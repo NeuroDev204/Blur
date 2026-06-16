@@ -35,6 +35,7 @@ public class CommentReplyService {
     CommentMapper commentMapper;
     ProfileClient profileClient;
     NotificationEventPublisher notificationEventPublisher;
+    CommentLockService commentLockService;
 
     @Caching(evict = {
             @CacheEvict(value = "commentReplies", key = "#commentId"),
@@ -47,6 +48,11 @@ public class CommentReplyService {
     ) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String currentUserId = auth.getName();
+
+        // Chặn nếu user đang bị tạm khóa bình luận do nhiều bình luận tiêu cực.
+        if (commentLockService.isLocked(currentUserId)) {
+            throw new AppException(ErrorCode.COMMENT_LOCKED);
+        }
 
         // Validate that the parent comment exists
         var comment = commentRepository.findById(commentId)

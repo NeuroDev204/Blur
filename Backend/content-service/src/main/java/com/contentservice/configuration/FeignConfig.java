@@ -49,6 +49,6 @@ public class FeignConfig {
 
     @Bean
     Logger.Level feignLoggerLevel() {
-        return Logger.Level.FULL; // Để debug
+        return Logger.Level.NONE;
     }
 }

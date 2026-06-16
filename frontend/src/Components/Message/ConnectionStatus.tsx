@@ -23,7 +23,7 @@ const ConnectionStatus = ({ error }) => {
 
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[10000] animate-slide-down">
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 px-4 py-3 min-w-[320px] max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 px-4 py-3 w-[min(320px,calc(100vw-2rem))] sm:w-auto sm:min-w-[320px] max-w-md">
         <div className="flex items-center gap-3">
           {/* Icon */}
           <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">

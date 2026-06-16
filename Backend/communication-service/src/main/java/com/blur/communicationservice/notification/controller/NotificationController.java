@@ -34,6 +34,13 @@ public class NotificationController {
         return ApiResponse.builder().build();
     }
 
+    @PostMapping("/internal/follow")
+    public ApiResponse<?> sendInternalFollowNotification(@RequestBody Event event) throws Exception {
+        String message = objectMapper.writeValueAsString(event);
+        kafkaTemplate.send("user-follow-events", message);
+        return ApiResponse.builder().build();
+    }
+
     @PutMapping("/like-post")
     public ApiResponse<?> sendLikePostNotification(@RequestBody Event event) throws Exception {
         String message = objectMapper.writeValueAsString(event);
@@ -94,6 +101,13 @@ public class NotificationController {
         moderationData.put("commentId", commentId);
         moderationData.put("postId", postId);
         moderationData.put("status", status);
+        // Các trường tùy chọn cho thông báo khóa bình luận (COMMENT_LOCKED).
+        if (request.get("message") != null) {
+            moderationData.put("message", request.get("message"));
+        }
+        if (request.get("lockedUntil") != null) {
+            moderationData.put("lockedUntil", request.get("lockedUntil"));
+        }
         moderationData.put("timestamp", System.currentTimeMillis());
 
         webSocketNotificationService.sendModerationUpdate(userId, moderationData);

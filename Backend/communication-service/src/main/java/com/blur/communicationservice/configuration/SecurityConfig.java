@@ -33,6 +33,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/notification/moderation-update")
                         .permitAll()
+                        .requestMatchers("/notification/internal/follow")
+                        .permitAll()
                         .requestMatchers("/actuator/**")
                         .permitAll()
                         .anyRequest()

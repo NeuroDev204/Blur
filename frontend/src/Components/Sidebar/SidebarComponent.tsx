@@ -117,9 +117,7 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-64 fixed top-0 left-0 h-screen transition-all duration-300 flex flex-col justify-between px-4 py-6 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-sm z-50">
+    <div className="flex flex-col justify-between h-[100dvh] w-full overflow-hidden px-4 py-6 bg-white dark:bg-gray-900 shadow-sm">
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <div className="relative group">
@@ -239,12 +237,6 @@ export const SidebarComponent: React.FC<SidebarComponentProps> = ({ onPostCreate
             </div>
           )}
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 ml-64 overflow-y-auto bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-900">
-        {/* Content will be rendered here */}
-      </div>
 
       <LogoutModal isOpen={isOpen} onClose={onClose} />
       <CreatePostModal

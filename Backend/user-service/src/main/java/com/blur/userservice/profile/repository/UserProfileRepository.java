@@ -57,6 +57,51 @@ public interface UserProfileRepository extends Neo4jRepository<UserProfile, Stri
     void follow(@Param("fromId") String fromId, @Param("toId") String toId);
 
     @Query("""
+            MATCH (a:user_profile {user_id: $fromUserId})
+            MATCH (b:user_profile {user_id: $toUserId})
+            MERGE (a)-[:follows]->(b)
+            """)
+    void followByUserId(@Param("fromUserId") String fromUserId, @Param("toUserId") String toUserId);
+
+    @Query("""
+            MATCH (u:user_profile {user_id: $userId})
+            OPTIONAL MATCH (follower:user_profile)-[:follows]->(u)
+            OPTIONAL MATCH (u)-[:follows]->(following:user_profile)
+            WITH u, COUNT(DISTINCT follower) AS followers, COUNT(DISTINCT following) AS following
+            SET u.followersCount = followers, u.followingCount = following
+            RETURN u
+            """)
+    UserProfile updateFollowCountsByUserId(@Param("userId") String userId);
+
+    // Single atomic query: create both follow relationships and update counts for both users.
+    // Uses user_id (Keycloak UUID, always explicitly set). Matches blur case-insensitively by
+    // username — identical to findByUsername, which reliably finds blur. No SDN @Id dependency.
+    // Returns newUser.followingCount AFTER the merge: >= 1 means the follow was created;
+    // null/0 means a MATCH found nothing (newUser or blur node not present).
+    @Query("""
+            MATCH (newUser:user_profile {user_id: $newUserId})
+            MATCH (blur:user_profile)
+            WHERE toLower(blur.username) = 'blur' AND newUser <> blur
+            MERGE (newUser)-[:follows]->(blur)
+            MERGE (blur)-[:follows]->(newUser)
+            WITH newUser, blur
+            OPTIONAL MATCH (nf:user_profile)-[:follows]->(newUser)
+            WITH newUser, blur, COUNT(DISTINCT nf) AS nFollowers
+            OPTIONAL MATCH (newUser)-[:follows]->(ng:user_profile)
+            WITH newUser, blur, nFollowers, COUNT(DISTINCT ng) AS nFollowing
+            OPTIONAL MATCH (bf:user_profile)-[:follows]->(blur)
+            WITH newUser, blur, nFollowers, nFollowing, COUNT(DISTINCT bf) AS bFollowers
+            OPTIONAL MATCH (blur)-[:follows]->(bg:user_profile)
+            WITH newUser, blur, nFollowers, nFollowing, bFollowers, COUNT(DISTINCT bg) AS bFollowing
+            SET newUser.followersCount = nFollowers,
+                newUser.followingCount  = nFollowing,
+                blur.followersCount     = bFollowers,
+                blur.followingCount     = bFollowing
+            RETURN nFollowing
+            """)
+    Long autoFollowBlur(@Param("newUserId") String newUserId);
+
+    @Query("""
             MATCH (a:user_profile {id: $fromId})-[r:follows]->(b:user_profile {id: $toId})
             DELETE r
             """)

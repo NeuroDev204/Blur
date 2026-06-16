@@ -6,7 +6,9 @@ import com.blur.userservice.profile.dto.response.UserResponse;
 import com.blur.userservice.profile.entity.UserProfile;
 import org.mapstruct.*;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+// IGNORE null source values on update so partial updates don't overwrite existing fields with null.
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE,
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface UserMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)

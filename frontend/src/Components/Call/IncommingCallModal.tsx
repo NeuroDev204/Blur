@@ -36,9 +36,9 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
     }, [onReject]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center 
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center
                     bg-black/70 backdrop-blur-lg animate-fadeIn">
-            <div className="bg-white rounded-3xl shadow-2xl p-10 w-[420px] 
+            <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-10 w-full max-w-[420px]
                       animate-scaleIn mx-4">
 
                 {/* Caller Avatar */}

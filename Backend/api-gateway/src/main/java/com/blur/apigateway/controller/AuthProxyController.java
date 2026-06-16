@@ -86,6 +86,58 @@ public class AuthProxyController {
                 });
     }
 
+    @PostMapping("/refresh")
+    public Mono<Map<String, Object>> refresh(
+            @CookieValue(name = "refresh_token", required = false) String refreshToken,
+            ServerHttpResponse response
+    ) {
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            response.setStatusCode(HttpStatus.UNAUTHORIZED);
+            return Mono.just(Map.of("code", 1006, "message", "No refresh token"));
+        }
+
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "refresh_token");
+        formData.add("client_id", clientId);
+        formData.add("client_secret", clientSecret);
+        formData.add("refresh_token", refreshToken);
+
+        return webClientBuilder.build()
+                .post()
+                .uri(keycloakTokenUri)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData(formData))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .map(keycloakResponse -> {
+                    String newAccessToken = (String) keycloakResponse.get("access_token");
+                    String newRefreshToken = (String) keycloakResponse.get("refresh_token");
+                    Number expiresIn = (Number) keycloakResponse.get("expires_in");
+                    Number refreshExpiresIn = (Number) keycloakResponse.get("refresh_expires_in");
+
+                    response.addCookie(createAccessTokenCookie(newAccessToken, expiresIn.longValue()));
+                    if (newRefreshToken != null) {
+                        response.addCookie(createRefreshTokenCookie(newRefreshToken, refreshExpiresIn.longValue()));
+                    }
+
+                    return Map.of(
+                            "code", 1000,
+                            "result", Map.of("authenticated", true)
+                    );
+                })
+                .onErrorResume(e -> {
+                    if (e instanceof WebClientResponseException wcre) {
+                        log.error("Keycloak refresh failed: status={}, body={}", wcre.getStatusCode(), wcre.getResponseBodyAsString());
+                    } else {
+                        log.error("Keycloak refresh failed: {}", e.getMessage(), e);
+                    }
+                    response.addCookie(createLogoutCookie("access_token", "/"));
+                    response.addCookie(createLogoutCookie("refresh_token", "/api/auth/refresh"));
+                    response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                    return Mono.just(Map.of("code", 1006, "message", "Refresh failed"));
+                });
+    }
+
     // goi keycloak logout
     @PostMapping("/logout")
     public Mono<Map<String, Object>> logout(
@@ -93,9 +145,8 @@ public class AuthProxyController {
             @CookieValue(name = "refresh_token", required = false) String refreshToken,
             ServerHttpResponse response
     ) {
-        // xoa cookies truoc
-        response.addCookie(createLogoutCookie("access_token"));
-        response.addCookie(createLogoutCookie("refresh_token"));
+        response.addCookie(createLogoutCookie("access_token", "/"));
+        response.addCookie(createLogoutCookie("refresh_token", "/api/auth/refresh"));
 
         // goi keycloak logout (neu co refresh token)
         if (refreshToken != null && !refreshToken.isEmpty()) {
@@ -153,11 +204,11 @@ public class AuthProxyController {
                 .build();
     }
 
-    private ResponseCookie createLogoutCookie(String name) {
+    private ResponseCookie createLogoutCookie(String name, String path) {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .path("/")
+                .path(path)
                 .maxAge(0)
                 .sameSite("Lax")
                 .domain(cookieDomain)

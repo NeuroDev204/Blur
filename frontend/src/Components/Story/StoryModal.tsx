@@ -207,7 +207,7 @@ const StoryModal: React.FC<StoryModalProps> = ({
       <div
         ref={modalContentRef}
         className="relative bg-black rounded-3xl overflow-hidden shadow-2xl"
-        style={{ width: "min(400px, 95vw)", height: "min(710px, 92vh)" }}
+        style={{ width: "min(400px, 95vw)", height: "min(710px, 92dvh)" }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={handlePressStart}
         onMouseUp={handlePressEnd}
@@ -437,7 +437,7 @@ const StoryModal: React.FC<StoryModalProps> = ({
       {currentIndex > 0 && (
         <button
           onClick={goToPrev}
-          className="absolute left-4 md:left-12 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white transition-all hover:scale-110 shadow-xl"
+          className="absolute left-4 md:left-12 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hidden sm:flex items-center justify-center text-white transition-all hover:scale-110 shadow-xl"
         >
           <MdChevronLeft className="w-7 h-7" />
         </button>
@@ -445,7 +445,7 @@ const StoryModal: React.FC<StoryModalProps> = ({
       {currentIndex < stories.length - 1 && (
         <button
           onClick={goToNext}
-          className="absolute right-4 md:right-12 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white transition-all hover:scale-110 shadow-xl"
+          className="absolute right-4 md:right-12 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hidden sm:flex items-center justify-center text-white transition-all hover:scale-110 shadow-xl"
         >
           <MdChevronRight className="w-7 h-7" />
         </button>

@@ -3,6 +3,36 @@
 @tailwind utilities;
 
 /* ===================================
+   MOBILE / RESPONSIVE GLOBAL FIXES
+   =================================== */
+
+html,
+body {
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  touch-action: manipulation;
+}
+
+/* iOS Safari tự zoom khi focus input có font-size < 16px.
+   Ép 16px trên mobile để tránh nhảy zoom. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Swiper navigation gọn hơn trên màn hình nhỏ */
+  .swiper-button-next,
+  .swiper-button-prev {
+    transform: scale(0.85);
+  }
+}
+
+/* ===================================
    DARK MODE — GLOBAL OVERRIDES
    Applies when <html class="dark">
    =================================== */

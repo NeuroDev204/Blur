@@ -26,6 +26,7 @@ import {
   getAllComments,
   replyToComment,
   savePost,
+  unsavePost,
 } from "../../api/postApi";
 import { useModerationListener } from "../../hooks/useModerationListener";
 import { IoSend } from "react-icons/io5";
@@ -111,6 +112,20 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     // Only handle updates for this post's comments
     if (update.postId !== post?.id) return;
 
+    if (update.status === "COMMENT_LOCKED") {
+      toast({
+        title: "Bạn đã bị tạm khóa bình luận",
+        description:
+          update.message ||
+          "Bạn đã bị tạm khóa bình luận 10 phút do nhiều bình luận tiêu cực.",
+        status: "error",
+        duration: 6000,
+        isClosable: true,
+        position: "top-right",
+      });
+      return;
+    }
+
     if (update.status === "REJECTED" || update.status === "FLAGGED") {
       // Replace comment content with hidden message
       setComments((prev) =>
@@ -124,7 +139,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       // Show modal warning
       onModerationModalOpen();
     }
-  }, [onModerationModalOpen, post?.id]);
+  }, [onModerationModalOpen, post?.id, toast]);
 
   useModerationListener(handleModerationUpdate);
 
@@ -262,7 +277,11 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
             position: "top-right",
           });
         } else {
-          setComments((prev) => [...prev, newReply]);
+          // Đảm bảo reply luôn có parentReplyId để hiển thị đúng dạng cây
+          setComments((prev) => [
+            ...prev,
+            { ...newReply, parentReplyId: newReply?.parentReplyId || parentCommentId },
+          ]);
           toast({
             title: "Reply created successfully.",
             status: "success",
@@ -311,7 +330,15 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
   // Toggle like/unlike with optimistic update
   const handlePostLike = async () => {
-    if (post?.userId === (user?.userId || user?.id)) return;
+    if (post?.userId === (user?.userId || user?.id)) {
+      toast({
+        title: "Không thể thích bài viết của chính mình",
+        status: "info",
+        duration: 3000,
+        position: "top-right",
+      });
+      return;
+    }
 
     const previousLiked = isPostLiked;
     const previousLikes = [...likes];
@@ -404,22 +431,44 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     }
   };
 
-  // 💾 Save post
+  // 💾 Save / unsave post (toggle)
   const handleSavePost = async () => {
-    try {
-      await savePost(post.id);
-
-      setIsSaved(true);
-
+    if (post?.userId === (user?.userId || user?.id)) {
       toast({
-        title: "Post saved successfully",
-        status: "success",
+        title: "Không thể lưu bài viết của chính mình",
+        status: "info",
         duration: 3000,
         position: "top-right",
       });
+      return;
+    }
+    const previousSaved = isSaved;
+    try {
+      // Optimistic toggle
+      setIsSaved(!previousSaved);
+
+      if (previousSaved) {
+        await unsavePost(post.id);
+        toast({
+          title: "Post removed from saved",
+          status: "success",
+          duration: 3000,
+          position: "top-right",
+        });
+      } else {
+        await savePost(post.id);
+        toast({
+          title: "Post saved successfully",
+          status: "success",
+          duration: 3000,
+          position: "top-right",
+        });
+      }
     } catch (error) {
+      // Rollback on failure
+      setIsSaved(previousSaved);
       toast({
-        title: "Failed to save post",
+        title: previousSaved ? "Failed to remove saved post" : "Failed to save post",
         status: "error",
         duration: 3000,
         position: "top-right",
@@ -431,6 +480,8 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   const handleClickUserName = () => {
     if (post?.profileId && post.profileId !== "null") {
       navigate(`/profile/user/?profileId=${post.profileId}`);
+    } else if (post?.userId) {
+      navigate(`/profile/user/?userId=${post.userId}`);
     }
   };
   const isCurrentUserPostOwner = post?.userId === (user?.userId || user?.id);
@@ -468,7 +519,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
   const getMediaContainerStyle = () => {
     if (primaryAspectRatio === null) {
       return {
-        height: "400px",
+        height: "min(400px, 55vh)",
         width: "100%",
       };
     }
@@ -478,19 +529,19 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
     if (aspectRatio < 0.8) {
       return {
         aspectRatio: aspectRatio.toString(),
-        maxHeight: "600px",
+        maxHeight: "min(600px, 75vh)",
         width: "100%",
       };
     } else if (aspectRatio > 1.3) {
       return {
         aspectRatio: aspectRatio.toString(),
-        maxHeight: "500px",
+        maxHeight: "min(500px, 65vh)",
         width: "100%",
       };
     } else {
       return {
         aspectRatio: aspectRatio.toString(),
-        maxHeight: "600px",
+        maxHeight: "min(600px, 75vh)",
         width: "100%",
       };
     }
@@ -498,16 +549,16 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
   // 🎨 UI
   return (
-    <div className="bg-white shadow-lg hover:shadow-2xl rounded-3xl overflow-hidden mb-8 border-2 border-sky-100 hover:border-sky-300 transition-all duration-300 transform hover:-translate-y-1">
+    <div className="bg-white sm:shadow-lg sm:hover:shadow-2xl sm:rounded-3xl overflow-hidden mb-4 sm:mb-8 sm:border-2 sm:border-sky-100 sm:hover:border-sky-300 transition-all duration-300 sm:hover:-translate-y-1">
       {/* Header */}
-      <div className="flex justify-between items-center py-5 px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50 dark:bg-none dark:bg-[#1e293b]">
-        <div className="flex items-center gap-4">
+      <div className="flex justify-between items-center py-3 px-4 sm:py-5 sm:px-6 bg-gradient-to-r from-sky-50 via-white to-sky-50 dark:bg-none dark:bg-[#1e293b]">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div
             className="relative group cursor-pointer"
             onClick={handleClickUserName}
           >
             <img
-              className="relative h-14 w-14 rounded-full object-cover border-3 border-white shadow-lg ring-2 ring-sky-200"
+              className="relative h-11 w-11 sm:h-14 sm:w-14 rounded-full object-cover border-3 border-white shadow-lg ring-2 ring-sky-200"
               src={
                 post?.userImageUrl ||
                 "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"
@@ -559,7 +610,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
 
       {/* Caption */}
       {post?.content && (
-        <div className="px-6 pb-4 text-sm text-gray-800 leading-relaxed">
+        <div className="px-4 pb-3 sm:px-6 sm:pb-4 text-sm text-gray-800 leading-relaxed break-words">
           {post.content}
         </div>
       )}
@@ -613,12 +664,11 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       )}
 
       {/* Actions */}
-      <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-white to-sky-50/30 dark:bg-none dark:bg-[#1e293b]">
+      <div className="flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-white to-sky-50/30 dark:bg-none dark:bg-[#1e293b]">
         <div className="flex items-center gap-5">
           <button
             onClick={handlePostLike}
-            disabled={post?.userId === (user?.userId || user?.id)}
-            className="group transition-transform hover:scale-110 active:scale-95 duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="group transition-transform hover:scale-110 active:scale-95 duration-200"
           >
             {isPostLiked ? (
               <AiFillHeart className="text-2xl text-red-500 animate-pulse" />
@@ -647,7 +697,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       </div>
 
       {/* Likes & Comments */}
-      <div className="px-6 pb-4">
+      <div className="px-4 pb-3 sm:px-6 sm:pb-4">
         <p className="text-sm font-semibold text-gray-800">
           {likes.length} {likes.length === 1 ? "like" : "likes"}
         </p>
@@ -661,7 +711,7 @@ const PostCard = ({ post, user, onPostDeleted }: { post: any; user: any; onPostD
       </div>
 
       {/* Add Comment */}
-      <div className="border-t border-sky-100 px-6 py-4 flex items-center gap-3 bg-gradient-to-r from-sky-50/50 to-white dark:bg-none dark:bg-[#1e293b]">
+      <div className="border-t border-sky-100 px-4 py-3 sm:px-6 sm:py-4 flex items-center gap-3 bg-gradient-to-r from-sky-50/50 to-white dark:bg-none dark:bg-[#1e293b]">
         <BsEmojiSmile className="text-xl text-gray-400" />
         <input
           className="flex-1 outline-none text-sm placeholder-gray-400 bg-transparent py-2 px-1"

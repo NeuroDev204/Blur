@@ -1,13 +1,10 @@
 // src/components/Chat/ChatArea.jsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Image, Send, Loader, Smile, Plus, Phone, Video, Info, Sparkles } from 'lucide-react';
+import { Image, Send, Loader, Smile, Plus, Phone, Video, Info, Sparkles, ArrowLeft } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import MessageBubble from './MessageBubble';
 import MediaPreview from './MediaPreview';
-import { useCall } from '../../hooks/useCall';
-import IncomingCallModal from '../Call/IncommingCallModal';
-import CallWindow from '../Call/CallWindow';
-import CallEndedModal from '../Call/CallendedModal';
+import { useCallContext } from '../../contexts/CallContext';
 
 
 export const uploadToCloudnary = async (file) => {
@@ -68,7 +65,8 @@ const ChatArea = ({
   currentUserId,
   currentUser,
   loadingMessages = false,
-  messagesError = null
+  messagesError = null,
+  onBack = null
 }) => {
   const [input, setInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -77,22 +75,9 @@ const ChatArea = ({
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
-  const {
-    callState,
-    mediaState,
-    connectionState,
-    callDuration,
-    localVideoRef,
-    remoteVideoRef,
-    initiateCall,
-    answerCall,
-    rejectCall,
-    endCall,
-    toggleAudio,
-    toggleVideo,
-    callEndedInfo,
-    closeCallEndedModal
-  } = useCall(currentUserId);
+  // Call duoc xu ly o tang app (CallProvider) de nhan cuoc goi o moi trang.
+  // ChatArea chi can khoi tao cuoc goi va biet trang thai dang goi de disable nut.
+  const { callState, initiateCall } = useCallContext();
 
   const handleVoiceCall = useCallback(() => {
     if (!conversation || callState.isInCall) {
@@ -105,6 +90,11 @@ const ChatArea = ({
     const receiver = conversation.participants.find(
       p => p.userId !== currentUserId
     );
+
+    // [CALL-DEBUG] tam thoi: kiem tra currentUserId co dung khong va receiver co bi trung voi nguoi goi khong
+    console.log("[CALL-DEBUG] ChatArea VOICE initiating. currentUserId(prop)=", currentUserId,
+      "receiverId=", receiver?.userId,
+      "participants=", conversation.participants?.map(p => p.userId));
 
     if (!receiver || !receiver.userId) {
 
@@ -378,7 +368,7 @@ const ChatArea = ({
     });
 
     try {
-      const response = await fetch('http://localhost:8888/api/chat/ai/chat', {
+      const response = await fetch('/api/chat/ai/chat', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -438,13 +428,22 @@ const ChatArea = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full relative">
+    <div className="flex-1 flex flex-col bg-white h-full relative min-w-0 w-full overflow-x-hidden">
       <Toaster position="bottom-center" />
 
       {/* Header - Instagram Style */}
-      <div className="bg-white border-b border-gray-200 px-5 py-3 sticky top-0 z-10">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-5 py-3 sticky top-0 z-10">
         <div className="flex items-center justify-between max-w-full">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="md:hidden w-9 h-9 flex items-center justify-center text-black hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                aria-label="Quay lại"
+              >
+                <ArrowLeft size={22} strokeWidth={2} />
+              </button>
+            )}
             <div className="relative flex-shrink-0">
               <div className="w-10 h-10 rounded-full overflow-hidden">
                 <img
@@ -532,7 +531,7 @@ const ChatArea = ({
             </p>
           </div>
         ) : (
-          <div className="py-4 px-5">
+          <div className="py-4 px-3 sm:px-5">
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
@@ -546,7 +545,7 @@ const ChatArea = ({
       </div>
 
       {/* Input Area - Instagram Style */}
-      <div className="bg-white border-t border-gray-200 p-5">
+      <div className="bg-white border-t border-gray-200 p-3 sm:p-5">
         {/* File Preview */}
         {selectedFiles.length > 0 && (
           <div className="mb-4">
@@ -570,7 +569,7 @@ const ChatArea = ({
         )}
 
         {/* Input Box */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Actions Button */}
           <div className="relative actions-menu">
             <button
@@ -615,11 +614,11 @@ const ChatArea = ({
           />
 
           {/* Text Input */}
-          <div className="flex-1 flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2 border border-gray-200 focus-within:border-gray-300 transition-colors">
+          <div className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 bg-gray-100 rounded-full px-3 sm:px-4 py-2 border border-gray-200 focus-within:border-gray-300 transition-colors">
             <input
               ref={inputRef}
               type="text"
-              className="flex-1 bg-transparent focus:outline-none text-sm text-black placeholder-gray-500 font-normal"
+              className="flex-1 w-full min-w-0 bg-transparent focus:outline-none text-sm text-black placeholder-gray-500 font-normal"
               placeholder="Nhắn tin..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -634,69 +633,29 @@ const ChatArea = ({
               <Sparkles size={22} strokeWidth={1.5} />
             </button>
             <button
-              className="text-black hover:opacity-60 transition-opacity flex-shrink-0"
+              className="text-black hover:opacity-60 transition-opacity flex-shrink-0 hidden sm:block"
               aria-label="Emoji"
             >
               <Smile size={22} strokeWidth={1.5} />
             </button>
           </div>
 
-          {/* Send Button */}
-          {canSend && (
-            <button
-              onClick={handleSend}
-              disabled={isUploading}
-              className="text-blue-500 font-semibold text-sm hover:text-blue-700 disabled:text-blue-300 transition-colors flex-shrink-0 px-1"
-            >
-              {isUploading ? (
-                <Loader size={20} className="animate-spin" strokeWidth={2} />
-              ) : (
-                'Gửi'
-              )}
-            </button>
-          )}
+          {/* Send Button - luôn hiển thị, disable khi chưa có nội dung */}
+          <button
+            onClick={handleSend}
+            disabled={!canSend || isUploading}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-blue-500 hover:text-blue-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+            aria-label="Gửi"
+          >
+            {isUploading ? (
+              <Loader size={20} className="animate-spin" strokeWidth={2} />
+            ) : (
+              <Send size={22} strokeWidth={2} />
+            )}
+          </button>
         </div>
       </div>
-
-      {/* ============ CALL MODALS ============ */}
-
-      {/* Incoming Call Modal */}
-      {callState.isIncoming && (
-        <IncomingCallModal
-          callerName={callState.callerName}
-          callerAvatar={callState.callerAvatar}
-          callType={callState.callType}
-          onAnswer={answerCall}
-          onReject={rejectCall}
-        />
-      )}
-
-      {/* Active Call Window */}
-      {callState.isInCall && !callState.isIncoming && (
-        <CallWindow
-          callState={callState}
-          mediaState={mediaState}
-          connectionState={connectionState}
-          callDuration={callDuration}
-          localVideoRef={localVideoRef}
-          remoteVideoRef={remoteVideoRef}
-          onEndCall={endCall}
-          onToggleAudio={toggleAudio}
-          onToggleVideo={toggleVideo}
-        />
-      )}
-
-      {/* Call Ended Modal */}
-      {callEndedInfo && (
-        <CallEndedModal
-          callerName={callEndedInfo.callerName}
-          callerAvatar={callEndedInfo.callerAvatar}
-          callType={callEndedInfo.callType}
-          duration={callEndedInfo.duration}
-          endReason={callEndedInfo.endReason as any}
-          onClose={closeCallEndedModal}
-        />
-      )}
+      {/* Call modals (incoming / active / ended) duoc render o CallProvider tang app. */}
     </div>
   );
 };

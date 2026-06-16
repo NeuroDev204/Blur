@@ -19,7 +19,7 @@ const MessageAttachment: React.FC<MessageAttachmentProps> = ({ attachment, isMe 
       <img
         src={attachment.url}
         alt={attachment.fileName}
-        className="max-w-sm max-h-96 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+        className="w-full max-w-full sm:max-w-sm max-h-96 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
         onClick={() => window.open(attachment.url, '_blank')}
       />
     );
@@ -30,7 +30,7 @@ const MessageAttachment: React.FC<MessageAttachmentProps> = ({ attachment, isMe 
       <video
         src={attachment.url}
         controls
-        className="max-w-sm max-h-96 rounded-lg"
+        className="w-full max-w-full sm:max-w-sm max-h-96 rounded-lg"
       />
     );
   }

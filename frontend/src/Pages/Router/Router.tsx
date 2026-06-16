@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { Route, Routes, useLocation, Navigate } from "react-router-dom"
+import { Route, Routes, useLocation, Navigate, useNavigate } from "react-router-dom"
 import HomePage from "../HomePage/HomePage"
 import Profile from "../Profile/Profile"
 import MessagePage from "../MessagePage/MessagePage"
@@ -19,6 +19,7 @@ import { introspectToken } from "../../api/authAPI"
 
 const Router: React.FC = () => {
     const location = useLocation()
+    const navigate = useNavigate()
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
     const [isMobile, setIsMobile] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -106,50 +107,61 @@ const Router: React.FC = () => {
     return (
         <div className="flex min-h-screen">
             {isMobile && (
-                <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="fixed top-4 left-4 z-50 p-2 bg-white rounded-md shadow-md border md:hidden"
-                    aria-label="Toggle menu"
-                >
-                    <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                <div className="fixed top-0 left-0 right-0 h-16 z-50 bg-white border-b border-gray-200 flex items-center px-3 gap-3 md:hidden">
+                    <button
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200"
+                        aria-label="Toggle menu"
                     >
-                        {sidebarOpen ? (
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        ) : (
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 6h16M4 12h16M4 18h16"
-                            />
-                        )}
-                    </svg>
-                </button>
+                        <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            {sidebarOpen ? (
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            ) : (
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 6h16M4 12h16M4 18h16"
+                                />
+                            )}
+                        </svg>
+                    </button>
+                    <img
+                        src="../logo.webp"
+                        alt="Blur"
+                        className="w-9 h-9 rounded-full cursor-pointer"
+                        onClick={() => { setSidebarOpen(false); navigate('/'); }}
+                    />
+                    <span className="font-bold text-lg bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
+                        Blur
+                    </span>
+                </div>
             )}
 
             {isMobile && sidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                    className="fixed inset-0 bg-black bg-opacity-50 z-[55] md:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
-            <div className="hidden md:block w-[240px] h-screen bg-white border-r flex-shrink-0">
+            <div className="hidden md:block fixed top-0 left-0 w-64 h-screen z-40 bg-white border-r flex-shrink-0">
                 <SidebarComponent />
             </div>
 
             <div
                 className={`
-                    md:hidden fixed top-0 left-0 w-64 h-screen bg-white border-r z-50
+                    md:hidden fixed top-0 left-0 w-64 h-[100dvh] bg-white border-r z-[60]
                     transition-transform duration-300 ease-in-out
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                 `}
@@ -159,8 +171,9 @@ const Router: React.FC = () => {
 
             <div
                 className={`
-                    flex-1 min-h-screen w-full max-w-full overflow-x-clip
-                    ${isMobile ? 'pt-16 px-4' : 'pl-3'}
+                    flex-1 w-full max-w-full overflow-x-clip md:ml-64
+                    ${location.pathname === '/message' ? 'h-[100dvh] overflow-y-hidden' : 'min-h-screen'}
+                    ${isMobile ? 'pt-16' : 'md:pl-3'}
                 `}
             >
                 <div className="w-full max-w-full">

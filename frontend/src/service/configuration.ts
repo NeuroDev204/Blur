@@ -10,7 +10,7 @@ interface ApiEndpoints {
 }
 
 export const CONFIG: ConfigType = {
-    API_GATEWAY: "http://localhost:8888/api/"
+    API_GATEWAY: "/api/"
 }
 
 export const API: ApiEndpoints = {

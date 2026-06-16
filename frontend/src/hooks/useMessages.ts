@@ -1,7 +1,7 @@
 // hooks/useMessages.ts
 import { useState, useEffect } from 'react'
 import { createChatMessage } from '../api/messageApi'
-import httpClient from '../service/httpClient'
+import axiosClient from '../api/axiosClient'
 import { API } from '../service/configuration'
 import { AxiosError } from 'axios'
 
@@ -56,8 +56,7 @@ export const useMessages = (selectedChat: SelectedChat | null): UseMessagesRetur
             setLoading(true)
             setError(null)
 
-            // ⭐ httpClient đã có withCredentials: true, không cần manual token
-            const res = await httpClient.get<ApiResponse>(`${API.GET_MESSAGES}`, {
+            const res = await axiosClient.get<ApiResponse>(`/${API.GET_MESSAGES}`, {
                 params: { conversationId },
             })
 

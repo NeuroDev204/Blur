@@ -212,10 +212,10 @@ const EditAccountPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-8">
+        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-4 sm:py-8">
             <div className="max-w-3xl mx-auto px-4 sm:px-6">
                 {/* Header */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4 sm:mb-6">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate("/profile")}
@@ -235,7 +235,7 @@ const EditAccountPage: React.FC = () => {
                 </div>
 
                 {/* Form Container */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8 mb-4 sm:mb-6">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Avatar Upload */}
                         <div className="flex flex-col items-center space-y-4">

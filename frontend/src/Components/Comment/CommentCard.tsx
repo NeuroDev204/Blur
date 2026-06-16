@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { timeDifference } from "../../Config/Logic";
 
@@ -62,6 +62,15 @@ const CommentCard: React.FC<CommentCardProps> = ({
 }) => {
     const [isCommentLike, setIsCommentLike] = useState(!!comment.isLiked);
     const [showReplies, setShowReplies] = useState(false);
+    const prevReplyCountRef = useRef(replies.length);
+
+    // Tự mở rộng thread khi có reply mới (vd: vừa gửi reply xong)
+    useEffect(() => {
+        if (replies.length > prevReplyCountRef.current) {
+            setShowReplies(true);
+        }
+        prevReplyCountRef.current = replies.length;
+    }, [replies.length]);
 
     const handleClickLike = () => {
         const willLike = !isCommentLike;
@@ -74,7 +83,11 @@ const CommentCard: React.FC<CommentCardProps> = ({
     return (
         <div className="mb-4">
             {/* Main Comment */}
-            <div className="flex items-start gap-3 px-4">
+            <div className="relative flex items-start gap-3 px-4">
+                {/* Đường dọc nối xuống các reply (kiểu Facebook) */}
+                {showReplies && replies.length > 0 && (
+                    <div className="absolute left-[33px] top-[40px] -bottom-3 w-[2px] bg-gray-200" />
+                )}
                 {/* Avatar */}
                 <img
                     className="w-9 h-9 rounded-full object-cover flex-shrink-0"
@@ -145,10 +158,11 @@ const CommentCard: React.FC<CommentCardProps> = ({
                 </div>
             </div>
 
-            {/* Replies List - THỤT LỀ RÕ RÀNG BẰNG MARGIN LEFT */}
+            {/* Replies List - dạng cây kiểu Facebook với đường nối cong */}
             {showReplies && replies.length > 0 && (
-                <div className="mt-3 ml-[64px] space-y-3 pr-4">
-                    {replies.map((reply) => {
+                <div className="ml-[33px] pr-4">
+                    {replies.map((reply, idx) => {
+                        const isLast = idx === replies.length - 1;
                         const replyUser = replyUsers[reply.userId || ''] || {};
                         const replyName = getDisplayName(reply, replyUser);
 
@@ -160,7 +174,14 @@ const CommentCard: React.FC<CommentCardProps> = ({
                             : reply.content;
 
                         return (
-                            <div key={reply.id} className="flex items-start gap-3">
+                            <div key={reply.id} className="relative pl-7 pt-3">
+                                {/* Khúc cong nối từ đường dọc vào avatar reply */}
+                                <div className="absolute left-0 top-0 w-[22px] h-[24px] border-l-2 border-b-2 border-gray-200 rounded-bl-xl" />
+                                {/* Đường dọc tiếp tục xuống reply kế tiếp */}
+                                {!isLast && (
+                                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gray-200" />
+                                )}
+                                <div className="flex items-start gap-3">
                                 <img
                                     className="w-6 h-6 rounded-full object-cover flex-shrink-0"
                                     src={
@@ -216,6 +237,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
                                             Reply
                                         </button>
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         );

@@ -130,8 +130,28 @@ public class ConversationService {
                         .equals(profileResponse.getResult().getUserId()))
                 .findFirst()
                 .ifPresent(participantInfo -> {
-                    response.setConversationName(participantInfo.getFirstName() + " " + participantInfo.getLastName());
-                    response.setConversationAvatar(participantInfo.getAvatar());
+                    // Refresh from user-service so stale/null snapshot names are corrected
+                    String resolvedFirst = participantInfo.getFirstName();
+                    String resolvedLast = participantInfo.getLastName();
+                    String resolvedAvatar = participantInfo.getAvatar();
+
+                    if (resolvedFirst == null && resolvedLast == null) {
+                        try {
+                            var live = userServiceClient.getProfile(participantInfo.getUserId());
+                            if (live != null && live.getResult() != null) {
+                                resolvedFirst = live.getResult().getFirstName();
+                                resolvedLast = live.getResult().getLastName();
+                                if (live.getResult().getImageUrl() != null) {
+                                    resolvedAvatar = live.getResult().getImageUrl();
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+
+                    response.setConversationName(
+                            buildDisplayName(resolvedFirst, resolvedLast, participantInfo.getUsername()));
+                    response.setConversationAvatar(resolvedAvatar);
                 });
 
         ChatMessage lastMessage = getLastMessageCached(conversation.getId());
@@ -141,9 +161,11 @@ public class ConversationService {
             response.setLastMessageTime(lastMessage.getCreatedDate());
 
             if (lastMessage.getSender() != null) {
-                String senderName = lastMessage.getSender().getFirstName() + " "
-                        + lastMessage.getSender().getLastName();
-                response.setLastMessageSender(senderName.trim());
+                String senderName = buildDisplayName(
+                        lastMessage.getSender().getFirstName(),
+                        lastMessage.getSender().getLastName(),
+                        lastMessage.getSender().getUsername());
+                response.setLastMessageSender(senderName);
             }
         }
 
@@ -162,11 +184,38 @@ public class ConversationService {
                         .equals(profileResponse.getResult().getUserId()))
                 .findFirst()
                 .ifPresent(participantInfo -> {
-                    response.setConversationName(participantInfo.getFirstName() + " " + participantInfo.getLastName());
-                    response.setConversationAvatar(participantInfo.getAvatar());
+                    String resolvedFirst = participantInfo.getFirstName();
+                    String resolvedLast = participantInfo.getLastName();
+                    String resolvedAvatar = participantInfo.getAvatar();
+
+                    if (resolvedFirst == null && resolvedLast == null) {
+                        try {
+                            var live = userServiceClient.getProfile(participantInfo.getUserId());
+                            if (live != null && live.getResult() != null) {
+                                resolvedFirst = live.getResult().getFirstName();
+                                resolvedLast = live.getResult().getLastName();
+                                if (live.getResult().getImageUrl() != null) {
+                                    resolvedAvatar = live.getResult().getImageUrl();
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+
+                    response.setConversationName(
+                            buildDisplayName(resolvedFirst, resolvedLast, participantInfo.getUsername()));
+                    response.setConversationAvatar(resolvedAvatar);
                 });
 
         return response;
+    }
+
+    private String buildDisplayName(String firstName, String lastName, String username) {
+        String first = firstName != null ? firstName.trim() : "";
+        String last = lastName != null ? lastName.trim() : "";
+        String full = (first + " " + last).trim();
+        if (!full.isEmpty()) return full;
+        return username != null && !username.isBlank() ? username : "Unknown";
     }
 
     private ChatMessage getLastMessageCached(String conversationId) {

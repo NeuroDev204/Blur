@@ -16,17 +16,15 @@ import {
     Input,
     Text,
     Box,
-    Divider,
     VStack,
     HStack,
 } from "@chakra-ui/react";
 import React, { useState, useCallback, ChangeEvent, FormEvent } from "react";
-import { FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { OAuthConfig } from "../../Config/configuration";
 import axios, { AxiosError } from "axios";
 
-const API_REGISTER_URL = "http://localhost:8888/api/users/registration";
+const API_REGISTER_URL = "/api/users/registration";
 
 interface FormData {
     username: string;
@@ -121,14 +119,6 @@ const RegisterCard: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const handleGoogleLogin = () => {
-        const { authUri, redirectUri, clientId } = OAuthConfig;
-        const targetUrl = `${authUri}?redirect_uri=${encodeURIComponent(
-            redirectUri
-        )}&response_type=code&client_id=${clientId}&scope=openid%20email%20profile`;
-        window.location.href = targetUrl;
     };
 
     const togglePasswordVisibility = () => setShowPassword(prev => !prev);
@@ -300,34 +290,6 @@ const RegisterCard: React.FC = () => {
                                     loadingText="Creating account..."
                                 >
                                     Register
-                                </Button>
-
-                                <Box w="full" position="relative" py={1}>
-                                    <Divider />
-                                    <Text
-                                        position="absolute"
-                                        top="50%"
-                                        left="50%"
-                                        transform="translate(-50%, -50%)"
-                                        bg="white"
-                                        px={3}
-                                        fontSize="xs"
-                                        color="gray.500"
-                                    >
-                                        or
-                                    </Text>
-                                </Box>
-
-                                <Button
-                                    onClick={handleGoogleLogin}
-                                    variant="outline"
-                                    colorScheme="red"
-                                    size="md"
-                                    w="full"
-                                    leftIcon={<FaGoogle />}
-                                    disabled={isLoading}
-                                >
-                                    Sign up with Google
                                 </Button>
 
                                 <Text fontSize="xs" color="gray.600" textAlign="center" pt={1}>

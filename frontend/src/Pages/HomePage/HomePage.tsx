@@ -7,6 +7,7 @@ import { fetchAllStories } from '../../api/storyApi';
 import CreatePostModal from '../../Components/Post/CreatePostModal';
 import { PostSkeleton, StorySkeleton } from '../../Components/Skeleton/Skeletons';
 import PopularSuggestions from '../../Components/Recommendations/PopularSuggestions';
+import { useRequestMediaPermissions } from '../../hooks/useRequestMediaPermissions';
 
 interface Post {
     id?: string;
@@ -62,6 +63,9 @@ const mergeUniqueById = (prev: Post[], incoming: Post[]): Post[] => {
 };
 
 const HomePage: React.FC = () => {
+    // Xin quyen camera + micro sau khi dang nhap vao homepage (PC & dien thoai), khong doi den luc goi.
+    useRequestMediaPermissions();
+
     const [posts, setPosts] = useState<Post[]>([]);
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -259,7 +263,7 @@ const HomePage: React.FC = () => {
         });
 
         return (
-            <div className="storyDiv bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="storyDiv bg-white sm:rounded-2xl shadow-sm sm:border sm:border-gray-100 p-3 sm:p-4 mb-3 sm:mb-6">
                 <div className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide">
                     <StoryCircle isAddNew={true} onStoryCreated={handleStoryCreated} story={null} user={user} />
 
@@ -284,7 +288,7 @@ const HomePage: React.FC = () => {
     };
 
     const renderPosts = () => (
-        <div className="space-y-6 w-full">
+        <div className="space-y-3 sm:space-y-6 w-full">
             {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => <PostSkeleton key={`post-skeleton-${i}`} />)
             ) : posts.length > 0 ? (
@@ -301,7 +305,7 @@ const HomePage: React.FC = () => {
                     <div ref={sentinelRef} style={{ height: 1 }} />
                 </>
             ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+                <div className="bg-white sm:rounded-2xl shadow-sm sm:border sm:border-gray-100 p-8 sm:p-12 text-center">
                     <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-sky-100 to-blue-100 flex items-center justify-center">
                         <svg className="w-12 h-12 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -324,18 +328,18 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-            <div className="flex w-full py-6 px-4 gap-6">
+            <div className="flex w-full py-3 px-0 sm:py-6 sm:px-4 gap-6">
                 {/* Main feed - centered with auto margins */}
                 <div className="flex-1 flex justify-center">
                     <div className="w-full max-w-[620px]">
                         {renderStories()}
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+                        <div className="bg-white sm:rounded-2xl shadow-sm sm:border sm:border-gray-100 p-3 sm:p-4 mb-3 sm:mb-6">
                             <div className="flex items-center gap-3">
                                 <img
                                     src={user?.imageUrl || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_640.png"}
                                     alt="Your avatar"
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-sky-200"
+                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-sky-200"
                                 />
                                 <button
                                     onClick={() => setIsCreateOpen(true)}

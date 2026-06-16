@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react"
-import { FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa"
+import { FaEye, FaEyeSlash } from "react-icons/fa"
 import { useNavigate } from "react-router-dom"
 import { useToast } from "@chakra-ui/react"
-import { OAuthConfig } from "../../Config/configuration"
 import axios from "axios"
 
 const STORAGE_KEY = "rememberedCredentials"
-const API_LOGIN_URL = "http://localhost:8888/api/auth/token"
+const API_LOGIN_URL = "/api/auth/token"
 
 interface FormData {
     username: string
@@ -94,14 +93,6 @@ const LoginCard: React.FC = () => {
         } finally {
             setIsLoading(false)
         }
-    }
-
-    const handleGoogleLogin = () => {
-        const { authUri, redirectUri, clientId } = OAuthConfig
-        const targetUrl = `${authUri}?redirect_uri=${encodeURIComponent(
-            redirectUri
-        )}&response_type=code&client_id=${clientId}&scope=openid%20email%20profile`
-        window.location.href = targetUrl
     }
 
     const handleRememberMeChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -219,25 +210,6 @@ const LoginCard: React.FC = () => {
                                 ) : (
                                     "Login"
                                 )}
-                            </button>
-
-                            <div className="relative py-4">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-300"></div>
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="bg-white px-4 text-sm text-gray-500">or</span>
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleGoogleLogin}
-                                disabled={isLoading}
-                                className="w-full bg-white border-2 border-red-500 text-red-500 hover:bg-red-50 font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-                            >
-                                <FaGoogle className="w-5 h-5" />
-                                Login with Google
                             </button>
 
                             <p className="text-sm text-gray-600 text-center pt-2">

@@ -116,7 +116,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
 
     return (
       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-0.5 group`}>
-        <div className={`flex items-end gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
           {!isMe && (
             <div className="w-7 h-7 rounded-full flex-shrink-0 mb-0.5 overflow-hidden">
               <img
@@ -136,17 +136,17 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
             )}
 
             <div className={`relative ${msg.isPending ? 'opacity-60' : ''}`}>
-              <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-[20px] ${isMe
+              <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-[20px] max-w-full ${isMe
                   ? 'bg-blue-500 text-white rounded-br-md'
                   : 'bg-gray-100 text-gray-700 rounded-bl-md border border-gray-200'
                 }`}>
                 {isVideoCall ? (
-                  <Video size={18} className={isMe ? 'text-white' : 'text-gray-600'} />
+                  <Video size={18} className={`flex-shrink-0 ${isMe ? 'text-white' : 'text-gray-600'}`} />
                 ) : (
-                  <Phone size={18} className={isMe ? 'text-white' : 'text-gray-600'} />
+                  <Phone size={18} className={`flex-shrink-0 ${isMe ? 'text-white' : 'text-gray-600'}`} />
                 )}
 
-                <span className="text-[15px] font-normal whitespace-nowrap">
+                <span className="text-[15px] font-normal break-words min-w-0">
                   {msg.message}
                 </span>
               </div>
@@ -168,7 +168,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
   if (isAiMessage) {
     return (
       <div className="flex justify-start mb-2 group">
-        <div className="flex items-end gap-2 max-w-[75%]">
+        <div className="flex items-end gap-2 max-w-[88%] sm:max-w-[75%]">
           {/* AI Avatar with gradient */}
           <div className="w-8 h-8 rounded-full flex-shrink-0 mb-0.5 overflow-hidden bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
             <Sparkles size={18} className="text-white" strokeWidth={2} />
@@ -232,7 +232,7 @@ const MessageBubble = React.memo<MessageBubbleProps>(({ msg, currentUserId }) =>
   // ✅ RENDER NORMAL MESSAGE (TEXT/IMAGE/VIDEO/FILE)
   return (
     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-0.5 group`}>
-      <div className={`flex items-end gap-2 max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[70%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
         {!isMe && (
           <div className="w-7 h-7 rounded-full flex-shrink-0 mb-0.5 overflow-hidden">
             <img

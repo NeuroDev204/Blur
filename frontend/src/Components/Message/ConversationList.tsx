@@ -147,7 +147,7 @@ const ConversationItem = React.memo<ConversationItemProps>(({
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center p-4 cursor-pointer transition-all duration-200 group ${isSelected
+      className={`relative flex items-center p-3 sm:p-4 cursor-pointer transition-all duration-200 group ${isSelected
         ? 'bg-gradient-to-r from-sky-50 to-blue-50 border-l-4 border-l-blue-500'
         : 'hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50/30'
         }`}
@@ -169,7 +169,7 @@ const ConversationItem = React.memo<ConversationItemProps>(({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 ml-4 mr-2">
+      <div className="flex-1 min-w-0 ml-3 sm:ml-4 mr-2">
         <div className="flex items-center justify-between mb-1">
           <h3 className={`truncate text-base ${hasUnread
             ? 'font-bold text-gray-900'
@@ -206,7 +206,7 @@ const ConversationItem = React.memo<ConversationItemProps>(({
       <div className="relative flex-shrink-0">
         <button
           onClick={handleMenuClick}
-          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-all opacity-0 group-hover:opacity-100"
+          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
         >
           <MoreVertical size={18} />
         </button>
@@ -276,7 +276,7 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
     const unreadCount = unreadByConversation[conv.id] || 0;
     if (unreadCount > 0) {
       try {
-        const response = await fetch(`http://localhost:8888/api/chat/conversations/mark-as-read?conversationId=${conv.id}`, {
+        const response = await fetch(`/api/chat/conversations/mark-as-read?conversationId=${conv.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -306,7 +306,7 @@ const ConversationList = ({ conversations, selected, onSelect, onSelectUser, onC
 
     try {
 
-      const response = await fetch(`http://localhost:8888/api/chat/conversations?conversationId=${conversationId}`, {
+      const response = await fetch(`/api/chat/conversations?conversationId=${conversationId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
