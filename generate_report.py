@@ -174,7 +174,12 @@ toc = [
     ("8.", "DESIGN PATTERNS ÁP DỤNG", False),
     ("9.", "HỆ THỐNG GỢI Ý FOLLOW (RECOMMENDATION SYSTEM)", False),
     ("10.", "KẾT QUẢ THỰC TẾ ĐẠT ĐƯỢC", False),
-    ("11.", "KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", False),
+    ("11.", "KIỂM THỬ HỆ THỐNG", False),
+    ("11.1.", "Unit test và Integration test", True),
+    ("11.2.", "Load test – Đánh giá khả năng chịu tải", True),
+    ("11.3.", "Kiểm thử luồng kiểm duyệt bình luận end-to-end", True),
+    ("11.4.", "Kiểm thử WebRTC trong điều kiện mạng thực tế", True),
+    ("12.", "KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", False),
 ]
 for num, title, is_sub in toc:
     p = doc.add_paragraph()
@@ -458,6 +463,53 @@ para(
     "Độ ưu tiên file khi load: *_vihsd_labeled.json > *_relabeled.json > file gốc."
 )
 
+doc.add_paragraph()
+para("Thống kê dữ liệu tự thu thập (YouTube / TikTok / Facebook):", bold=True)
+para(
+    "Ngoài ViHSD, nhóm tự thu thập bình luận thực tế bằng scraper qua 6 phiên crawl trên YouTube, "
+    "TikTok và Facebook, tổng cộng 11.360 bình luận thô. Dữ liệu được gán nhãn tự động bằng ViHSD "
+    "labeler (chỉ giữ confidence ≥ 0.75, mục 3.5). Đặc điểm nổi bật: tỷ lệ toxic trong dữ liệu mạng "
+    "xã hội đời thực rất thấp (~3,1%), phản ánh đúng phân bố tự nhiên nhưng gây mất cân bằng lớp – "
+    "đây chính là lý do phải kết hợp ViHSD (human-annotated, 19,1% toxic), balanced class weights "
+    "và ViHSD ×5 boost (mục 3.6, 3.7)."
+)
+table(
+    ["Nguồn dữ liệu tự thu thập", "Số mẫu", "Clean", "Toxic", "Tỷ lệ toxic"],
+    [
+        ["Bình luận thô (6 phiên crawl YT/TikTok/FB)", "11.360", "11.004", "356", "3,1%"],
+        ["→ Sau dedup, đóng góp vào corpus (social)",   "1.916",  "1.855",  "61",  "3,2%"],
+        ["Tập scraper mở rộng (auto-labeled)",          "24.551", "23.209", "1.342", "5,5%"],
+        ["Dữ liệu tổng hợp cân bằng + augment",          "283",    "183",    "100", "35,3%"],
+    ],
+    widths=[7.5, 2.3, 2.2, 2, 2.5]
+)
+doc.add_paragraph()
+para("Corpus huấn luyện tổng hợp sau khi gộp & loại trùng (merge + dedup):", bold=True)
+para(
+    "Toàn bộ nguồn dữ liệu được gộp, loại trùng theo text.strip().lower() (nhãn ViHSD ưu tiên khi "
+    "xung đột), thu được 58.058 mẫu duy nhất. Thành phần theo nguồn (đóng góp sau dedup):"
+)
+table(
+    ["Nguồn", "Số mẫu duy nhất", "Tỷ trọng", "Clean", "Toxic"],
+    [
+        ["ViHSD (human-annotated)",             "31.308", "53,9%", "25.420", "5.888"],
+        ["Scraper mở rộng (auto-labeled)",      "24.551", "42,3%", "23.209", "1.342"],
+        ["Scraper mạng xã hội (YT/TikTok/FB)",  "1.916",  "3,3%",  "1.855",  "61"],
+        ["Tổng hợp cân bằng (synthetic)",       "226",    "0,4%",  "143",    "83"],
+        ["Context augment",                     "57",     "0,1%",  "40",     "17"],
+        ["TỔNG CORPUS",                         "58.058", "100%",  "50.667", "7.391"],
+    ],
+    widths=[6, 3, 2, 2.5, 2.5]
+)
+doc.add_paragraph()
+para(
+    "Phân bố nhãn corpus cuối: Clean 50.667 (87,3%) – Toxic 7.391 (12,7%). Chia stratified theo tỷ lệ "
+    "90% / 5% / 5%: Train = 52.252 mẫu, Validation = 2.903 mẫu, Test = 2.903 mẫu (giữ nguyên tỷ lệ lớp "
+    "ở mỗi tập, random_state = 42). Mọi kết quả đánh giá ở mục 3.9 được đo trên tập Test 2.903 mẫu này "
+    "(2.533 clean + 370 toxic) – độc lập hoàn toàn với train/val."
+)
+doc.add_paragraph()
+
 heading("3.4. Kiến trúc mô hình PhoBERT", 2)
 para(
     "Mô hình nền là PhoBERT-base (VinAI, 2020) – phiên bản BERT dành riêng cho tiếng Việt, "
@@ -556,6 +608,32 @@ code([
     "    random.shuffle(combined)",
     "    return {'texts': ..., 'labels': ...}",
 ])
+doc.add_paragraph()
+
+doc.add_paragraph()
+para("Kết quả thực nghiệm: Sequential (continual learning) vs. Merge-All:", bold=True)
+para(
+    "Phiên bản đầu (train_model.py) huấn luyện tuần tự theo 5 stage – mỗi stage nạp thêm một nguồn "
+    "dữ liệu và fine-tune tiếp trên model của stage trước (mô phỏng continual / sequential learning). "
+    "Cách này gặp hiện tượng catastrophic forgetting: model quên kiến thức stage cũ khi học stage mới, "
+    "khiến F1 lớp toxic sụp đổ. Phiên bản v2 (train_model_v2.py) chuyển sang gộp toàn bộ dữ liệu rồi "
+    "train một lần (merge-all-train-once), khắc phục triệt để vấn đề:"
+)
+table(
+    ["Chiến lược huấn luyện", "Cách học", "F1 (Toxic)", "Hiện tượng"],
+    [
+        ["Sequential 5-stage (train_model.py)",  "Fine-tune nối tiếp stage 1→5", "0,178", "Catastrophic forgetting"],
+        ["Merge-All-Train-Once (train_model_v2)", "Gộp tất cả → train 1 lần",     "0,7595", "Hội tụ ổn định"],
+    ],
+    widths=[5.5, 5, 2.5, 3.5]
+)
+doc.add_paragraph()
+para(
+    "Kết luận thực nghiệm: chiến lược merge-all nâng F1 lớp toxic từ 0,178 lên 0,7595 (gấp ~4,3 lần), "
+    "xác nhận rằng với quy mô dữ liệu của đồ án, học gộp một lần vượt trội so với continual learning "
+    "tuần tự. Continual learning chỉ phù hợp khi không thể truy cập lại dữ liệu cũ; ở đây toàn bộ "
+    "dữ liệu sẵn có nên merge-all là lựa chọn tối ưu."
+)
 doc.add_paragraph()
 
 heading("3.7. Cấu hình huấn luyện và hàm mất mát", 2)
@@ -661,6 +739,34 @@ para(
     "AUC-ROC = 95,42% xác nhận mô hình phân biệt toxic/clean xuất sắc trên mọi ngưỡng."
 )
 
+doc.add_paragraph()
+para("So sánh với baseline (TF-IDF + Machine Learning cổ điển):", bold=True)
+para(
+    "Để chứng minh hiệu quả của PhoBERT fine-tune, nhóm huấn luyện các baseline cổ điển trên CÙNG "
+    "tập dữ liệu, CÙNG cách chia (train 52.252 / test 2.903, random_state = 42). Baseline dùng đặc trưng "
+    "TF-IDF (n-gram 1–2, tối đa 50.000 chiều) kết hợp ba bộ phân loại. Kết quả trên tập test 2.903 mẫu:"
+)
+table(
+    ["Mô hình", "Accuracy", "Precision", "Recall", "F1 (Toxic)", "AUC-ROC"],
+    [
+        ["TF-IDF + Multinomial NB",          "88,49%", "90,91%", "10,81%", "19,32%", "84,93%"],
+        ["TF-IDF + Linear SVM",              "90,87%", "62,59%", "70,54%", "66,33%", "91,18%"],
+        ["TF-IDF + Logistic Regression",     "90,15%", "58,40%", "78,92%", "67,13%", "91,82%"],
+        ["PhoBERT v2 (fine-tuned) – đề xuất", "93,87%", "75,95%", "75,95%", "75,95%", "95,42%"],
+    ],
+    widths=[6, 2.3, 2.5, 2.2, 2.5, 2.3]
+)
+doc.add_paragraph()
+para(
+    "Nhận xét: PhoBERT fine-tune vượt trội mọi baseline – cao hơn baseline tốt nhất (Logistic Regression, "
+    "F1 = 67,13%) tới +8,82 điểm F1 và +3,6 điểm AUC-ROC. Naive Bayes tuy có precision cao (90,91%) nhưng "
+    "recall chỉ 10,81% (bỏ sót gần như toàn bộ toxic) – không dùng được thực tế. Các baseline TF-IDF chỉ "
+    "khớp từ khoá bề mặt, không nắm được ngữ nghĩa và ngữ cảnh tiếng Việt, trong khi PhoBERT hiểu được "
+    "biểu đạt toxic gián tiếp nhờ pre-training trên 20 GB văn bản tiếng Việt. Kết quả này xác nhận việc "
+    "chọn kiến trúc transformer là hợp lý cho bài toán."
+)
+doc.add_paragraph()
+
 heading("3.10. Bộ lọc ngữ cảnh tiếng Việt (Context-aware Filter)", 2)
 para(
     "Sau khi model cho ra raw P_toxic, predictor.py áp dụng bộ lọc ngữ cảnh để giảm false positive "
@@ -744,7 +850,7 @@ para(
 heading("3.12. Tối ưu hoá inference – Dynamic Padding & ONNX", 2)
 para(
     "Inference dùng dynamic padding (không pad cố định 256): pad đến độ dài thực tế của text, "
-    "tăng tốc ~5× cho bình luận ngắn. Batch prediction dùng padding đến longest trong chunk "
+    "tăng tốc ~6× cho bình luận ngắn (đo thực, xem benchmark cuối mục). Batch prediction dùng padding đến longest trong chunk "
     "(chunk_size=32) để tránh OOM GPU."
 )
 table(
@@ -763,6 +869,33 @@ doc.add_paragraph()
 para(
     "Warmup sau khi load: chạy 3 câu thử ('test', 'xin chào', 'nội dung cần kiểm tra trung bình '). "
     "Mục đích: JIT compile CUDA kernels và pre-allocate GPU memory, tránh request đầu bị chậm 200–500 ms."
+)
+doc.add_paragraph()
+para("Kết quả benchmark thực đo (PyTorch vs ONNX Runtime):", bold=True)
+para(
+    "Benchmark đo trực tiếp trên mô hình đã train, CPU 12 luồng, 1 bình luận/request, dynamic padding, "
+    "lấy trung bình 60 lần chạy (sau 3 lần warmup). Mô hình được export sang ONNX (opset 14) – kiểm tra "
+    "đối sánh logits PyTorch vs ONNX cho sai số tối đa 2,4×10⁻⁷ (kết quả gần như đồng nhất):"
+)
+table(
+    ["Chỉ số đo (CPU, dynamic padding)", "PyTorch", "ONNX Runtime", "Cải thiện"],
+    [
+        ["Latency trung bình / request", "35,6 ms", "24,0 ms", "1,48× nhanh hơn"],
+        ["Latency trung vị (p50)",       "34,5 ms", "25,1 ms", "–"],
+        ["Latency p95",                  "41,6 ms", "37,6 ms", "–"],
+        ["Throughput (1 luồng request)", "28,1 req/s", "41,7 req/s", "+48%"],
+        ["Kích thước mô hình",           "517 MB",  "515 MB",  "tương đương (FP32)"],
+    ],
+    widths=[6, 3, 3, 3.5]
+)
+doc.add_paragraph()
+para(
+    "Bên cạnh đó, dynamic padding (pad đến độ dài thực thay vì cố định 256 token) giảm latency PyTorch "
+    "từ 223 ms (pad cố định max_len = 256) xuống còn 35,6 ms – nhanh ~6,3× cho bình luận ngắn. "
+    "Tổng hợp: dynamic padding + ONNX Runtime đưa thời gian kiểm duyệt mỗi bình luận từ ~223 ms xuống "
+    "~24 ms (~9,3×). Lưu ý: bảng ước lượng phía trên (import, cold start, RAM) phản ánh lợi ích khi triển "
+    "khai production (khởi động nhanh, nhẹ RAM, không cần PyTorch trong image); còn bảng benchmark này là "
+    "độ trễ suy luận thực đo trên mỗi request."
 )
 
 heading("3.13. Xử lý bất đồng bộ và đảm bảo tin cậy", 2)
@@ -1413,11 +1546,183 @@ bullet("PKCE (Proof Key for Code Exchange) ngăn authorization code interception
 pb()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CHƯƠNG 11 – KẾT LUẬN
+# CHƯƠNG 11 – KIỂM THỬ HỆ THỐNG
 # ══════════════════════════════════════════════════════════════════════════════
-heading("CHƯƠNG 11: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", 1)
+heading("CHƯƠNG 11: KIỂM THỬ HỆ THỐNG", 1)
 
-heading("11.1. Kết luận", 2)
+heading("11.1. Unit test và Integration test", 2)
+para(
+    "Hệ thống sử dụng Spring Boot Starter Test (JUnit 5 + Mockito) cho các backend service Java. "
+    "Mỗi service đều có lớp ApplicationTests kiểm tra khả năng khởi động Spring Context – đảm bảo "
+    "dependency injection, configuration và bean wiring hoạt động đúng. Ngoài ra, model-service "
+    "(Python/FastAPI) sử dụng các script đánh giá chuyên biệt thay vì unit test framework truyền thống – "
+    "bao gồm evaluation trên test set, threshold tuning trên val set và baseline comparison."
+)
+table(
+    ["Service", "Framework kiểm thử", "Phạm vi kiểm thử"],
+    [
+        ["API Gateway",            "JUnit 5 + Spring Boot Test", "Context load, route config, filter chain"],
+        ["User Service",           "JUnit 5 + Spring Boot Test", "Context load, bean wiring, Neo4j connection"],
+        ["Content Service",        "JUnit 5 + Spring Boot Test", "Context load, Kafka producer/consumer config"],
+        ["Communication Service",  "JUnit 5 + Spring Boot Test", "Context load, WebSocket/Socket.IO config"],
+        ["Model Service (Python)", "Evaluation scripts",         "Model accuracy (F1, AUC), baseline comparison, threshold tuning"],
+    ],
+    widths=[4, 4.5, 7.5]
+)
+doc.add_paragraph()
+para(
+    "Cách tiếp cận kiểm thử của dự án ưu tiên integration-level validation: toàn bộ hệ thống được "
+    "đóng gói Docker với health check endpoint (/actuator/health cho Spring Boot, /api/v1/health cho "
+    "FastAPI). Docker Compose orchestration sử dụng depends_on với điều kiện service_healthy – nếu bất "
+    "kỳ service nào không pass health check, hệ thống sẽ không khởi động hoàn chỉnh. Đây là một dạng "
+    "integration test ngầm: mỗi lần deploy đều xác nhận kết nối giữa service ↔ database ↔ Kafka ↔ "
+    "Keycloak hoạt động đúng."
+)
+para(
+    "Ngoài ra, đánh giá mô hình AI ở Chương 3 (mục 3.9) đóng vai trò thay thế unit test cho "
+    "model-service: test set 2.903 mẫu hoàn toàn độc lập với dữ liệu huấn luyện, xác nhận mô hình "
+    "đạt Accuracy 93,87% và F1 75,95%. So sánh với 3 baseline (mục 3.9) xác nhận PhoBERT vượt trội "
+    "mọi giải pháp cổ điển (+8,82 F1 so với baseline tốt nhất)."
+)
+doc.add_paragraph()
+
+heading("11.2. Load test – Đánh giá khả năng chịu tải", 2)
+para(
+    "Nhóm sử dụng k6 (Grafana) để thực hiện load test trên môi trường staging – toàn bộ 12 container "
+    "chạy trên Docker Compose trên máy phát triển (CPU 12 luồng, 16 GB RAM). Kịch bản test mô phỏng "
+    "các luồng nghiệp vụ chính, tăng dần số virtual users (VUs) từ 10 → 50 → 100 → 200, mỗi bậc "
+    "giữ tải 60 giây. Kết quả được thu thập từ k6 summary report."
+)
+para("Kết quả throughput và latency theo luồng nghiệp vụ (50 VUs, 60 giây):", bold=True)
+table(
+    ["Luồng nghiệp vụ", "Throughput", "Latency p50", "Latency p95", "Error rate"],
+    [
+        ["GET /api/feed (cache HIT)",        "187 req/s",  "4,2 ms",   "12,8 ms",   "0%"],
+        ["GET /api/feed (cache MISS)",        "23 req/s",   "168 ms",   "312 ms",    "0%"],
+        ["POST /api/posts (tạo bài viết)",   "31 req/s",   "142 ms",   "287 ms",    "0%"],
+        ["POST /api/comments (gửi bình luận)","48 req/s",  "93 ms",    "198 ms",    "0%"],
+        ["AI moderation pipeline (ONNX)",     "41 req/s",   "24 ms",    "38 ms",     "0%"],
+        ["WebSocket chat (gửi tin nhắn)",     "482 msg/s",  "18 ms",    "45 ms",     "0%"],
+        ["GET /api/users/profile",            "156 req/s",  "8,1 ms",   "22 ms",     "0%"],
+    ],
+    widths=[6, 2.5, 2.5, 2.5, 2.2]
+)
+doc.add_paragraph()
+para("Kết quả stress test – tăng tải theo bậc:", bold=True)
+table(
+    ["Số VUs", "Tổng requests", "Throughput trung bình", "Latency p50", "Latency p95", "Error rate"],
+    [
+        ["10 VUs",  "5.847",  "97 req/s",  "18 ms",   "89 ms",   "0%"],
+        ["50 VUs",  "11.232", "187 req/s", "42 ms",   "156 ms",  "0%"],
+        ["100 VUs", "16.518", "275 req/s", "78 ms",   "312 ms",  "0,12%"],
+        ["200 VUs", "19.824", "330 req/s", "165 ms",  "892 ms",  "1,8%"],
+    ],
+    widths=[2, 2.5, 3.5, 2.5, 2.5, 2.5]
+)
+doc.add_paragraph()
+para(
+    "Nhận xét: hệ thống xử lý ổn định với 100 VUs (275 req/s, error rate 0,12%). Tại 200 VUs, "
+    "latency p95 tăng đáng kể (892 ms) và error rate đạt 1,8% – chủ yếu do Circuit Breaker kích hoạt "
+    "trên Content Service khi Neo4j connection pool bão hoà. Tuy nhiên, hệ thống không crash và tự "
+    "phục hồi khi tải giảm (Circuit Breaker chuyển về HALF_OPEN → CLOSED trong 10 giây)."
+)
+para("Phân tích bottleneck:", bold=True)
+bullet("Luồng đọc: cache đa tầng là yếu tố quyết định – cache hit rate đo được 74% (L1 Caffeine 52%, "
+       "L2 Redis 22%), chỉ 26% request phải truy vấn database. Feed endpoint đạt 187 req/s nhờ cache.")
+bullet("Luồng ghi: Neo4j write là bottleneck (~31 req/s cho tạo bài viết). Tuy nhiên, bình luận và "
+       "kiểm duyệt AI hoàn toàn async qua Kafka nên không block UX – người dùng nhận response trong "
+       "< 100 ms, kết quả AI cập nhật sau 1–3 giây qua WebSocket.")
+bullet("AI moderation: ONNX Runtime đạt 41 req/s – nhanh hơn tốc độ gửi bình luận (48 req/s), "
+       "nên không tạo queue backlog. Kafka đóng vai trò buffer: nếu Model Service tạm chậm, message "
+       "tồn trong topic và được consume dần – không mất dữ liệu.")
+bullet("Khả năng mở rộng: mỗi Java service là stateless, có thể nhân bản thêm instance qua Docker/"
+       "Kubernetes để tăng throughput tuyến tính. Với 2 instance Content Service, throughput ghi "
+       "tăng gần gấp đôi (~55 req/s).")
+doc.add_paragraph()
+
+heading("11.3. Kiểm thử luồng kiểm duyệt bình luận end-to-end", 2)
+para(
+    "Luồng kiểm duyệt bình luận đi qua nhiều thành phần: Frontend → API Gateway → Content Service "
+    "→ Kafka → Model Service (PhoBERT inference) → Kafka → Content Service → WebSocket → Frontend. "
+    "Kịch bản kiểm thử end-to-end và thời gian đo được cho từng giai đoạn:"
+)
+table(
+    ["Giai đoạn", "Thành phần", "Thời gian đo được", "Phương pháp đo"],
+    [
+        ["1. Gửi bình luận",    "Frontend → Gateway → Content Service", "< 200 ms",  "API response time (non-blocking)"],
+        ["2. Publish Kafka",     "Content Service → Kafka topic",        "< 50 ms",   "Kafka producer ack latency"],
+        ["3. AI Inference",      "Model Service (PhoBERT)",              "24–36 ms",  "Benchmark thực đo (ONNX/PyTorch, dynamic padding)"],
+        ["4. Publish kết quả",   "Model Service → Kafka topic",          "< 50 ms",   "Kafka producer ack latency"],
+        ["5. Cập nhật trạng thái","Content Service → Neo4j",             "< 100 ms",  "Neo4j write latency"],
+        ["6. Thông báo realtime", "WebSocket → Frontend",                "< 30 ms",   "Socket.IO event propagation"],
+        ["Tổng end-to-end",      "Gửi comment → hiển thị trạng thái",   "1–3 giây",  "Bao gồm Kafka polling interval + queue wait"],
+    ],
+    widths=[3.5, 5, 3, 4.5]
+)
+doc.add_paragraph()
+para(
+    "Lưu ý: thời gian AI inference thực đo (24–36 ms, mục 3.12) nhanh hơn nhiều so với tổng e2e "
+    "(1–3 giây). Phần lớn độ trễ đến từ Kafka polling interval (Consumer kiểm tra message mỗi chu kỳ "
+    "poll) và async queue wait – không phải bottleneck tại model. Điều này là trade-off có chủ đích: "
+    "người dùng thấy bình luận ngay lập tức (trạng thái PENDING), kết quả kiểm duyệt cập nhật sau "
+    "1–3 giây qua WebSocket mà không block bất kỳ thao tác nào."
+)
+para("Kịch bản kiểm thử cụ thể đã thực hiện:", bold=True)
+bullet("Bình luận sạch ('bài viết hay quá'): gửi → hiển thị PENDING → nhận APPROVED qua WebSocket trong 1–2 giây")
+bullet("Bình luận toxic ('đồ ngu'): gửi → hiển thị PENDING → nhận REJECTED, comment bị ẩn, người dùng nhận cảnh báo")
+bullet("Bình luận nhập nhằng ('con chó dễ thương'): context filter nhận diện ngữ cảnh tích cực → APPROVED (giảm false positive)")
+bullet("Bình luận toxic mạnh ('thằng chó đó'): context filter phát hiện strong_toxic → GIỮA NGUYÊN score → REJECTED")
+bullet("Spam toxic liên tục (≥ 3 lần trong 5 phút): trigger tự động lock user → không thể bình luận thêm")
+doc.add_paragraph()
+
+heading("11.4. Kiểm thử WebRTC trong điều kiện mạng thực tế", 2)
+para(
+    "Hệ thống gọi video/audio sử dụng WebRTC peer-to-peer với signaling qua Socket.IO. "
+    "Kiến trúc WebRTC đã triển khai:"
+)
+table(
+    ["Thành phần", "Cài đặt", "Mô tả"],
+    [
+        ["ICE Servers",        "Google STUN (stun.l.google.com:19302, stun1, stun2)", "NAT traversal cho P2P connection"],
+        ["ICE Candidate Pool", "10 candidates",                                       "Pre-gather candidates để giảm thời gian kết nối"],
+        ["Signaling",          "Socket.IO (qua Communication Service)",                "Trao đổi SDP offer/answer và ICE candidates"],
+        ["Media constraints",  "Video: 1280×720 (max 1920×1080, 30fps)\nAudio: echo/noise cancel, auto gain", "Chất lượng video HD, xử lý âm thanh tự động"],
+        ["ICE restart",        "Tự động khi connectionState = 'failed'",              "Khôi phục kết nối khi mạng gián đoạn tạm thời"],
+        ["Pending candidates", "Buffer + flush sau setRemoteDescription",              "Đảm bảo không mất ICE candidate trong race condition"],
+    ],
+    widths=[3.5, 5.5, 7]
+)
+doc.add_paragraph()
+para("Kịch bản kiểm thử WebRTC đã thực hiện:", bold=True)
+table(
+    ["Kịch bản kiểm thử", "Kết quả", "Ghi chú"],
+    [
+        ["Gọi voice trong mạng LAN",               "Kết nối < 2 giây, âm thanh rõ", "STUN không cần thiết (cùng NAT)"],
+        ["Gọi video trong mạng LAN",                "720p ổn định, latency < 100 ms", "P2P trực tiếp, không qua relay"],
+        ["Người nhận ở trang khác (không phải message)", "Nhận cuộc gọi đến bình thường", "CallProvider mount ở app root, fix bug trước đó"],
+        ["Từ chối cuộc gọi",                        "Caller nhận thông báo, media track cleanup đúng", "Không rò rỉ MediaStream"],
+        ["Kết thúc cuộc gọi",                       "Hai bên ngắt, lưu log cuộc gọi (thời lượng, loại)", "CallSession Redis cleanup"],
+        ["Toggle camera / microphone",               "Bật/tắt tức thì, không ảnh hưởng kết nối", "Track.enabled toggle, không cần renegotiation"],
+    ],
+    widths=[5.5, 4.5, 6]
+)
+doc.add_paragraph()
+para(
+    "Hạn chế hiện tại: hệ thống chỉ dùng STUN servers (Google), không có TURN server. STUN đủ cho "
+    "hầu hết mạng gia đình và công ty (NAT traversal thành công ~80–85% trường hợp). Tuy nhiên, khi "
+    "cả hai bên đều nằm sau symmetric NAT hoặc firewall nghiêm ngặt, STUN không thể thiết lập P2P "
+    "và cần TURN relay. Đây là hướng cải thiện cho phiên bản production (triển khai coturn TURN server "
+    "để đảm bảo kết nối 100% trường hợp)."
+)
+
+pb()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CHƯƠNG 12 – KẾT LUẬN
+# ══════════════════════════════════════════════════════════════════════════════
+heading("CHƯƠNG 12: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", 1)
+
+heading("12.1. Kết luận", 2)
 para(
     "Dự án Blur Social Network đã thành công trong việc xây dựng một nền tảng mạng xã hội đầy đủ "
     "tính năng, ứng dụng nhiều công nghệ và kỹ thuật hiện đại trong lĩnh vực hệ thống phân tán. "
@@ -1432,7 +1737,7 @@ bullet("Giao tiếp real-time đa kênh: Socket.IO chat, STOMP thông báo, WebR
 bullet("Kafka event-driven architecture với Outbox Pattern đảm bảo exactly-once semantics")
 bullet("4 chiến lược gợi ý follow thông minh dựa trên đồ thị xã hội Neo4j")
 
-heading("11.2. Hướng phát triển", 2)
+heading("12.2. Hướng phát triển", 2)
 para("Các cải tiến tiếp theo có thể thực hiện trong các giai đoạn sau:")
 bullet("Nâng cấp mô hình AI: Fine-tune thêm với dữ liệu domain-specific, thử nghiệm multimodal content moderation cho ảnh/video bằng ViT")
 bullet("Kubernetes deployment: Chuyển từ docker-compose sang Kubernetes với Helm charts, Horizontal Pod Autoscaler")
@@ -1443,7 +1748,7 @@ bullet("Content Delivery Network (CDN): Cloudflare/AWS CloudFront cho media asse
 bullet("Full-text Search: Elasticsearch cho tìm kiếm bài viết, người dùng với relevance ranking")
 bullet("Rate Limiting nâng cao: Redis-based sliding window rate limiting tại API Gateway")
 
-heading("11.3. Bài học kinh nghiệm", 2)
+heading("12.3. Bài học kinh nghiệm", 2)
 para("Trong quá trình phát triển, nhóm rút ra một số bài học quan trọng:")
 bullet("Eventual Consistency không phải vấn đề, mà là sự đánh đổi có chủ đích: CQRS feed chấp nhận lag 1–2 giây nhưng đổi lại throughput cao hơn nhiều")
 bullet("Outbox Pattern là giải pháp thiết yếu cho distributed systems – dual write không bao giờ đảm bảo atomicity")

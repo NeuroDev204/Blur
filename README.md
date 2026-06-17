@@ -8,8 +8,8 @@ Nền tảng mạng xã hội full-stack theo kiến trúc microservices: realti
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, TypeScript 5, Vite 5, Redux Toolkit, Chakra UI, Tailwind CSS, React Router v7, Axios, Formik + Yup, Framer Motion, Socket.IO Client, STOMP.js + SockJS, WebRTC, Swiper, Lucide React, Emoji Picker, react-grid-layout, react-hot-toast, jwt-decode |
-| Backend | Java 21, Spring Boot 3.4.3, Spring Cloud 2024.0.0, Spring Security OAuth2 Resource Server, OpenFeign, Resilience4j, MapStruct, Lombok, Maven |
+| Frontend | React 18, TypeScript 5, Vite 5, Redux Toolkit, Chakra UI, Tailwind CSS, React Router v7, Axios, Formik + Yup, Framer Motion, Socket.IO Client, STOMP.js + SockJS, WebRTC, Swiper, Lucide React, Emoji Mart, react-grid-layout, react-hot-toast, jwt-decode, date-fns, react-datepicker, react-icons, Emotion (CSS-in-JS), PostCSS + Autoprefixer |
+| Backend | Java 21, Spring Boot 3.4.3, Spring Cloud 2024.0.0, Spring Security OAuth2 Resource Server, Spring WebFlux, Spring WebSocket, Spring Mail, Spring Actuator, Spring Validation, OpenFeign, Resilience4j, MapStruct, Lombok, Jackson, Keycloak Admin Client, Bouncy Castle, Maven, Spotless |
 | Auth (IDP) | **Keycloak 26.1** (JWT issuer, realm import, MySQL-backed) |
 | API Gateway | Spring Cloud Gateway (reactive) + Resilience4j CircuitBreaker |
 | Graph DB | Neo4j (social graph, profiles, posts, relationships) |
@@ -18,8 +18,9 @@ Nền tảng mạng xã hội full-stack theo kiến trúc microservices: realti
 | Cache | Caffeine (L1) + Redis (L2), Redisson (distributed lock), Redis Pub/Sub, Redis Lua scripts |
 | Messaging | Apache Kafka 7.7.1 (KRaft mode, no ZooKeeper) |
 | Real-time | WebSocket — Socket.IO (chat) + STOMP/SockJS (notifications), WebRTC (video/audio) |
-| ML / AI | Python 3.11, FastAPI, PyTorch, **PhoBERT v2** (merged-dataset training), **ONNX Runtime** (5–10× faster cold start), aiokafka, Google Gemini API |docs/multi-level-cache-fix-guide.md
-| Data Collection | yt-dlp, YouTube Data API, TikTokApi, Playdocs/multi-level-cache-fix-guide.mdwright, pandas |
+| ML / AI | Python 3.11, FastAPI, PyTorch, HuggingFace Transformers, **PhoBERT v2** (merged-dataset training), **ONNX Runtime** (5–10× faster cold start), Scikit-learn, Pydantic, SentencePiece, aiokafka, Google Gemini API |
+| ML Training | HuggingFace Datasets, Accelerate, NumPy, Matplotlib, Seaborn |
+| Data Collection | yt-dlp, YouTube Data API, TikTokApi, Playwright, Selenium, Aiohttp, pandas, Tenacity |
 | Infrastructure | Docker (multi-stage), Docker Compose, Nginx, Amazon Corretto 21 |
 
 ---
