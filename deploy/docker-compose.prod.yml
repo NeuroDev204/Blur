@@ -3,7 +3,6 @@ networks:
     driver: bridge
 
 
-
 volumes:
   neo4j_data:
   mysql_data:

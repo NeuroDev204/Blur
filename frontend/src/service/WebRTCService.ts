@@ -210,6 +210,10 @@ class WebRTCService {
         }
     }
 
+    getRemoteStream(): MediaStream | null {
+        return this.remoteStream
+    }
+
     toggleAudio(enabled: boolean): void {
         if (this.localStream) {
             this.localStream.getAudioTracks().forEach(track => {
