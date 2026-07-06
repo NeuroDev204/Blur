@@ -792,6 +792,30 @@ export const useCall = (currentUserId: string) => {
         }
     }, [])
 
+    // ============ RE-ATTACH STREAMS SAU KHI CALLWINDOW MOUNT ============
+    // CallWindow (chua 2 the video) chi mount khi isInCall && !isIncoming, trong khi stream
+    // co the da san sang TRUOC do (nguoi nhan: getUserMedia + ontrack chay ngay trong answerCall
+    // luc isIncoming van la true -> localVideoRef/remoteVideoRef con null, gan srcObject bi bo qua).
+    // Effect nay chay sau khi CallWindow da mount de gan lai stream -> sua loi camera chi hien 1 ben.
+    useEffect(() => {
+        if (!callState.isInCall || callState.isIncoming) return
+
+        const localStream = webRTCService.localStream
+        if (localVideoRef.current && localStream && localVideoRef.current.srcObject !== localStream) {
+            localVideoRef.current.srcObject = localStream
+            localVideoRef.current.muted = true
+            localVideoRef.current.play().catch(() => { })
+        }
+
+        const remoteStream = webRTCService.getRemoteStream()
+        if (remoteVideoRef.current && remoteStream && remoteVideoRef.current.srcObject !== remoteStream) {
+            remoteVideoRef.current.srcObject = remoteStream
+            remoteVideoRef.current.muted = false
+            remoteVideoRef.current.volume = 1.0
+            remoteVideoRef.current.play().catch(() => { })
+        }
+    }, [callState.isInCall, callState.isIncoming, connectionState])
+
     // ============ REGISTER CALLBACKS ============
     useEffect(() => {
         if (!socketAPI.isConnected) return

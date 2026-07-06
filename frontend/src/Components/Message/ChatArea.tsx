@@ -71,6 +71,7 @@ const ChatArea = ({
   const [input, setInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -339,8 +340,12 @@ const ChatArea = ({
     }
   }, [handleSend, isUploading]);
 
+  // An icon AI: gui cau hoi cua nguoi dung vao cuoc tro chuyen TRUOC,
+  // sau do goi AI va tu dong gui luon cau tra loi cua AI (khong dien vao o input nua).
   const handleAiAssist = useCallback(async () => {
-    if (!input.trim()) {
+    const question = input.trim();
+
+    if (!question) {
       toast('Vui lòng nhập nội dung để AI hỗ trợ.', {
         icon: '🤔',
         position: 'bottom-center',
@@ -356,6 +361,12 @@ const ChatArea = ({
       return;
     }
 
+    if (!conversation || !isConnected || isAiThinking) {
+      return;
+    }
+
+    setIsAiThinking(true);
+
     const aiToast = toast.loading('AI đang suy nghĩ...', {
       position: 'bottom-center',
       style: {
@@ -368,6 +379,11 @@ const ChatArea = ({
     });
 
     try {
+      // 1. Gui cau hoi di truoc
+      setInput("");
+      await onSendMessage(question, []);
+
+      // 2. Hoi AI
       const response = await fetch('/api/chat/ai/chat', {
         method: 'POST',
         credentials: 'include',
@@ -377,7 +393,7 @@ const ChatArea = ({
         body: JSON.stringify({
           conversationId: null,
           userId: localStorage.getItem('userId') || 'anonymous',
-          message: input
+          message: question
         })
       });
 
@@ -390,8 +406,9 @@ const ChatArea = ({
 
       // Backend trả về: { conversationId, response, success, error }
       if (data && data.success && data.response) {
-        setInput(data.response); // Thay data.message thành data.response
-        toast.success('AI đã hỗ trợ!', { id: aiToast, duration: 2000 });
+        // 3. Tu dong gui cau tra loi cua AI vao cuoc tro chuyen
+        await onSendMessage(data.response, []);
+        toast.success('AI đã trả lời!', { id: aiToast, duration: 2000 });
       } else {
         throw new Error(data.error || 'Phản hồi từ AI không hợp lệ.');
       }
@@ -400,8 +417,14 @@ const ChatArea = ({
         id: aiToast,
         duration: 3000
       });
+    } finally {
+      setIsAiThinking(false);
+
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
     }
-  }, [input]);
+  }, [input, conversation, isConnected, isAiThinking, onSendMessage]);
 
   // Memoize để tránh re-render không cần thiết
   const canSend = useMemo(() =>
@@ -627,10 +650,11 @@ const ChatArea = ({
             />
             <button
               onClick={handleAiAssist}
-              className="text-black hover:opacity-60 transition-opacity flex-shrink-0"
+              disabled={isAiThinking}
+              className="text-black hover:opacity-60 transition-opacity flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="AI"
             >
-              <Sparkles size={22} strokeWidth={1.5} />
+              <Sparkles size={22} strokeWidth={1.5} className={isAiThinking ? 'animate-pulse' : ''} />
             </button>
             <button
               className="text-black hover:opacity-60 transition-opacity flex-shrink-0 hidden sm:block"

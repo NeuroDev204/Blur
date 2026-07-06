@@ -89,15 +89,22 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }, [])
 
     useEffect(() => {
-        let client: Client | null = null
         let isMounted = true
+        let isInitializing = false
 
+        // Ket noi socket. Duoc goi khi mount VA sau khi login thanh cong (auth-login-success):
+        // lan dau truy cap web, SocketProvider mount TRUOC khi dang nhap -> introspectToken fail
+        // -> neu khong thu lai thi socket khong bao gio ket noi cho den khi reload trang
+        // (day la ly do truoc kia phai reload ca 2 ben moi goi dien duoc).
         const initSocket = async () => {
+            if (clientRef.current || isInitializing) return
+            isInitializing = true
+
             try {
                 const isAuth = await introspectToken()
                 if (!isAuth || !isMounted) return
 
-                client = new Client({
+                const client = new Client({
                     webSocketFactory: () =>
                         new SockJS(WS_URL, null, {
                             transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
@@ -196,16 +203,23 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
                 clientRef.current = client
             } catch (err) {
                 setError("Khong the ket noi socket")
+            } finally {
+                isInitializing = false
             }
         }
 
         initSocket()
 
+        // Sau khi login thanh cong (SPA khong reload trang) -> thu ket noi lai
+        const onLoginSuccess = () => initSocket()
+        window.addEventListener("auth-login-success", onLoginSuccess)
+
         return () => {
             isMounted = false
-            if (client) {
+            window.removeEventListener("auth-login-success", onLoginSuccess)
+            if (clientRef.current) {
                 try {
-                    client.deactivate()
+                    clientRef.current.deactivate()
                 } catch (e) {
                 }
             }

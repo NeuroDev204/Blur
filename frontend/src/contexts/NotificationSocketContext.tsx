@@ -37,10 +37,16 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
     const { addNotification } = useNotification()
 
     useEffect(() => {
-        let client: StompClient | null = null
         let isMounted = true
+        let isInitializing = false
 
+        // Goi khi mount VA sau khi login thanh cong: lan dau truy cap web provider mount
+        // truoc khi dang nhap -> introspectToken fail -> phai thu lai khi co auth-login-success,
+        // neu khong socket se khong ket noi cho den khi reload trang.
         const initSocket = async () => {
+            if (stompClientRef.current || isInitializing) return
+            isInitializing = true
+
             try {
                 const isAuth = await introspectToken()
                 if (!isAuth) {
@@ -53,6 +59,8 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
                 ])
 
                 if (!isMounted) return
+
+                let client: StompClient | null = null
 
                 const sockJsOptions = {
                     transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
@@ -103,19 +111,27 @@ export const NotificationSocketProvider: React.FC<NotificationSocketProviderProp
                 stompClientRef.current = client
 
             } catch (error) {
+            } finally {
+                isInitializing = false
             }
         }
 
         initSocket()
 
+        // Sau khi login thanh cong (SPA khong reload trang) -> thu ket noi lai
+        const onLoginSuccess = () => initSocket()
+        window.addEventListener("auth-login-success", onLoginSuccess)
+
         return () => {
             isMounted = false
-            if (client) {
+            window.removeEventListener("auth-login-success", onLoginSuccess)
+            if (stompClientRef.current) {
                 try {
-                    client.deactivate()
+                    stompClientRef.current.deactivate()
                 } catch (e) {
                 }
             }
+            stompClientRef.current = null
         }
     }, [addNotification])
 
