@@ -6,7 +6,9 @@ Content-service sẽ consume và update Comment entity.
 
 import json
 import logging
+import asyncio
 from aiokafka import AIOKafkaProducer
+from aiokafka.errors import KafkaConnectionError
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -15,17 +17,38 @@ class KafkaResultProducer:
     def __init__(self):
         self._producer = None
 
-    async def start(self):
+    async def start(self, max_retries: int = 5):
         self._producer = AIOKafkaProducer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             value_serializer=lambda v: json.dumps(v).encode('utf-8'),
         )
-        await self._producer.start()
-        logger.info(
-            "Kafka producer started | servers=%s | topic=%s",
-            settings.KAFKA_BOOTSTRAP_SERVERS,
-            settings.KAFKA_RESULT_TOPIC
-        )
+        
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                await self._producer.start()
+                logger.info(
+                    "Kafka producer started | servers=%s | topic=%s",
+                    settings.KAFKA_BOOTSTRAP_SERVERS,
+                    settings.KAFKA_RESULT_TOPIC
+                )
+                return
+            except KafkaConnectionError as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    logger.error("Failed to start Kafka producer after %d retries", max_retries)
+                    raise e
+                wait = min(30, 2 ** retry_count)
+                logger.warning("Kafka producer connection failed, retrying in %ds (%d/%d): %s", wait, retry_count, max_retries, e)
+                await asyncio.sleep(wait)
+            except Exception as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    logger.error("Failed to start Kafka producer due to unexpected error after %d retries", max_retries)
+                    raise e
+                wait = min(30, 2 ** retry_count)
+                logger.warning("Kafka producer error, retrying in %ds (%d/%d): %s", wait, retry_count, max_retries, e)
+                await asyncio.sleep(wait)
 
     async def send_result(self, result: dict):
         if self._producer is None:
